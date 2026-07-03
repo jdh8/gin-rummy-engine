@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Contributor documentation: an expanded CLAUDE.md (crate map, invariants,
+  verification gauntlet, conventions) and step-by-step procedures under
+  `.claude/skills/` for syncing the forward model, measuring bot strength,
+  adding strategies, and cutting releases.  No changes to the crate's API
+  or behavior.
+
 ## [0.1.0] - 2026-07-04
 
 ### Added

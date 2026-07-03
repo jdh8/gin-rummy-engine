@@ -6,8 +6,8 @@
 //! the just-taken-discard restriction, the two-card dead-hand rule, knock
 //! and gin settlement with greedy layoffs, undercuts — and the equivalence
 //! is guarded by a property test that replays whole rounds through both
-//! models (`tests/proptest.rs`).  Any rules change upstream must be
-//! mirrored here.
+//! models (`sim_matches_round_on_greedy_selfplay` in this module's
+//! tests).  Any rules change upstream must be mirrored here.
 
 use crate::heuristic::{best_shed, greedy_layoff, improves};
 use gin_rummy::{Card, Hand, Meld, Melds, Player, RoundResult, Rules, best_melds, deadwood};

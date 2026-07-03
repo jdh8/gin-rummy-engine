@@ -1,0 +1,74 @@
+---
+name: measure-strength
+description: Statistically evaluate whether a change to HeuristicBot, MonteCarloBot, their defaults, or the shared greedy core made the bots stronger or weaker. Use after any change to decision logic, sampling, or tuning knobs, and before claiming any strength number in docs or commit messages.
+---
+
+# Measure bot strength without fooling yourself
+
+Strength differences in this crate are a few percentage points; eyeballing
+a handful of games proves nothing.  Everything below runs in **release
+mode** — debug builds are far too slow for Monte Carlo rollouts and any
+timing you observe in them is meaningless.
+
+## Baselines (default configs, `Rules::default()`)
+
+- `mc:128` beats `greedy` in ≈56% of decisive rounds, at ~10 ms per turn.
+- The tripwire (`tests/strength.rs`) demands >52.5% over 1000 rounds: a
+  true 56% bot passes with >99% probability, an even bot sneaks through
+  less than 6% of the time.
+
+If a change moves these baselines, update them here, in `tests/strength.rs`,
+and in the doc comment on `MonteCarloBot::samples`.
+
+## Procedure
+
+1. Regression gate:
+
+   ```console
+   cargo test --release --test strength -- --ignored
+   ```
+
+2. Head-to-head measurement with the arena (seats and the dealer alternate
+   every trial, so there is no first-move bias to correct for):
+
+   ```console
+   cargo run --release --example arena -- --rounds 4000 --p1 greedy --p2 mc:64 --seed 7
+   cargo run --release --example arena -- --games 200 --p1 mc:16 --p2 mc:64 --seed 7
+   ```
+
+3. To compare old versus new code, run the *same* command (same `--seed`,
+   same `--rounds`) on both revisions and compare the printed intervals.
+
+## Reading the numbers
+
+- The arena prints 95% Wilson score intervals.  Rough half-widths near a
+  55% win rate: 1000 rounds → ±3 points, 4000 → ±1.5, 10 000 → ±1.
+- If the two candidates' intervals overlap heavily, the run is
+  inconclusive.  Increase `--rounds`; do **not** re-roll seeds until one
+  looks better — that is p-hacking and the "improvement" will not
+  replicate.
+- Dead hands are excluded from decisive rounds, so a change that raises
+  the dead-hand rate can "improve" the decisive win rate while scoring
+  fewer points.  Check the results line (knocks/undercuts/gins/dead) and
+  points per round, not just the percentage.
+- Compare within one rules preset; strength does not transfer across
+  `--rules modern|classic|palace`.
+
+## Speed
+
+```console
+cargo bench
+```
+
+Criterion benches per-decision latency for the heuristic and for
+`mc:16`/`mc:64`.  A strength win that triples decision time is a loss for
+interactive use; report both.
+
+## The statistics inside MonteCarloBot
+
+The bot deviates from the greedy incumbent only when the paired advantage
+clears two standard errors (`beats` in `src/mc.rs`); common random numbers
+(the same sampled worlds for every candidate) make the pairing work.  If
+you touch the sampling or `beats`, re-run this whole procedure — loosening
+the gate usually *weakens* the bot, because deviating on noise plays worse
+than the baseline.
