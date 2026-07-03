@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-07-04
+
 ### Added
 
 - The `Strategy` trait: one method per decision point (upcard offer, draw
@@ -24,3 +26,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   expected round points with common random numbers across candidates.
 - Examples: `play` (human vs bot in the terminal) and `arena` (bot-vs-bot
   tournaments with win rates and result tallies).
+
+[Unreleased]: https://github.com/jdh8/gin-rummy-engine/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/jdh8/gin-rummy-engine/releases/tag/v0.1.0
