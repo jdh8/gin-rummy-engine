@@ -68,7 +68,11 @@ fn read_command(prompt: &str) -> Option<String> {
     std::io::stdout().flush().ok()?;
     let mut line = String::new();
     match std::io::stdin().read_line(&mut line) {
-        Ok(0) | Err(_) => None,
+        // EOF (Ctrl-D) leaves the cursor mid-prompt; close the line first.
+        Ok(0) | Err(_) => {
+            println!();
+            None
+        }
         Ok(_) => Some(line.trim().to_lowercase()),
     }
 }
@@ -192,7 +196,7 @@ impl Strategy for HumanCli {
                 "take" | "t" => return UpcardAction::Take,
                 "pass" | "p" => return UpcardAction::Pass,
                 "sort" | "view" => self.toggle_sort(view),
-                "quit" | "q" => std::process::exit(0),
+                "quit" => std::process::exit(0),
                 _ => println!("Commands: take, pass, sort, quit."),
             }
         }
@@ -208,7 +212,7 @@ impl Strategy for HumanCli {
                 "draw" | "d" => return DrawAction::Stock,
                 "take" | "t" => return DrawAction::TakeDiscard,
                 "sort" | "view" => self.toggle_sort(view),
-                "quit" | "q" => std::process::exit(0),
+                "quit" => std::process::exit(0),
                 _ => println!("Commands: draw, take, sort, quit."),
             }
         }
@@ -244,7 +248,8 @@ impl Strategy for HumanCli {
                 }
                 "gin" | "g" => return TurnAction::BigGin(view.best_melds()),
                 "sort" | "view" => self.toggle_sort(view),
-                "quit" | "q" => std::process::exit(0),
+                // Quit has no `q` shortcut: a bare `q` names your only queen.
+                "quit" => std::process::exit(0),
                 // A bare card is a discard; no `discard` command needed.
                 _ => {
                     if let Some(card) = resolve_card(line.trim(), view.hand()) {

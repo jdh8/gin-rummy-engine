@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `discard` command), and name a card by a lone rank or suit (`5`, `♠`, `t`)
   when your hand holds exactly one match.  `knock` (or `n`) with no card
   auto-sheds to the smallest knockable deadwood.
+- The `play` example quits only on the full word `quit`, not a bare `q`, which
+  now names your only queen the way `k` names your only king; end-of-input
+  (Ctrl-D) closes the prompt line before exiting.
 
 ### Added
 
