@@ -23,6 +23,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- The `play` example highlights the card you just drew in your hand, so it is
+  easy to track from turn to turn even after it slots into a meld.
+
 - Contributor documentation: an expanded CLAUDE.md (crate map, invariants,
   verification gauntlet, conventions) and step-by-step procedures under
   `.claude/skills/` for syncing the forward model, measuring bot strength,

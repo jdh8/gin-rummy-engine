@@ -117,6 +117,14 @@ fn best_shed(hand: Hand, taken: Option<Card>) -> Card {
         .expect("a full hand always has a legal discard")
 }
 
+/// Wrap a card's name in ANSI reverse video wherever it appears in `text`,
+/// so the just-drawn card is easy to pick out of the hand.  A card's name is
+/// unique within a hand, so the plain substring replace never mis-hits.
+fn emphasize(text: &str, card: Card) -> String {
+    let name = card.to_string();
+    text.replace(&name, &format!("\x1b[7m{name}\x1b[0m"))
+}
+
 /// A card set as a spaced list, friendlier than the dotted suit groups
 /// for the short sets shown here
 fn list(cards: gin_rummy::Hand) -> String {
@@ -143,8 +151,9 @@ fn sorted(cards: gin_rummy::Hand, by_suit: bool) -> String {
 }
 
 /// The player's own hand on one line: the best meld arrangement, then the
-/// loose deadwood ordered by rank (the default) or by suit
-fn print_hand(view: &View<'_>, by_suit: bool) {
+/// loose deadwood ordered by rank (the default) or by suit.  `drawn`, if set,
+/// is the just-drawn card, highlighted so the human can track it.
+fn print_hand(view: &View<'_>, by_suit: bool, drawn: Option<Card>) {
     let melds = view.best_melds();
     let arranged = melds
         .iter()
@@ -158,17 +167,21 @@ fn print_hand(view: &View<'_>, by_suit: bool) {
     } else {
         ""
     };
-    println!(
+    let line = format!(
         "Your hand: {arranged}{sep}{} ({} deadwood)",
         sorted(loose, by_suit),
         melds.deadwood(),
     );
+    match drawn {
+        Some(card) => println!("{}", emphasize(&line, card)),
+        None => println!("{line}"),
+    }
 }
 
 /// Show everything the human may see before a decision
-fn show_position(view: &View<'_>, by_suit: bool) {
+fn show_position(view: &View<'_>, by_suit: bool, drawn: Option<Card>) {
     println!();
-    print_hand(view, by_suit);
+    print_hand(view, by_suit, drawn);
     match view.upcard() {
         Some(top) => println!(
             "Pile top: {top} (pile of {}), stock: {} cards",
@@ -186,19 +199,31 @@ fn show_position(view: &View<'_>, by_suit: bool) {
 /// by-rank (the default) and by-suit via the `sort` command.
 struct HumanCli {
     by_suit: bool,
+    /// The hand just before the current draw, so `drawn` can name the card
+    /// the draw added.
+    predraw: Option<Hand>,
 }
 
 impl HumanCli {
     /// Flip the hand ordering and reprint it; a display-only command.
     fn toggle_sort(&mut self, view: &View<'_>) {
         self.by_suit = !self.by_suit;
-        print_hand(view, self.by_suit);
+        print_hand(view, self.by_suit, self.drawn(view));
+    }
+
+    /// The card added since the last draw decision, if any — the one to
+    /// highlight so the human can track what they just drew.  Empty (`None`)
+    /// during the draw itself, when the snapshot equals the current hand.
+    fn drawn(&self, view: &View<'_>) -> Option<Card> {
+        self.predraw
+            .and_then(|before| (view.hand() - before).iter().next())
     }
 }
 
 impl Strategy for HumanCli {
     fn offer_upcard(&mut self, view: &View<'_>) -> UpcardAction {
-        show_position(view, self.by_suit);
+        self.predraw = Some(view.hand());
+        show_position(view, self.by_suit, self.drawn(view));
         loop {
             match read_command("Take the upcard or pass? [take/pass]")
                 .unwrap_or_else(|| "quit".into())
@@ -214,7 +239,8 @@ impl Strategy for HumanCli {
     }
 
     fn choose_draw(&mut self, view: &View<'_>) -> DrawAction {
-        show_position(view, self.by_suit);
+        self.predraw = Some(view.hand());
+        show_position(view, self.by_suit, self.drawn(view));
         loop {
             match read_command("Draw from the stock or take the pile top? [draw/take]")
                 .unwrap_or_else(|| "quit".into())
@@ -230,7 +256,7 @@ impl Strategy for HumanCli {
     }
 
     fn play_turn(&mut self, view: &View<'_>) -> TurnAction {
-        show_position(view, self.by_suit);
+        show_position(view, self.by_suit, self.drawn(view));
         if let Some(card) = view.taken_discard() {
             println!("(The just-taken {card} may not be shed this turn.)");
         }
@@ -375,7 +401,10 @@ fn main() -> Result<()> {
         None => StdRng::from_rng(&mut rand::rng()),
     };
     let mut bot = make_bot(&spec, &mut rng)?;
-    let mut human = HumanCli { by_suit: false };
+    let mut human = HumanCli {
+        by_suit: false,
+        predraw: None,
+    };
     let mut game = gin_rummy::Game::new(rules, HUMAN);
 
     println!("Gin rummy to {} points — you vs {spec}.", rules.game_target);
