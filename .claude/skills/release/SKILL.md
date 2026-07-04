@@ -35,13 +35,14 @@ bump the version bound in `Cargo.toml` here.
    - Rename `## [Unreleased]` to `## [x.y.z] - YYYY-MM-DD` and add a fresh
      empty `## [Unreleased]` above it.
    - Update the link references at the bottom: point `[Unreleased]` at
-     `compare/vx.y.z...HEAD` and add `[x.y.z]` (compare from the previous
-     tag, or `releases/tag/vx.y.z` for a first entry).
+     `compare/x.y.z...HEAD` and add `[x.y.z]` (compare from the previous
+     tag, or `releases/tag/x.y.z` for a first entry).
 4. Commit as `Release x.y.z` (see `git log` for the house style), then
-   tag and push:
+   tag and push.  Tags are unprefixed (`x.y.z`, not `vx.y.z`), matching
+   the sibling crates and the GitHub release title:
 
    ```console
-   git tag vx.y.z
+   git tag x.y.z
    git push && git push --tags
    ```
 
