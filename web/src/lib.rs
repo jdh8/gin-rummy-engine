@@ -103,6 +103,9 @@ struct Core {
     last_result: Option<RoundResult>,
     last_move: Option<Move>,
     settled: Option<gin_rummy::FinalScore>,
+    /// A round finished and the game continues: the showdown is on screen and
+    /// we wait for the player's Continue click before dealing the next round.
+    awaiting_continue: bool,
 }
 
 impl Core {
@@ -129,6 +132,7 @@ impl Core {
             last_result: None,
             last_move: None,
             settled: None,
+            awaiting_continue: false,
         }
     }
 
@@ -186,8 +190,11 @@ impl Core {
     fn step_once(&mut self) {
         let Some(seat) = self.table.turn() else {
             self.last_move = None; // a deal, or the settled game, is not a move
-            if self.settled.is_none() {
-                self.finish_round();
+            // Record a finished round once, then hold: the UI keeps the
+            // showdown (both hands, the knock, any layoffs) on screen and deals
+            // the next round only when the player clicks Continue.
+            if self.settled.is_none() && !self.awaiting_continue {
+                self.record_round();
             }
             return;
         };
@@ -288,8 +295,11 @@ impl Core {
         }
     }
 
-    /// Record the finished round, then deal the next one or settle the game.
-    fn finish_round(&mut self) {
+    /// Record the finished round, then either settle the game or hold for the
+    /// player's Continue click.  Dealing the next round is deferred to
+    /// [`Core::next_round`] so the showdown stays on screen — knocking,
+    /// spreading melds, and layoffs all decide the score and deserve a look.
+    fn record_round(&mut self) {
         let result = self
             .table
             .round()
@@ -314,11 +324,23 @@ impl Core {
             self.log.push(final_line(&settled));
             self.settled = Some(settled);
         } else {
-            self.round_no += 1;
-            let dealer = self.game.next_dealer();
-            self.table = Table::new(self.game.deal(&mut self.rng));
-            self.log.push(round_header(self.round_no, dealer));
+            self.awaiting_continue = true;
         }
+    }
+
+    /// Clear the showdown and deal the next round.  A no-op unless a finished
+    /// round is waiting on the player's Continue click.
+    fn next_round(&mut self) {
+        if !self.awaiting_continue {
+            return;
+        }
+        self.awaiting_continue = false;
+        self.last_move = None;
+        self.last_result = None;
+        self.round_no += 1;
+        let dealer = self.game.next_dealer();
+        self.table = Table::new(self.game.deal(&mut self.rng));
+        self.log.push(round_header(self.round_no, dealer));
     }
 
     /// Narrate what the bot just did from public information alone — a direct
@@ -400,6 +422,11 @@ impl Core {
         let view = self.table.view(HUMAN);
         let taken = view.taken_discard();
         let arranged = view.best_melds();
+        // At a knock/gin showdown both hands go face up to be scored; reveal
+        // the bot's melds, its deadwood, and any laid-off cards.  A dead hand
+        // has no knocker and stays concealed.
+        let round = self.table.round();
+        let bot = (round.knocker().is_some()).then(|| best_melds(round.hand(BOT)));
         Snapshot {
             round_no: self.round_no,
             phase: phase_name(view.phase()),
@@ -420,6 +447,21 @@ impl Core {
             taken_discard: taken.map(|c| c.to_string()),
             you_score: self.game.score(HUMAN),
             bot_score: self.game.score(BOT),
+            round_over: self.awaiting_continue,
+            result: self.last_result.map(describe),
+            bot_melds: bot
+                .iter()
+                .flat_map(|melds| melds.iter().map(|meld| cards_by_suit(meld.cards(), None)))
+                .collect(),
+            bot_loose: bot
+                .as_ref()
+                .map(|melds| cards_by_rank(melds.deadwood_cards(), None))
+                .unwrap_or_default(),
+            laid_off: if bot.is_some() {
+                cards_by_rank(round.laid_off(), None)
+            } else {
+                Vec::new()
+            },
             game_over: over,
             winner: self
                 .settled
@@ -483,6 +525,16 @@ struct Snapshot {
     taken_discard: Option<String>,
     you_score: u16,
     bot_score: u16,
+    /// A round just finished and the game continues; the UI shows Continue.
+    round_over: bool,
+    /// The finished round's result summary, for the between-rounds banner.
+    result: Option<String>,
+    /// The bot's melds, laid face up at the showdown (empty until a knock).
+    bot_melds: Vec<Vec<CardJson>>,
+    /// The bot's remaining deadwood at the showdown.
+    bot_loose: Vec<CardJson>,
+    /// Cards the defender laid off onto the knocker's spread, shown apart.
+    laid_off: Vec<CardJson>,
     game_over: bool,
     winner: Option<&'static str>,
     /// The move that produced this snapshot, if any, for animation.
@@ -563,6 +615,12 @@ impl WebGame {
     /// Knock on the smallest deadwood.
     pub fn knock(&mut self) -> String {
         self.core.knock();
+        self.snapshot()
+    }
+
+    /// Deal the next round after the between-rounds pause.
+    pub fn next_round(&mut self) -> String {
+        self.core.next_round();
         self.snapshot()
     }
 }
@@ -726,13 +784,32 @@ mod tests {
         loop {
             // Tick through the bot's replies and the human's forced/auto steps,
             // exactly as the paced UI does, until a real decision or the end.
-            while !core.awaiting_human_input() && core.settled.is_none() {
+            while !core.awaiting_human_input() && core.settled.is_none() && !core.awaiting_continue
+            {
                 guard += 1;
                 assert!(guard < 100_000, "the game must terminate");
                 core.step_once();
             }
             if core.settled.is_some() {
                 break;
+            }
+            // Between rounds the UI holds for a Continue click; drive it here.
+            if core.awaiting_continue {
+                // The showdown snapshot: round over, game not, a result to show,
+                // and the bot's hand revealed exactly when someone knocked.
+                let showdown = core.snapshot();
+                assert!(showdown.round_over && !showdown.game_over && !showdown.your_turn);
+                assert!(showdown.result.is_some(), "a finished round has a summary");
+                let revealed = !showdown.bot_melds.is_empty() || !showdown.bot_loose.is_empty();
+                assert_eq!(
+                    revealed,
+                    core.table.round().knocker().is_some(),
+                    "the bot's hand is face up at a knock and only there",
+                );
+                core.next_round();
+                let dealt = core.snapshot();
+                assert!(!dealt.round_over && dealt.result.is_none() && dealt.bot_melds.is_empty());
+                continue;
             }
             let snap = core.snapshot();
             assert!(snap.your_turn, "awaiting_human_input implies your_turn");
@@ -774,7 +851,8 @@ mod tests {
         while core.settled.is_none() {
             guard += 1;
             assert!(guard < 100_000, "the game must terminate");
-            while !core.awaiting_human_input() && core.settled.is_none() {
+            while !core.awaiting_human_input() && core.settled.is_none() && !core.awaiting_continue
+            {
                 core.step_once();
                 saw_move |= matches!(
                     core.last_move,
@@ -789,6 +867,11 @@ mod tests {
             }
             if core.settled.is_some() {
                 break;
+            }
+            // Between rounds the UI holds for a Continue click; drive it here.
+            if core.awaiting_continue {
+                core.next_round();
+                continue;
             }
             // The human plays greedily, knocking as soon as it is legal.
             let snap = core.snapshot();

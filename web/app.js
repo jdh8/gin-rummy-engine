@@ -66,10 +66,20 @@ async function act(method, ...args) {
 // Tick the engine while it is the bot's turn or a forced human step, animating
 // and pacing each move.
 async function run() {
-  while (state && !state.your_turn && !state.game_over) {
+  while (state && !state.your_turn && !state.game_over && !state.round_over) {
     await delay(PACE_MS);
     await step(JSON.parse(game.tick()));
   }
+}
+
+// Clear the showdown and deal the next round, then pace to the next decision.
+async function continueGame() {
+  if (busy) return;
+  busy = true;
+  state = JSON.parse(game.next_round());
+  render(state);
+  await run();
+  busy = false;
 }
 
 // Animate the move that produced `s` over the current view, then render `s`.
@@ -145,10 +155,14 @@ function render(s) {
   const opp = id('opp');
   opp.innerHTML = '';
   opp.append(text(`Bot — ${s.bot_score}`, 'seat'));
-  const fan = document.createElement('div');
-  fan.className = 'fan';
-  for (let i = 0; i < s.bot_hand_len; i++) fan.appendChild(backEl());
-  opp.appendChild(fan);
+  if (s.bot_melds.length || s.bot_loose.length) {
+    renderReveal(opp, s); // showdown: the bot's hand, face up
+  } else {
+    const fan = document.createElement('div');
+    fan.className = 'fan';
+    for (let i = 0; i < s.bot_hand_len; i++) fan.appendChild(backEl());
+    opp.appendChild(fan);
+  }
 
   renderDeck(s);
   renderDiscard(s);
@@ -201,6 +215,21 @@ function renderHand(s) {
   h.appendChild(group(loose, clickable, false));
 }
 
+// The bot's hand laid face up at the showdown: melds tinted, loose plain, with
+// any laid-off cards shown apart.  Nothing here is clickable.
+function renderReveal(opp, s) {
+  const wrap = document.createElement('div');
+  wrap.className = 'hand reveal';
+  s.bot_melds.forEach((m) => wrap.appendChild(group(m, false, true)));
+  if (s.bot_loose.length) wrap.appendChild(group(s.bot_loose, false, false));
+  opp.appendChild(wrap);
+  if (s.laid_off.length) {
+    const lo = group(s.laid_off, false, false);
+    lo.classList.add('laidoff');
+    opp.append(text('laid off', 'seat'), lo);
+  }
+}
+
 function group(cards, clickable, meld) {
   const g = document.createElement('div');
   g.className = meld ? 'group meld' : 'group';
@@ -225,6 +254,10 @@ function renderActions(s) {
       text(s.winner === 'you' ? 'You win! 🎉' : 'Bot wins.', 'banner'),
       button('New game', newGame),
     );
+    return;
+  }
+  if (s.round_over) {
+    box.append(text(s.result || 'Round over', 'banner'), button('Continue', continueGame));
     return;
   }
   box.append(text(`Deadwood ${s.deadwood}`, 'dead'));

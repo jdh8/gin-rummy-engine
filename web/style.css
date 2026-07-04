@@ -109,6 +109,15 @@ main {
 .group { display: flex; gap: 0.3rem; padding: 0.3rem; border-radius: 7px; }
 .meld { background: rgba(120, 210, 140, 0.22); }
 
+/* The bot's hand turned face up at the showdown; cards flip into view. */
+.reveal { gap: 0.4rem; }
+.reveal .card { animation: flip 0.3s ease both; }
+.laidoff .card { opacity: 0.8; outline: 2px dashed var(--gold); outline-offset: -2px; }
+@keyframes flip {
+  from { transform: rotateY(90deg); opacity: 0; }
+  to { transform: rotateY(0); opacity: 1; }
+}
+
 /* Cards. */
 .card {
   width: var(--card-w);
