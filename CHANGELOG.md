@@ -15,8 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   deadwood between by-rank and by-suit while you play.
 - The `play` example takes moves more tersely: type a card to discard it (no
   `discard` command), and name a card by a lone rank or suit (`5`, `♠`, `t`)
-  when your hand holds exactly one match.  `knock` (or `n`) with no card
-  auto-sheds to the smallest knockable deadwood.
+  when your hand holds exactly one match.  `knock` (or `n`, its highlighted
+  hotkey) always auto-sheds the smallest knockable deadwood — the shed goes
+  face down and never reaches the opponent, so it is never a real choice.
 - The `play` example quits only on the full word `quit`, not a bare `q`, which
   now names your only queen the way `k` names your only king; end-of-input
   (Ctrl-D) closes the prompt line before exiting.

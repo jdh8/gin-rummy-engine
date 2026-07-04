@@ -268,34 +268,27 @@ impl Strategy for HumanCli {
             println!("(The just-taken {card} may not be shed this turn.)");
         }
         loop {
-            let line = read_command("Your move [<card> to discard / knock [card]]:")
-                .unwrap_or_else(|| "quit".into());
-            let (command, argument) = match line.split_once(' ') {
-                Some((command, argument)) => (command, argument.trim()),
-                None => (line.as_str(), ""),
-            };
-            match command {
-                // Knock is `n` (a bare `k` names your only king); an empty
-                // argument auto-sheds to the smallest knockable deadwood.
+            match read_command("Your move [<card> to discard / k\x1b[7mn\x1b[0mock]:")
+                .unwrap_or_else(|| "quit".into())
+                .as_str()
+            {
+                // Knock is `n` (a bare `k` names your only king).  The shed is
+                // forced, not chosen: it goes face down, so it never reaches
+                // the opponent, leaving the knocker's own deadwood as the only
+                // objective — and `best_shed` minimizes it.
                 "knock" | "n" => {
-                    let discard = if argument.is_empty() {
-                        Some(best_shed(view.hand(), view.taken_discard()))
-                    } else {
-                        resolve_card(argument, view.hand())
+                    let discard = best_shed(view.hand(), view.taken_discard());
+                    return TurnAction::Knock {
+                        discard,
+                        melds: best_melds(view.hand() - discard.into()),
                     };
-                    if let Some(card) = discard {
-                        return TurnAction::Knock {
-                            discard: card,
-                            melds: best_melds(view.hand() - card.into()),
-                        };
-                    }
                 }
                 "sort" | "view" => self.toggle_sort(view),
                 // Quit has no `q` shortcut: a bare `q` names your only queen.
                 "quit" => std::process::exit(0),
                 // A bare card is a discard; no `discard` command needed.
-                _ => {
-                    if let Some(card) = resolve_card(line.trim(), view.hand()) {
+                text => {
+                    if let Some(card) = resolve_card(text, view.hand()) {
                         return TurnAction::Discard(card);
                     }
                 }
