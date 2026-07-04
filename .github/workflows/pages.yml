@@ -24,27 +24,21 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-    # Same sibling-checkout dance as rust.yml: the web crate's path
-    # dependency needs ../gin-rummy next to the engine checkout.
+    # The web crate depends on gin-rummy from crates.io, so a plain checkout is
+    # enough — no sibling gin-rummy checkout needed.
     - uses: actions/checkout@v6
-      with:
-        path: gin-rummy-engine
-    - uses: actions/checkout@v6
-      with:
-        repository: jdh8/gin-rummy
-        path: gin-rummy
     - name: Install wasm-pack
       run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
     - name: Build wasm
       run: wasm-pack build --release --target web
-      working-directory: gin-rummy-engine/web
+      working-directory: web
     - name: Stage static site
       run: |
-        cd gin-rummy-engine/web
+        cd web
         mkdir _site
         cp -r index.html app.js style.css pkg _site/
     - uses: actions/upload-pages-artifact@v3
       with:
-        path: gin-rummy-engine/web/_site
+        path: web/_site
     - id: deployment
       uses: actions/deploy-pages@v4
