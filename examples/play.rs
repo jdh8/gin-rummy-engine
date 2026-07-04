@@ -142,15 +142,26 @@ fn sorted(cards: gin_rummy::Hand, by_suit: bool) -> String {
         .join(" ")
 }
 
-/// The player's own hand: the best meld arrangement with its deadwood, then a
-/// flat list ordered by rank (the default) or by suit
+/// The player's own hand on one line: the best meld arrangement, then the
+/// loose deadwood ordered by rank (the default) or by suit
 fn print_hand(view: &View<'_>, by_suit: bool) {
     let melds = view.best_melds();
-    println!("Your hand: {melds} ({} deadwood)", melds.deadwood());
+    let arranged = melds
+        .iter()
+        .map(|m| m.to_string())
+        .collect::<Vec<_>>()
+        .join(" ");
+    let loose = melds.deadwood_cards();
+    // Mirror `Melds` Display: the `|` only separates two non-empty sides.
+    let sep = if !arranged.is_empty() && !loose.is_empty() {
+        " | "
+    } else {
+        ""
+    };
     println!(
-        "  by {}: {}",
-        if by_suit { "suit" } else { "rank" },
-        sorted(view.hand(), by_suit),
+        "Your hand: {arranged}{sep}{} ({} deadwood)",
+        sorted(loose, by_suit),
+        melds.deadwood(),
     );
 }
 
@@ -171,7 +182,7 @@ fn show_position(view: &View<'_>, by_suit: bool) {
     }
 }
 
-/// Interactive human seat.  `by_suit` toggles the hand listing between
+/// Interactive human seat.  `by_suit` toggles the deadwood ordering between
 /// by-rank (the default) and by-suit via the `sort` command.
 struct HumanCli {
     by_suit: bool,
