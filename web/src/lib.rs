@@ -759,4 +759,63 @@ mod tests {
         );
         assert!(core.snapshot().game_over);
     }
+
+    /// Big gin is too rare to stumble on by hand, so it is pinned to a seed:
+    /// seed 381's greedy self-play has the bot draw into a fully-melded hand.
+    /// The whole web path must fire — the engine's `BigGin` result, the
+    /// `big_gin` move the UI animates, the narrated log line, and a summary
+    /// that names it — so a regression anywhere along it trips this test.
+    #[test]
+    fn big_gin_travels_the_whole_web_path() {
+        let mut core = Core::new("greedy", Rules::new(), 381);
+        let mut result = None;
+        let mut saw_move = false;
+        let mut guard = 0;
+        while core.settled.is_none() {
+            guard += 1;
+            assert!(guard < 100_000, "the game must terminate");
+            while !core.awaiting_human_input() && core.settled.is_none() {
+                core.step_once();
+                saw_move |= matches!(
+                    core.last_move,
+                    Some(Move {
+                        kind: "big_gin",
+                        ..
+                    })
+                );
+                if matches!(core.last_result, Some(RoundResult::BigGin { .. })) {
+                    result = core.last_result;
+                }
+            }
+            if core.settled.is_some() {
+                break;
+            }
+            // The human plays greedily, knocking as soon as it is legal.
+            let snap = core.snapshot();
+            match snap.phase {
+                "upcard" => core.pass_upcard(),
+                "draw" => core.draw_stock(),
+                "discard" if snap.can_knock => core.knock(),
+                "discard" => {
+                    let card = {
+                        let view = core.table.view(HUMAN);
+                        best_shed(view.hand(), view.taken_discard())
+                    };
+                    core.discard(card);
+                }
+                other => panic!("unexpected phase for a human decision: {other}"),
+            }
+        }
+        let result = result.expect("seed 381's greedy self-play reaches a big gin");
+        assert!(saw_move, "the UI receives a `big_gin` move to animate");
+        assert!(
+            core.log.iter().any(|l| l.contains("BIG GIN")),
+            "the big gin is narrated in the log",
+        );
+        assert!(
+            describe(result).contains("BIG gin"),
+            "the round summary names the big gin: {}",
+            describe(result),
+        );
+    }
 }
