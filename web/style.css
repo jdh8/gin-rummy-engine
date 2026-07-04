@@ -1,9 +1,16 @@
+/* A deliberately plain, kitchen-table look: flat felt, flat card faces, a
+   cheap patterned card back.  No gradients or gloss — it should feel like
+   playing a friend with an ordinary deck, not a casino app. */
+
 :root {
-  --felt: #23695a;
-  --ink: #1b1b1b;
+  --felt: #2c7a63;
   --card-bg: #fdfdf7;
   --red: #c0392b;
   --black: #1b1b1b;
+  --back: #b23a3a;
+  --gold: #f5c518;
+  --card-w: 2.7rem;
+  --card-h: 3.8rem;
 }
 
 * { box-sizing: border-box; }
@@ -11,54 +18,164 @@
 body {
   margin: 0;
   font: 15px/1.4 system-ui, sans-serif;
-  color: #eee;
+  color: #f2f2f2;
   background: var(--felt);
   display: grid;
-  grid-template-columns: 1fr minmax(0, 18rem);
+  grid-template-columns: 1fr minmax(0, 17rem);
   grid-template-areas: "main log";
   min-height: 100vh;
 }
 
-header { grid-column: 1 / -1; padding: 0.5rem 1rem; display: flex; align-items: baseline; gap: 1rem; border-bottom: 1px solid rgba(255,255,255,0.15); }
+header {
+  grid-column: 1 / -1;
+  padding: 0.5rem 1rem;
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.2);
+}
 h1 { font-size: 1.2rem; margin: 0; }
-.score { opacity: 0.85; }
+.score { opacity: 0.9; }
 
-main { grid-area: main; padding: 1rem; }
-main h2 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.7; margin: 1rem 0 0.4rem; }
+main {
+  grid-area: main;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+}
 
-.row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; }
-.hand { gap: 1rem; }
-.meld, .loose { display: flex; gap: 0.3rem; padding: 0.3rem; border-radius: 6px; }
-.meld { background: rgba(255,255,255,0.08); }
+/* Opponent: a face-down fan sized to their hand. */
+.opp { display: flex; flex-direction: column; align-items: center; gap: 0.3rem; }
+.seat { opacity: 0.85; font-weight: 600; }
+.fan { display: flex; }
+.fan .card { margin-left: -1.5rem; box-shadow: -1px 1px 2px rgba(0, 0, 0, 0.3); }
+.fan .card:first-child { margin-left: 0; }
 
+/* Centre of the table: the concealed deck and the discard pile. */
+.table {
+  display: flex;
+  gap: 2.5rem;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem 0;
+  min-height: calc(var(--card-h) + 2rem);
+}
+.stack {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--card-w);
+  height: var(--card-h);
+}
+.badge {
+  position: absolute;
+  bottom: -0.5rem;
+  background: rgba(0, 0, 0, 0.65);
+  color: var(--gold);
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.02rem 0.35rem;
+  border-radius: 0.6rem;
+}
+
+/* Your hand: melds tinted, loose cards plain. */
+.hand {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 0.6rem;
+}
+.group { display: flex; gap: 0.3rem; padding: 0.3rem; border-radius: 7px; }
+.meld { background: rgba(120, 210, 140, 0.22); }
+
+/* Cards. */
 .card {
-  width: 2.6rem; height: 3.6rem;
+  width: var(--card-w);
+  height: var(--card-h);
   background: var(--card-bg);
   border-radius: 6px;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.4);
-  display: flex; flex-direction: column; justify-content: space-between;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
   padding: 0.2rem 0.3rem;
   font-weight: 600;
+  flex: none;
 }
 .card .suit { align-self: flex-end; font-size: 1.2rem; }
 .card.red { color: var(--red); }
 .card.black { color: var(--black); }
+
+.card.back {
+  background-color: var(--back);
+  background-image: repeating-linear-gradient(
+    45deg, rgba(255, 255, 255, 0.18) 0 5px, transparent 5px 10px);
+  border: 2px solid #fff;
+}
+.card.slot {
+  background: transparent;
+  border: 2px dashed rgba(255, 255, 255, 0.3);
+  box-shadow: none;
+}
+
 .card.clickable { cursor: pointer; transition: transform 0.08s; }
 .card.clickable:hover { transform: translateY(-0.4rem); }
 .card.taken { opacity: 0.45; }
 
-.counts { opacity: 0.7; margin-left: 0.5rem; }
+/* A card the player just drew, pulsed so it is easy to spot in the sorted hand. */
+.justdrawn { animation: pulse 0.9s ease; }
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4); }
+  30% { box-shadow: 0 0 0 3px var(--gold); }
+}
 
-.actions { margin-top: 1.5rem; display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; min-height: 2.4rem; }
-button { font: inherit; padding: 0.4rem 0.9rem; border: 0; border-radius: 6px; background: #f5c518; color: #222; cursor: pointer; font-weight: 600; }
-button:hover { background: #ffd83a; }
+/* A card mid-flight between zones. */
+.ghost {
+  position: fixed;
+  margin: 0;
+  z-index: 100;
+  pointer-events: none;
+  transition: transform 0.35s ease;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  min-height: 2.4rem;
+}
+.dead { font-weight: 600; opacity: 0.9; }
+.muted { opacity: 0.7; font-style: italic; }
 .banner { font-size: 1.1rem; font-weight: 700; }
+button {
+  font: inherit;
+  padding: 0.4rem 0.9rem;
+  border: 0;
+  border-radius: 6px;
+  background: var(--gold);
+  color: #222;
+  cursor: pointer;
+  font-weight: 600;
+}
+button:hover { background: #ffd83a; }
 
-.log { grid-area: log; padding: 0.5rem 1rem; background: rgba(0,0,0,0.2); overflow-y: auto; max-height: 100vh; font-size: 0.85rem; }
-.log h2 { font-size: 0.8rem; text-transform: uppercase; opacity: 0.7; }
+.log {
+  grid-area: log;
+  padding: 0.5rem 1rem;
+  background: rgba(0, 0, 0, 0.18);
+  overflow-y: auto;
+  max-height: 100vh;
+  font-size: 0.85rem;
+}
+.log h2 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.7; }
 .log div { padding: 0.1rem 0; opacity: 0.9; }
 
 @media (max-width: 40rem) {
   body { grid-template-columns: 1fr; grid-template-areas: "main" "log"; }
-  .log { max-height: 14rem; }
+  .log { max-height: 12rem; }
 }

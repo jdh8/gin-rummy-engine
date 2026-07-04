@@ -101,6 +101,7 @@ struct Core {
     round_no: u32,
     log: Vec<String>,
     last_result: Option<RoundResult>,
+    last_move: Option<Move>,
     settled: Option<gin_rummy::FinalScore>,
 }
 
@@ -115,7 +116,9 @@ impl Core {
         let game = Game::new(rules, HUMAN);
         let dealer = game.next_dealer();
         let table = Table::new(game.deal(&mut rng));
-        let mut core = Self {
+        // The UI paces the game from the deal by ticking `step_once`, so unlike
+        // `play.rs` we do not drain to the first human decision here.
+        Self {
             game,
             table,
             bot,
@@ -124,10 +127,9 @@ impl Core {
             round_no: 1,
             log: vec![round_header(1, dealer)],
             last_result: None,
+            last_move: None,
             settled: None,
-        };
-        core.advance();
-        core
+        }
     }
 
     // --- human decisions -------------------------------------------------
@@ -159,67 +161,130 @@ impl Core {
         self.human(HumanAction::Turn(TurnAction::Knock { discard, melds }));
     }
 
-    /// Stage a human action, step once, then advance to the next decision.
+    /// Stage a human action and step the driver once.  The bot's reply is *not*
+    /// run here: the UI ticks [`Core::step_once`] itself, pacing and animating
+    /// each following action.
     fn human(&mut self, action: HumanAction) {
+        let before_phase = self.table.round().phase();
+        let before_top = self.table.round().discard_pile().last().copied();
+        let before_pile = self.table.round().discard_pile().len();
+        let before_hand = self.table.view(HUMAN).hand();
+        self.last_move = None;
         self.pending.action = Some(action);
         if let Err(e) = self.table.step(&mut self.pending) {
             // A well-behaved UI only offers legal moves; surface anything else.
             self.log.push(format!("Illegal: {e}"));
+            return;
         }
-        self.advance();
+        self.last_move = self.move_for("you", before_phase, before_top, before_pile, before_hand);
     }
 
-    /// Run bot turns (and the human's forced/auto steps) until the human has a
-    /// real decision to make or the game is over.
-    fn advance(&mut self) {
-        loop {
-            let Some(seat) = self.table.turn() else {
-                if self.settled.is_some() {
-                    break;
-                }
+    /// Advance the game by at most one visible action: one bot move, one of the
+    /// human's forced/auto steps, or finishing a round (and dealing the next).
+    /// Does nothing once the human has a real decision or the game is settled —
+    /// the UI paces calls to this, animating the move each one reports.
+    fn step_once(&mut self) {
+        let Some(seat) = self.table.turn() else {
+            self.last_move = None; // a deal, or the settled game, is not a move
+            if self.settled.is_none() {
                 self.finish_round();
-                if self.settled.is_some() {
-                    break;
-                }
-                continue; // a fresh round was dealt; run its leading actions
-            };
-
-            if seat == HUMAN {
-                let step = {
-                    let view = self.table.view(HUMAN);
-                    match view.phase() {
-                        // The forced stock draw after both pass consults no one.
-                        Phase::Draw if !view.can_take_discard() => HumanStep::AutoStep,
-                        Phase::Layoff => HumanStep::AutoStep,
-                        Phase::Discard
-                            if view.deadwood() == 0 && view.rules().big_gin_bonus.is_some() =>
-                        {
-                            HumanStep::BigGin(view.best_melds())
-                        }
-                        Phase::Upcard | Phase::Draw | Phase::Discard => HumanStep::WaitInput,
-                        Phase::Finished => HumanStep::AutoStep,
-                    }
-                };
-                match step {
-                    HumanStep::WaitInput => break,
-                    HumanStep::AutoStep => {
-                        let _ = self.table.step(&mut self.pending);
-                    }
-                    HumanStep::BigGin(melds) => {
-                        self.log.push("You declare BIG GIN!".into());
-                        self.pending.action = Some(HumanAction::Turn(TurnAction::BigGin(melds)));
-                        let _ = self.table.step(&mut self.pending);
-                    }
-                }
-            } else {
-                let phase = self.table.round().phase();
-                let top = self.table.round().discard_pile().last().copied();
-                let pile = self.table.round().discard_pile().len();
-                self.table
-                    .step(&mut *self.bot)
-                    .expect("the bot always chooses legal actions");
-                self.narrate_bot(phase, top, pile);
             }
+            return;
+        };
+
+        // Pre-step public state, for narration and the move signal.
+        let before_phase = self.table.round().phase();
+        let before_top = self.table.round().discard_pile().last().copied();
+        let before_pile = self.table.round().discard_pile().len();
+        let before_hand = self.table.view(HUMAN).hand();
+
+        if seat == HUMAN {
+            match self.human_step() {
+                HumanStep::WaitInput => return, // a real choice: leave it to the UI
+                HumanStep::AutoStep => {
+                    let _ = self.table.step(&mut self.pending);
+                }
+                HumanStep::BigGin(melds) => {
+                    self.log.push("You declare BIG GIN!".into());
+                    self.pending.action = Some(HumanAction::Turn(TurnAction::BigGin(melds)));
+                    let _ = self.table.step(&mut self.pending);
+                }
+            }
+            self.last_move =
+                self.move_for("you", before_phase, before_top, before_pile, before_hand);
+        } else {
+            self.table
+                .step(&mut *self.bot)
+                .expect("the bot always chooses legal actions");
+            self.narrate_bot(before_phase, before_top, before_pile);
+            self.last_move =
+                self.move_for("bot", before_phase, before_top, before_pile, before_hand);
+        }
+    }
+
+    /// What the driver should do at the human's seat right now.
+    fn human_step(&self) -> HumanStep {
+        let view = self.table.view(HUMAN);
+        match view.phase() {
+            // The forced stock draw after both pass consults no one.
+            Phase::Draw if !view.can_take_discard() => HumanStep::AutoStep,
+            Phase::Layoff => HumanStep::AutoStep,
+            Phase::Discard if view.deadwood() == 0 && view.rules().big_gin_bonus.is_some() => {
+                HumanStep::BigGin(view.best_melds())
+            }
+            Phase::Upcard | Phase::Draw | Phase::Discard => HumanStep::WaitInput,
+            Phase::Finished => HumanStep::AutoStep,
+        }
+    }
+
+    /// Whether the human has a genuine choice pending, as opposed to a forced
+    /// step the driver resolves itself.  Drives `Snapshot::your_turn`, so the UI
+    /// keeps ticking through forced draws, layoffs, and big gin.
+    fn awaiting_human_input(&self) -> bool {
+        self.settled.is_none()
+            && self.table.turn() == Some(HUMAN)
+            && matches!(self.human_step(), HumanStep::WaitInput)
+    }
+
+    /// The move just applied, described from legally-visible information, for the
+    /// UI to animate.  A card drawn from the stock is named only for the human's
+    /// own draw (a hand diff); the bot's stock draw stays hidden (invariant 1).
+    fn move_for(
+        &self,
+        actor: &'static str,
+        before_phase: Phase,
+        before_top: Option<Card>,
+        before_pile: usize,
+        before_hand: Hand,
+    ) -> Option<Move> {
+        let round = self.table.round();
+        let mv = |kind, card| Move { actor, kind, card };
+        match before_phase {
+            Phase::Upcard => Some(if round.phase() == Phase::Discard {
+                mv("take", before_top.map(|c| c.to_string()))
+            } else {
+                mv("pass", None)
+            }),
+            Phase::Draw => Some(if round.discard_pile().len() < before_pile {
+                mv("take", before_top.map(|c| c.to_string()))
+            } else {
+                // Drawn from the stock: name it only for the human's own hand.
+                let card = (actor == "you")
+                    .then(|| (self.table.view(HUMAN).hand() - before_hand).iter().next())
+                    .flatten()
+                    .map(|c| c.to_string());
+                mv("draw_stock", card)
+            }),
+            Phase::Discard => Some(match round.result() {
+                Some(RoundResult::BigGin { .. }) => mv("big_gin", None),
+                // A normal discard, a knock, or gin all shed a visible top card.
+                _ => mv(
+                    "discard",
+                    round.discard_pile().last().map(|c| c.to_string()),
+                ),
+            }),
+            Phase::Layoff => Some(mv("layoff", None)),
+            Phase::Finished => None,
         }
     }
 
@@ -338,7 +403,8 @@ impl Core {
         Snapshot {
             round_no: self.round_no,
             phase: phase_name(view.phase()),
-            your_turn: self.table.turn() == Some(HUMAN) && !over,
+            your_turn: self.awaiting_human_input(),
+            can_knock: view.phase() == Phase::Discard && view.deadwood() <= view.knock_limit(),
             melds: arranged
                 .iter()
                 .map(|meld| cards_by_suit(meld.cards(), taken))
@@ -348,6 +414,7 @@ impl Core {
             upcard: view.upcard().map(|c| card_json(c, None)),
             pile_len: view.discard_pile().len(),
             stock_len: view.stock_len(),
+            bot_hand_len: view.opponent_hand_len(),
             opponent_known: cards_by_rank(view.opponent_known(), None),
             taken_discard: taken.map(|c| c.to_string()),
             you_score: self.game.score(HUMAN),
@@ -357,6 +424,7 @@ impl Core {
                 .settled
                 .as_ref()
                 .map(|s| if s.winner == HUMAN { "you" } else { "bot" }),
+            last_move: self.last_move.clone(),
             log: self.log.clone(),
         }
     }
@@ -379,12 +447,26 @@ struct CardJson {
     taken: bool,
 }
 
+/// The action just applied, for the UI to animate a single card between zones.
+#[derive(Serialize, Clone)]
+struct Move {
+    /// `"you"` or `"bot"` — whose card moved (and thus its hand zone).
+    actor: &'static str,
+    /// `draw_stock` | `take` | `discard` | `big_gin` | `pass` | `layoff`.
+    kind: &'static str,
+    /// The moving card's `code`, or `None` when it is face down (the bot's
+    /// hidden stock draw) or there is no card (pass/layoff/big gin).
+    card: Option<String>,
+}
+
 /// Everything one seat may legally see, plus the running transcript.
 #[derive(Serialize)]
 struct Snapshot {
     round_no: u32,
     phase: &'static str,
     your_turn: bool,
+    /// Whether knocking is legal right now (deadwood within the limit).
+    can_knock: bool,
     /// The best meld arrangement, one inner list per meld.
     melds: Vec<Vec<CardJson>>,
     /// Loose deadwood, ordered by rank.
@@ -393,6 +475,8 @@ struct Snapshot {
     upcard: Option<CardJson>,
     pile_len: usize,
     stock_len: usize,
+    /// The bot's hand size, for the face-down opponent fan.
+    bot_hand_len: usize,
     opponent_known: Vec<CardJson>,
     /// `code` of the card that may not be shed this turn, if any.
     taken_discard: Option<String>,
@@ -400,6 +484,8 @@ struct Snapshot {
     bot_score: u16,
     game_over: bool,
     winner: Option<&'static str>,
+    /// The move that produced this snapshot, if any, for animation.
+    last_move: Option<Move>,
     log: Vec<String>,
 }
 
@@ -431,6 +517,14 @@ impl WebGame {
     #[must_use]
     pub fn snapshot(&self) -> String {
         json(&self.core.snapshot())
+    }
+
+    /// Advance one bot move or forced step and return the fresh snapshot.  The
+    /// page calls this on a timer while `your_turn` is false, animating each
+    /// reported `last_move` between the calls.
+    pub fn tick(&mut self) -> String {
+        self.core.step_once();
+        self.snapshot()
     }
 
     /// Take the offered upcard.
@@ -609,29 +703,31 @@ mod tests {
     fn a_scripted_game_reaches_a_settled_score() {
         let mut core = Core::new("greedy", Rules::new(), 42);
         let mut guard = 0;
-        while core.settled.is_none() {
-            guard += 1;
-            assert!(guard < 100_000, "the game must terminate");
+        loop {
+            // Tick through the bot's replies and the human's forced/auto steps,
+            // exactly as the paced UI does, until a real decision or the end.
+            while !core.awaiting_human_input() && core.settled.is_none() {
+                guard += 1;
+                assert!(guard < 100_000, "the game must terminate");
+                core.step_once();
+            }
+            if core.settled.is_some() {
+                break;
+            }
             let snap = core.snapshot();
-            assert!(snap.your_turn, "advance leaves the human to act or settles");
+            assert!(snap.your_turn, "awaiting_human_input implies your_turn");
             match snap.phase {
                 "upcard" => core.pass_upcard(),
                 "draw" => core.draw_stock(),
+                // Knock when the snapshot says it is legal — exercises knock()
+                // and the bot's defending layoff; otherwise shed the best card.
+                "discard" if snap.can_knock => core.knock(),
                 "discard" => {
-                    let (card, can_knock) = {
+                    let card = {
                         let view = core.table.view(HUMAN);
-                        (
-                            best_shed(view.hand(), view.taken_discard()),
-                            view.deadwood() <= view.knock_limit(),
-                        )
+                        best_shed(view.hand(), view.taken_discard())
                     };
-                    // Knock when eligible — exercises knock() and the bot's
-                    // defending layoff; otherwise shed the best card.
-                    if can_knock {
-                        core.knock();
-                    } else {
-                        core.discard(card);
-                    }
+                    core.discard(card);
                 }
                 other => panic!("unexpected phase for a human decision: {other}"),
             }
