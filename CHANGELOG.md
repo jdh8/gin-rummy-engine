@@ -7,8 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-07-05
+
 ### Changed
 
+- Require gin-rummy >= 0.1.1, whose `Card`, `Meld`, and `Melds` now display
+  rank-first (`T♥`, `5♠6♠7♠`).  Cards surfaced through the `View` API print in
+  this order; parsing still accepts either order.
 - The `play` example and the browser front end now spell out a scored round as
   `earned + bonus = total` (`You gin (24 + 25 = 49)`, `You undercut (8 + 25 =
   33)`), so the printed number matches the score change instead of showing only
@@ -57,5 +62,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Examples: `play` (human vs bot in the terminal) and `arena` (bot-vs-bot
   tournaments with win rates and result tallies).
 
-[Unreleased]: https://github.com/jdh8/gin-rummy-engine/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/jdh8/gin-rummy-engine/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/jdh8/gin-rummy-engine/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/jdh8/gin-rummy-engine/releases/tag/v0.1.0
