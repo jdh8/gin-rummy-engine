@@ -7,6 +7,8 @@
   --card-bg: #fdfdf7;
   --red: #c0392b;
   --black: #1b1b1b;
+  --green: #1e7a45;
+  --blue: #1a74d9;
   --back: #b23a3a;
   --gold: #f5c518;
   --card-w: 2.7rem;
@@ -135,6 +137,8 @@ main {
 .card .suit { align-self: flex-end; font-size: 1.2rem; }
 .card.red { color: var(--red); }
 .card.black { color: var(--black); }
+.card.green { color: var(--green); }
+.card.blue { color: var(--blue); }
 
 .card.back {
   background-color: var(--back);

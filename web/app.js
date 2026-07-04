@@ -10,7 +10,8 @@ const RULES = 'modern';
 const PACE_MS = 650; // pause between the bot's steps, so they can be followed
 const FLY_MS = 350; // card glide duration — keep in sync with `.ghost` in style.css
 
-const SUITS = { C: ['♣', 'black'], D: ['♦', 'red'], H: ['♥', 'red'], S: ['♠', 'black'] };
+// Four-colour deck, poker convention: clubs green, diamonds blue.
+const SUITS = { C: ['♣', 'green'], D: ['♦', 'blue'], H: ['♥', 'red'], S: ['♠', 'black'] };
 const SUIT_ORDER = { C: 0, D: 1, H: 2, S: 3 }; // clubs first, as the engine iterates
 const RANKS = ['', 'A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
 
