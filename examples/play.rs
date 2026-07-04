@@ -7,10 +7,13 @@
 //!
 //! You are seated as Player One and see only legal information: your hand,
 //! the pile, the stock count, and what the bot has revealed.  Cards parse
-//! leniently: `S10`, `♠10`, `st`, and `♠T` all name the ten of spades.
+//! leniently: `S10`, `♠10`, `st`, and `♠T` all name the ten of spades, and a
+//! lone rank or suit (`5`, `♠`) resolves when your hand holds just one such
+//! card.  To move, type a card to discard it, `knock` (or `n`) to knock the
+//! smallest deadwood, or `gin`.
 
 use anyhow::{Context as _, Result, bail};
-use gin_rummy::{Card, Phase, Player, RoundResult, Rules, best_melds};
+use gin_rummy::{Card, Hand, Phase, Player, Rank, RoundResult, Rules, Suit, best_melds, deadwood};
 use gin_rummy_engine::{
     DrawAction, EngineError, HeuristicBot, Layoff, MonteCarloBot, Strategy, Table, TurnAction,
     UpcardAction, View,
@@ -70,14 +73,44 @@ fn read_command(prompt: &str) -> Option<String> {
     }
 }
 
-fn parse_card(text: &str) -> Option<Card> {
-    match text.parse() {
-        Ok(card) => Some(card),
-        Err(_) => {
+/// Resolve user text to a card.  A full name (`S10`, `♠T`) is taken as
+/// written; a lone rank (`5`) or suit (`♠`, `s`) resolves only when the hand
+/// holds exactly one matching card, so the common case needs no full name.
+fn resolve_card(text: &str, hand: Hand) -> Option<Card> {
+    if let Ok(card) = text.parse::<Card>() {
+        return Some(card);
+    }
+    let matches: Vec<Card> = if let Ok(rank) = text.parse::<Rank>() {
+        hand.iter().filter(|c| c.rank == rank).collect()
+    } else if let Ok(suit) = text.parse::<Suit>() {
+        hand.iter().filter(|c| c.suit == suit).collect()
+    } else {
+        Vec::new()
+    };
+    match matches.as_slice() {
+        [card] => Some(*card),
+        [] => {
             println!("Cannot read {text:?} as a card; try forms like S10 or ♠T.");
             None
         }
+        many => {
+            let names: Vec<String> = many.iter().map(Card::to_string).collect();
+            println!("{text:?} matches several cards: {}.", names.join(" "));
+            None
+        }
     }
+}
+
+/// The largest-pip deadwood card, skipping the just-taken card: shedding it
+/// leaves the smallest residual to knock on, so it is the card to auto-knock.
+///
+// ponytail: mirrors the crate-private greedy `best_shed`, inlined because
+// examples see only the public API.
+fn best_shed(hand: Hand, taken: Option<Card>) -> Card {
+    hand.iter()
+        .filter(|&c| Some(c) != taken)
+        .min_by_key(|&c| (deadwood(hand - c.into()), u8::MAX - c.rank.deadwood()))
+        .expect("a full hand always has a legal discard")
 }
 
 /// A card set as a spaced list, friendlier than the dotted suit groups
@@ -90,11 +123,37 @@ fn list(cards: gin_rummy::Hand) -> String {
         .join(" ")
 }
 
-/// Show everything the human may see before a decision
-fn show_position(view: &View<'_>) {
+/// A hand as a spaced list.  `Hand::iter` already runs by suit (clubs first,
+/// ascending); the default reorders by rank across suits, which is how most
+/// players scan a hand.
+fn sorted(cards: gin_rummy::Hand, by_suit: bool) -> String {
+    let mut cards: Vec<Card> = cards.iter().collect();
+    if !by_suit {
+        cards.sort_by_key(|card| (card.rank, card.suit));
+    }
+    cards
+        .iter()
+        .map(|card| card.to_string())
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+/// The player's own hand: the best meld arrangement with its deadwood, then a
+/// flat list ordered by rank (the default) or by suit
+fn print_hand(view: &View<'_>, by_suit: bool) {
     let melds = view.best_melds();
+    println!("Your hand: {melds} ({} deadwood)", melds.deadwood());
+    println!(
+        "  by {}: {}",
+        if by_suit { "suit" } else { "rank" },
+        sorted(view.hand(), by_suit),
+    );
+}
+
+/// Show everything the human may see before a decision
+fn show_position(view: &View<'_>, by_suit: bool) {
     println!();
-    println!("Your hand: {melds} ({} deadwood)", melds.deadwood(),);
+    print_hand(view, by_suit);
     match view.upcard() {
         Some(top) => println!(
             "Pile top: {top} (pile of {}), stock: {} cards",
@@ -108,11 +167,23 @@ fn show_position(view: &View<'_>) {
     }
 }
 
-struct HumanCli;
+/// Interactive human seat.  `by_suit` toggles the hand listing between
+/// by-rank (the default) and by-suit via the `sort` command.
+struct HumanCli {
+    by_suit: bool,
+}
+
+impl HumanCli {
+    /// Flip the hand ordering and reprint it; a display-only command.
+    fn toggle_sort(&mut self, view: &View<'_>) {
+        self.by_suit = !self.by_suit;
+        print_hand(view, self.by_suit);
+    }
+}
 
 impl Strategy for HumanCli {
     fn offer_upcard(&mut self, view: &View<'_>) -> UpcardAction {
-        show_position(view);
+        show_position(view, self.by_suit);
         loop {
             match read_command("Take the upcard or pass? [take/pass]")
                 .unwrap_or_else(|| "quit".into())
@@ -120,14 +191,15 @@ impl Strategy for HumanCli {
             {
                 "take" | "t" => return UpcardAction::Take,
                 "pass" | "p" => return UpcardAction::Pass,
+                "sort" | "view" => self.toggle_sort(view),
                 "quit" | "q" => std::process::exit(0),
-                _ => println!("Commands: take, pass, quit."),
+                _ => println!("Commands: take, pass, sort, quit."),
             }
         }
     }
 
     fn choose_draw(&mut self, view: &View<'_>) -> DrawAction {
-        show_position(view);
+        show_position(view, self.by_suit);
         loop {
             match read_command("Draw from the stock or take the pile top? [draw/take]")
                 .unwrap_or_else(|| "quit".into())
@@ -135,32 +207,35 @@ impl Strategy for HumanCli {
             {
                 "draw" | "d" => return DrawAction::Stock,
                 "take" | "t" => return DrawAction::TakeDiscard,
+                "sort" | "view" => self.toggle_sort(view),
                 "quit" | "q" => std::process::exit(0),
-                _ => println!("Commands: draw, take, quit."),
+                _ => println!("Commands: draw, take, sort, quit."),
             }
         }
     }
 
     fn play_turn(&mut self, view: &View<'_>) -> TurnAction {
-        show_position(view);
+        show_position(view, self.by_suit);
         if let Some(card) = view.taken_discard() {
             println!("(The just-taken {card} may not be shed this turn.)");
         }
         loop {
-            let line = read_command("Your move [discard <card> / knock <card> / gin]:")
+            let line = read_command("Your move [<card> to discard / knock [card] / gin]:")
                 .unwrap_or_else(|| "quit".into());
             let (command, argument) = match line.split_once(' ') {
                 Some((command, argument)) => (command, argument.trim()),
                 None => (line.as_str(), ""),
             };
             match command {
-                "discard" | "d" => {
-                    if let Some(card) = parse_card(argument) {
-                        return TurnAction::Discard(card);
-                    }
-                }
-                "knock" | "k" => {
-                    if let Some(card) = parse_card(argument) {
+                // Knock is `n` (a bare `k` names your only king); an empty
+                // argument auto-sheds to the smallest knockable deadwood.
+                "knock" | "n" => {
+                    let discard = if argument.is_empty() {
+                        Some(best_shed(view.hand(), view.taken_discard()))
+                    } else {
+                        resolve_card(argument, view.hand())
+                    };
+                    if let Some(card) = discard {
                         return TurnAction::Knock {
                             discard: card,
                             melds: best_melds(view.hand() - card.into()),
@@ -168,40 +243,25 @@ impl Strategy for HumanCli {
                     }
                 }
                 "gin" | "g" => return TurnAction::BigGin(view.best_melds()),
+                "sort" | "view" => self.toggle_sort(view),
                 "quit" | "q" => std::process::exit(0),
-                _ => println!("Commands: discard <card>, knock <card>, gin, quit."),
+                // A bare card is a discard; no `discard` command needed.
+                _ => {
+                    if let Some(card) = resolve_card(line.trim(), view.hand()) {
+                        return TurnAction::Discard(card);
+                    }
+                }
             }
         }
     }
 
     fn choose_layoff(&mut self, view: &View<'_>) -> Option<Layoff> {
-        println!();
-        println!("The bot knocked and spread:");
-        for (index, meld) in view.spread().enumerate() {
-            println!("  [{index}] {}", meld.cards());
+        // ponytail: reuse the bot's greedy layoff; the human need not choose.
+        let layoff = HeuristicBot::new().choose_layoff(view);
+        if let Some(l) = &layoff {
+            println!("You lay off {}.", l.card);
         }
-        let melds = view.best_melds();
-        println!("Your hand: {melds} ({} deadwood)", melds.deadwood());
-        loop {
-            let line = read_command("Lay off? [lay <card> <index> / done]:")
-                .unwrap_or_else(|| "quit".into());
-            let words: Vec<&str> = line.split_whitespace().collect();
-            match words.as_slice() {
-                ["done"] | ["n"] => return None,
-                ["lay" | "l", card, index] => {
-                    let Some(card) = parse_card(card) else {
-                        continue;
-                    };
-                    let Ok(meld) = index.parse() else {
-                        println!("Cannot read {index:?} as a meld index.");
-                        continue;
-                    };
-                    return Some(Layoff { card, meld });
-                }
-                ["quit"] | ["q"] => std::process::exit(0),
-                _ => println!("Commands: lay <card> <meld index>, done, quit."),
-            }
-        }
+        layoff
     }
 
     fn name(&self) -> &str {
@@ -248,6 +308,13 @@ fn narrate_bot(before_phase: Phase, before_top: Option<Card>, before_pile: usize
                         "Bot discards {} and knocks.",
                         top.expect("a knock sheds a discard"),
                     );
+                    let spread = table
+                        .view(HUMAN)
+                        .spread()
+                        .map(|meld| meld.to_string())
+                        .collect::<Vec<_>>()
+                        .join(" ");
+                    println!("Bot spreads: {spread}");
                 }
                 _ => println!("Bot discards {}.", top.expect("a turn ends with a discard")),
             }
@@ -292,7 +359,7 @@ fn main() -> Result<()> {
         None => StdRng::from_rng(&mut rand::rng()),
     };
     let mut bot = make_bot(&spec, &mut rng)?;
-    let mut human = HumanCli;
+    let mut human = HumanCli { by_suit: false };
     let mut game = gin_rummy::Game::new(rules, HUMAN);
 
     println!("Gin rummy to {} points — you vs {spec}.", rules.game_target);

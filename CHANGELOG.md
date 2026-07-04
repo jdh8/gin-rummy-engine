@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- The `play` example prints cards rank-first (`T♥`, matching gin-rummy's new
+  Display) and lists your hand ordered by rank by default, with a `sort`
+  command to switch between by-rank and by-suit while you play.
+- The `play` example takes moves more tersely: type a card to discard it (no
+  `discard` command), and name a card by a lone rank or suit (`5`, `♠`, `t`)
+  when your hand holds exactly one match.  `knock` (or `n`) with no card
+  auto-sheds to the smallest knockable deadwood.
+
 ### Added
 
 - Contributor documentation: an expanded CLAUDE.md (crate map, invariants,
