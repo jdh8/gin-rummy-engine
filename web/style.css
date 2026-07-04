@@ -22,12 +22,15 @@ body {
   background: var(--felt);
   display: grid;
   grid-template-columns: 1fr minmax(0, 17rem);
-  grid-template-areas: "main log";
+  grid-template-rows: auto 1fr;
+  grid-template-areas:
+    "header header"
+    "main   log";
   min-height: 100vh;
 }
 
 header {
-  grid-column: 1 / -1;
+  grid-area: header;
   padding: 0.5rem 1rem;
   display: flex;
   align-items: baseline;
@@ -190,6 +193,10 @@ button:hover { background: #ffd83a; }
 .log div { padding: 0.1rem 0; opacity: 0.9; }
 
 @media (max-width: 40rem) {
-  body { grid-template-columns: 1fr; grid-template-areas: "main" "log"; }
+  body {
+    grid-template-columns: 1fr;
+    grid-template-rows: none;
+    grid-template-areas: "header" "main" "log";
+  }
   .log { max-height: 12rem; }
 }
