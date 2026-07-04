@@ -9,8 +9,8 @@
 //! the pile, the stock count, and what the bot has revealed.  Cards parse
 //! leniently: `S10`, `♠10`, `st`, and `♠T` all name the ten of spades, and a
 //! lone rank or suit (`5`, `♠`) resolves when your hand holds just one such
-//! card.  To move, type a card to discard it, `knock` (or `n`) to knock the
-//! smallest deadwood, or `gin`.
+//! card.  To move, type a card to discard it or `knock` (or `n`) to knock
+//! the smallest deadwood.  A fully-melded hand declares big gin on its own.
 
 use anyhow::{Context as _, Result, bail};
 use gin_rummy::{Card, Hand, Phase, Player, Rank, RoundResult, Rules, Suit, best_melds, deadwood};
@@ -257,11 +257,18 @@ impl Strategy for HumanCli {
 
     fn play_turn(&mut self, view: &View<'_>) -> TurnAction {
         show_position(view, self.by_suit, self.drawn(view));
+        // Big gin — all eleven cards melded — is strictly dominant, so
+        // declare it without asking, as the bots do.  Rulesets without a
+        // big-gin bonus fall through to a normal gin knock.
+        if view.deadwood() == 0 && view.rules().big_gin_bonus.is_some() {
+            println!("You have BIG GIN!");
+            return TurnAction::BigGin(view.best_melds());
+        }
         if let Some(card) = view.taken_discard() {
             println!("(The just-taken {card} may not be shed this turn.)");
         }
         loop {
-            let line = read_command("Your move [<card> to discard / knock [card] / gin]:")
+            let line = read_command("Your move [<card> to discard / knock [card]]:")
                 .unwrap_or_else(|| "quit".into());
             let (command, argument) = match line.split_once(' ') {
                 Some((command, argument)) => (command, argument.trim()),
@@ -283,7 +290,6 @@ impl Strategy for HumanCli {
                         };
                     }
                 }
-                "gin" | "g" => return TurnAction::BigGin(view.best_melds()),
                 "sort" | "view" => self.toggle_sort(view),
                 // Quit has no `q` shortcut: a bare `q` names your only queen.
                 "quit" => std::process::exit(0),
