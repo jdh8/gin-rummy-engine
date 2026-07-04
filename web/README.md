@@ -43,8 +43,9 @@ python3 -m http.server
 # open http://localhost:8000/
 ```
 
-Edit `BOT` / `RULES` at the top of `app.js` to change opponent
-(`greedy` or `mc[:samples]`) or ruleset (`modern`/`classic`/`palace`).
+Pick the bot's difficulty (Easy/Medium/Hard) from the dropdown in the header;
+it takes effect on the next new game.  Edit `RULES` at the top of `app.js` to
+change ruleset (`modern`/`classic`/`palace`).
 
 ## Deploy
 

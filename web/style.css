@@ -42,9 +42,11 @@ header {
 h1 { font-size: 1.2rem; margin: 0; }
 .score { opacity: 0.9; }
 
-/* A quiet header toggle for the loose-card ordering — not a game action. */
+/* Quiet header controls — not game actions, so styled apart from the felt's
+   gold action buttons.  `.difficulty` carries the auto margin that pushes
+   this whole trailing group (itself and `.sort`) to the header's right edge. */
+.difficulty,
 .sort {
-  margin-left: auto;
   font: inherit;
   font-size: 0.85rem;
   padding: 0.2rem 0.6rem;
@@ -54,7 +56,9 @@ h1 { font-size: 1.2rem; margin: 0; }
   color: inherit;
   cursor: pointer;
 }
-.sort:hover { background: rgba(255, 255, 255, 0.12); }
+.difficulty { margin-left: auto; }
+.difficulty:hover, .sort:hover { background: rgba(255, 255, 255, 0.12); }
+.difficulty option { color: #222; }
 
 main {
   grid-area: main;

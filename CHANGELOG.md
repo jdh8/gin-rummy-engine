@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- The browser front end has a Difficulty dropdown (Easy/Medium/Hard, mapping
+  to `greedy`/`mc:16`/`mc:64`) in the header, so picking an opponent no longer
+  requires editing `app.js`.
+
 ## [0.1.1] - 2026-07-05
 
 ### Changed

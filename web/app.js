@@ -5,7 +5,6 @@
 // opponent's fan.
 import init, { WebGame } from './pkg/gin_rummy_web.js';
 
-const BOT = 'mc:64';
 const RULES = 'modern';
 const PACE_MS = 650; // pause between the bot's steps, so they can be followed
 const FLY_MS = 350; // card glide duration — keep in sync with `.ghost` in style.css
@@ -36,6 +35,9 @@ async function main() {
     if (e.key === 'v' && !e.metaKey && !e.ctrlKey) toggleSort();
   });
   updateSortButton();
+  // Difficulty picks the bot spec (`greedy` or `mc:samples`); changing it
+  // mid-game just starts a fresh one, the simplest way to apply it.
+  id('difficulty').onchange = newGame;
   await newGame();
 }
 
@@ -47,7 +49,7 @@ async function newGame() {
   // A JS Number seed keeps each game deterministic; passed as a decimal string
   // so the engine reads it as an exact u64 (matching the terminal example).
   const seed = String(Math.floor(Math.random() * 2 ** 53));
-  game = new WebGame(BOT, RULES, seed);
+  game = new WebGame(id('difficulty').value, RULES, seed);
   state = JSON.parse(game.snapshot());
   render(state);
   busy = true;
