@@ -404,7 +404,8 @@ impl Core {
             round_no: self.round_no,
             phase: phase_name(view.phase()),
             your_turn: self.awaiting_human_input(),
-            can_knock: view.phase() == Phase::Discard && view.deadwood() <= view.knock_limit(),
+            can_knock: view.phase() == Phase::Discard
+                && knock_deadwood(view.hand(), taken) <= view.knock_limit(),
             melds: arranged
                 .iter()
                 .map(|meld| cards_by_suit(meld.cards(), taken))
@@ -603,6 +604,14 @@ fn best_shed(hand: Hand, taken: Option<Card>) -> Card {
         .expect("a full hand always has a legal discard")
 }
 
+/// The deadwood a knock would actually spread: the best arrangement *after*
+/// shedding the best card.  `Round::knock` validates this ten-card figure
+/// against the limit, not the eleven-card hand still holding the shed card, so
+/// this — not `view.deadwood()` — is the honest gate for the Knock button.
+fn knock_deadwood(hand: Hand, taken: Option<Card>) -> u8 {
+    deadwood(hand - best_shed(hand, taken).into())
+}
+
 fn describe(result: RoundResult) -> String {
     match result {
         RoundResult::Dead => "dead hand, nobody scores".into(),
@@ -695,6 +704,17 @@ fn json<T: Serialize>(value: &T) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The Knock gate must judge the ten-card spread, not the eleven-card
+    /// hand: ♣A♣2♣4♣5 ♦A♦4 ♥A♥3♥4 ♠A♠2 is deadwood 12 as it stands, but
+    /// shedding the ♣5 leaves 7 — a legal knock the button must offer.
+    #[test]
+    fn knock_gate_ignores_the_card_to_be_shed() {
+        let hand: Hand = "A245.A4.A34.A2".parse().expect("a legal eleven-card hand");
+        assert_eq!(deadwood(hand), 12, "the hand still holding the shed card");
+        assert_eq!(knock_deadwood(hand, None), 7, "after shedding the ♣5");
+        assert!(knock_deadwood(hand, None) <= Rules::new().knock_limit);
+    }
 
     /// Drive a whole game to completion through the public decision methods,
     /// exercising the `Pending`-strategy loop, the auto steps, and the round
