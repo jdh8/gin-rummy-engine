@@ -11,18 +11,35 @@ const PACE_MS = 650; // pause between the bot's steps, so they can be followed
 const FLY_MS = 350; // card glide duration — keep in sync with `.ghost` in style.css
 
 const SUITS = { C: ['♣', 'black'], D: ['♦', 'red'], H: ['♥', 'red'], S: ['♠', 'black'] };
+const SUIT_ORDER = { C: 0, D: 1, H: 2, S: 3 }; // clubs first, as the engine iterates
 const RANKS = ['', 'A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
 
 let game;
 let state; // the snapshot currently on screen (the "before" state during a step)
 let busy = false; // blocks input while the bot's turn is animating
+let bySuit = false; // loose-card ordering: false = by rank, true = by suit (like the CLI's `v`)
 
 const id = (x) => document.getElementById(x);
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function main() {
   await init();
+  // A purely cosmetic re-sort of the loose cards, like the terminal's `v`.
+  const toggleSort = () => {
+    bySuit = !bySuit;
+    updateSortButton();
+    if (state) render(state);
+  };
+  id('sort').onclick = toggleSort;
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'v' && !e.metaKey && !e.ctrlKey) toggleSort();
+  });
+  updateSortButton();
   await newGame();
+}
+
+function updateSortButton() {
+  id('sort').textContent = bySuit ? 'Sort: suit' : 'Sort: rank';
 }
 
 async function newGame() {
@@ -175,7 +192,13 @@ function renderHand(s) {
   h.innerHTML = '';
   const clickable = s.your_turn && s.phase === 'discard';
   s.melds.forEach((meld) => h.appendChild(group(meld, clickable, true)));
-  h.appendChild(group(s.loose, clickable, false));
+  // Melds keep their grouped order; only the loose deadwood re-sorts.
+  const loose = [...s.loose].sort(
+    bySuit
+      ? (a, b) => SUIT_ORDER[a.suit] - SUIT_ORDER[b.suit] || a.rank - b.rank
+      : (a, b) => a.rank - b.rank || SUIT_ORDER[a.suit] - SUIT_ORDER[b.suit],
+  );
+  h.appendChild(group(loose, clickable, false));
 }
 
 function group(cards, clickable, meld) {

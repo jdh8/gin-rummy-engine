@@ -37,6 +37,20 @@ header {
 h1 { font-size: 1.2rem; margin: 0; }
 .score { opacity: 0.9; }
 
+/* A quiet header toggle for the loose-card ordering — not a game action. */
+.sort {
+  margin-left: auto;
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 0.2rem 0.6rem;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 5px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.sort:hover { background: rgba(255, 255, 255, 0.12); }
+
 main {
   grid-area: main;
   display: flex;
