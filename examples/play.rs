@@ -11,6 +11,8 @@
 //! lone rank or suit (`5`, `♠`) resolves when your hand holds just one such
 //! card.  To move, type a card to discard it or `knock` (or `n`) to knock
 //! the smallest deadwood.  A fully-melded hand declares big gin on its own.
+//! Type `view` (or `sort`, or `v`) at any prompt to flip the loose-deadwood
+//! ordering between by-rank and by-suit.
 
 use anyhow::{Context as _, Result, bail};
 use gin_rummy::{Card, Hand, Phase, Player, Rank, RoundResult, Rules, Suit, best_melds, deadwood};
@@ -196,7 +198,7 @@ fn show_position(view: &View<'_>, by_suit: bool, drawn: Option<Card>) {
 }
 
 /// Interactive human seat.  `by_suit` toggles the deadwood ordering between
-/// by-rank (the default) and by-suit via the `sort` command.
+/// by-rank (the default) and by-suit via the `view`/`sort`/`v` command.
 struct HumanCli {
     by_suit: bool,
     /// The hand just before the current draw, so `drawn` can name the card
@@ -225,15 +227,15 @@ impl Strategy for HumanCli {
         self.predraw = Some(view.hand());
         show_position(view, self.by_suit, self.drawn(view));
         loop {
-            match read_command("Take the upcard or pass? [take/pass]")
+            match read_command("Take the upcard or pass? [take/pass/\x1b[7mv\x1b[0miew]")
                 .unwrap_or_else(|| "quit".into())
                 .as_str()
             {
                 "take" | "t" => return UpcardAction::Take,
                 "pass" | "p" => return UpcardAction::Pass,
-                "sort" | "view" => self.toggle_sort(view),
+                "sort" | "view" | "v" => self.toggle_sort(view),
                 "quit" => std::process::exit(0),
-                _ => println!("Commands: take, pass, sort, quit."),
+                _ => println!("Commands: take, pass, sort/view, quit."),
             }
         }
     }
@@ -242,15 +244,17 @@ impl Strategy for HumanCli {
         self.predraw = Some(view.hand());
         show_position(view, self.by_suit, self.drawn(view));
         loop {
-            match read_command("Draw from the stock or take the pile top? [draw/take]")
-                .unwrap_or_else(|| "quit".into())
-                .as_str()
+            match read_command(
+                "Draw from the stock or take the pile top? [draw/take/\x1b[7mv\x1b[0miew]",
+            )
+            .unwrap_or_else(|| "quit".into())
+            .as_str()
             {
                 "draw" | "d" => return DrawAction::Stock,
                 "take" | "t" => return DrawAction::TakeDiscard,
-                "sort" | "view" => self.toggle_sort(view),
+                "sort" | "view" | "v" => self.toggle_sort(view),
                 "quit" => std::process::exit(0),
-                _ => println!("Commands: draw, take, sort, quit."),
+                _ => println!("Commands: draw, take, sort/view, quit."),
             }
         }
     }
@@ -268,9 +272,11 @@ impl Strategy for HumanCli {
             println!("(The just-taken {card} may not be shed this turn.)");
         }
         loop {
-            match read_command("Your move [<card> to discard / k\x1b[7mn\x1b[0mock]:")
-                .unwrap_or_else(|| "quit".into())
-                .as_str()
+            match read_command(
+                "Your move [<card> to discard / k\x1b[7mn\x1b[0mock / \x1b[7mv\x1b[0miew]:",
+            )
+            .unwrap_or_else(|| "quit".into())
+            .as_str()
             {
                 // Knock is `n` (a bare `k` names your only king).  The shed is
                 // forced, not chosen: it goes face down, so it never reaches
@@ -283,7 +289,7 @@ impl Strategy for HumanCli {
                         melds: best_melds(view.hand() - discard.into()),
                     };
                 }
-                "sort" | "view" => self.toggle_sort(view),
+                "sort" | "view" | "v" => self.toggle_sort(view),
                 // Quit has no `q` shortcut: a bare `q` names your only queen.
                 "quit" => std::process::exit(0),
                 // A bare card is a discard; no `discard` command needed.
