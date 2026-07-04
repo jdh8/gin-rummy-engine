@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Require gin-rummy >= 0.1.2, whose `best_melds` now breaks equal-deadwood
+  ties in favor of runs over sets.  Deadwood totals are unaffected, but a
+  layoff or a knock's reported melds may pick a different (equally optimal)
+  arrangement on hands where a run and a set tie.
+
 ### Added
 
 - The browser front end has a Difficulty dropdown (Easy/Medium/Hard, mapping

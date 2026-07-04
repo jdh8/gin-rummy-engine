@@ -24,7 +24,7 @@ default = ["rand"]
 rand = ["dep:rand", "gin-rummy/rand"]
 
 [dependencies]
-gin-rummy = { version = "0.1.1", path = "../gin-rummy" }
+gin-rummy = "0.1.2"
 rand = { version = "0.10", optional = true }
 thiserror = "2"
 

@@ -72,9 +72,10 @@ Check these before merging any change; each names its guarding test.
 
 ## The sibling crate
 
-- gin-rummy is a **path dependency**: `../gin-rummy` must be checked out
-  next to this repository (CI clones `jdh8/gin-rummy` there).  Coordinated
-  changes need commits in both repositories.
+- gin-rummy is a normal crates.io dependency by default.  Switch it to a
+  `path = "../gin-rummy"` dependency only while developing a coordinated
+  change that needs unreleased gin-rummy commits, and switch it back to a
+  version requirement before merging.
 - Types to know: `Card`, `Hand` (a 52-card bitset with `|`, `&`, `-`),
   `Meld`, `Melds`, `Round`, `Rules` (presets `new`/`classic`/`palace`),
   `Game`, `RoundResult`, and the solver functions `deadwood` and

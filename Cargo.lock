@@ -221,7 +221,9 @@ dependencies = [
 
 [[package]]
 name = "gin-rummy"
-version = "0.1.1"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ed79af2b2606c626bb46dae4c9f55eeed26806d5e19262edd4b86065b0e0a4d6"
 dependencies = [
  "rand 0.10.2",
  "thiserror",

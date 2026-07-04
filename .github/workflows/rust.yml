@@ -10,52 +10,29 @@ on:
 env:
   CARGO_TERM_COLOR: always
 
-# Until gin-rummy is on crates.io, the path dependency needs the sibling
-# checked out next to this repository.
 jobs:
   fmt:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v6
-      with:
-        path: gin-rummy-engine
-    - uses: actions/checkout@v6
-      with:
-        repository: jdh8/gin-rummy
-        path: gin-rummy
     - name: Check formatting
       run: cargo fmt --check
-      working-directory: gin-rummy-engine
 
   clippy:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v6
-      with:
-        path: gin-rummy-engine
-    - uses: actions/checkout@v6
-      with:
-        repository: jdh8/gin-rummy
-        path: gin-rummy
     - name: Clippy
       run: cargo clippy --all-targets --all-features -- -D warnings
-      working-directory: gin-rummy-engine
 
   doc:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v6
-      with:
-        path: gin-rummy-engine
-    - uses: actions/checkout@v6
-      with:
-        repository: jdh8/gin-rummy
-        path: gin-rummy
     - name: Build docs
       env:
         RUSTDOCFLAGS: -D warnings
       run: cargo doc --no-deps --all-features
-      working-directory: gin-rummy-engine
 
   # Guards against under-declared dependency floors: pins every direct
   # dependency to its lowest allowed version and checks the build still
@@ -65,20 +42,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v6
-      with:
-        path: gin-rummy-engine
-    - uses: actions/checkout@v6
-      with:
-        repository: jdh8/gin-rummy
-        path: gin-rummy
     - name: Install nightly
       run: rustup toolchain install nightly --profile minimal && rustup default nightly
     - name: Pin direct deps to their minimal versions
       run: cargo update -Z direct-minimal-versions
-      working-directory: gin-rummy-engine
     - name: Check (all features, all targets)
       run: cargo check --all-features --all-targets
-      working-directory: gin-rummy-engine
 
   test:
     strategy:
@@ -89,14 +58,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v6
-      with:
-        path: gin-rummy-engine
-    - uses: actions/checkout@v6
-      with:
-        repository: jdh8/gin-rummy
-        path: gin-rummy
     - name: Install Rust ${{ matrix.rust }}
       run: rustup toolchain install ${{ matrix.rust }} --profile minimal && rustup default ${{ matrix.rust }}
     - name: Test (all features)
       run: cargo test --all-features --verbose
-      working-directory: gin-rummy-engine
