@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The `play` example and the browser front end now spell out a scored round as
+  `earned + bonus = total` (`You gin (24 + 25 = 49)`, `You undercut (8 + 25 =
+  33)`), so the printed number matches the score change instead of showing only
+  the opponent's deadwood and silently omitting the gin or undercut bonus.
 - The `play` example prints cards rank-first (`T♥`, matching gin-rummy's new
   Display) and shows your hand on one line: the melds, then just the loose
   deadwood ordered by rank by default, with a `sort` command to switch the

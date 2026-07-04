@@ -309,8 +309,11 @@ impl Core {
         self.game
             .record(result)
             .expect("a result from the round it was dealt for records cleanly");
-        self.log
-            .push(format!("Round {}: {}.", self.round_no, describe(result)));
+        self.log.push(format!(
+            "Round {}: {}.",
+            self.round_no,
+            describe(result, self.game.rules())
+        ));
         self.log.push(format!(
             "Score — you {} : {} bot.",
             self.game.score(HUMAN),
@@ -448,7 +451,7 @@ impl Core {
             you_score: self.game.score(HUMAN),
             bot_score: self.game.score(BOT),
             round_over: self.awaiting_continue,
-            result: self.last_result.map(describe),
+            result: self.last_result.map(|r| describe(r, self.game.rules())),
             bot_melds: bot
                 .iter()
                 .flat_map(|melds| melds.iter().map(|meld| cards_by_suit(meld.cards(), None)))
@@ -670,14 +673,36 @@ fn knock_deadwood(hand: Hand, taken: Option<Card>) -> u8 {
     deadwood(hand - best_shed(hand, taken).into())
 }
 
-fn describe(result: RoundResult) -> String {
+/// Narrate a finished round.  Bonus'd results spell out the score as
+/// `earned + bonus = total` — the opponent's deadwood (or the undercut margin)
+/// plus the fixed bonus — so the printed number matches the score change.  The
+/// bonus is `points − earned` rather than a rules field so it can never drift
+/// from the real pricing.
+fn describe(result: RoundResult, rules: &Rules) -> String {
+    let pts = result.points(rules);
     match result {
         RoundResult::Dead => "dead hand, nobody scores".into(),
         RoundResult::Knock { winner, margin } => format!("{} knock for {margin}", who(winner)),
-        RoundResult::Undercut { winner, margin } => format!("{} undercut by {margin}", who(winner)),
-        RoundResult::Gin { winner, deadwood } => format!("{} gin (+{deadwood})", who(winner)),
+        RoundResult::Undercut { winner, margin } => {
+            format!(
+                "{} undercut ({margin} + {} = {pts})",
+                who(winner),
+                pts - u16::from(margin)
+            )
+        }
+        RoundResult::Gin { winner, deadwood } => {
+            format!(
+                "{} gin ({deadwood} + {} = {pts})",
+                who(winner),
+                pts - u16::from(deadwood)
+            )
+        }
         RoundResult::BigGin { winner, deadwood } => {
-            format!("{} BIG gin (+{deadwood})", who(winner))
+            format!(
+                "{} BIG gin ({deadwood} + {} = {pts})",
+                who(winner),
+                pts - u16::from(deadwood)
+            )
         }
         _ => format!("{result:?}"),
     }
@@ -895,10 +920,14 @@ mod tests {
             core.log.iter().any(|l| l.contains("BIG GIN")),
             "the big gin is narrated in the log",
         );
+        let summary = describe(result, core.game.rules());
         assert!(
-            describe(result).contains("BIG gin"),
-            "the round summary names the big gin: {}",
-            describe(result),
+            summary.contains("BIG gin"),
+            "the round summary names the big gin: {summary}",
+        );
+        assert!(
+            summary.contains(&format!("= {}", result.points(core.game.rules()))),
+            "the summary spells out the round total: {summary}",
         );
     }
 }

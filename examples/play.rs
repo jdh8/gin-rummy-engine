@@ -380,16 +380,36 @@ fn narrate_bot(before_phase: Phase, before_top: Option<Card>, before_pile: usize
     }
 }
 
-fn describe(result: RoundResult) -> String {
+/// Narrate a finished round.  Bonus'd results spell out the score as
+/// `earned + bonus = total` — the opponent's deadwood (or the undercut margin)
+/// plus the fixed bonus — so the printed number matches the score change.  The
+/// bonus is `points − earned` rather than a rules field so it can never drift
+/// from the real pricing.
+fn describe(result: RoundResult, rules: &Rules) -> String {
+    let pts = result.points(rules);
     match result {
         RoundResult::Dead => "dead hand, nobody scores".into(),
         RoundResult::Knock { winner, margin } => format!("{} knock for {margin}", who(winner)),
         RoundResult::Undercut { winner, margin } => {
-            format!("{} undercut by {margin}", who(winner))
+            format!(
+                "{} undercut ({margin} + {} = {pts})",
+                who(winner),
+                pts - u16::from(margin)
+            )
         }
-        RoundResult::Gin { winner, deadwood } => format!("{} gin (+{deadwood})", who(winner)),
+        RoundResult::Gin { winner, deadwood } => {
+            format!(
+                "{} gin ({deadwood} + {} = {pts})",
+                who(winner),
+                pts - u16::from(deadwood)
+            )
+        }
         RoundResult::BigGin { winner, deadwood } => {
-            format!("{} BIG gin (+{deadwood})", who(winner))
+            format!(
+                "{} BIG gin ({deadwood} + {} = {pts})",
+                who(winner),
+                pts - u16::from(deadwood)
+            )
         }
         _ => format!("{result:?}"),
     }
@@ -448,7 +468,7 @@ fn main() -> Result<()> {
         let result = table.round().result().expect("a turnless round finished");
         game.record(result)?;
         println!();
-        println!("Round {number}: {}", describe(result));
+        println!("Round {number}: {}", describe(result, &rules));
         println!(
             "Score — you {} : {} bot",
             game.score(HUMAN),
