@@ -26,10 +26,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   configuration is retuned by whole-game self-play: it holds past the first
   legal knock (`knock_threshold` 4, was 10) rather than banking a small
   knock every hand, and it reads the running game score (`score_awareness`
-  32, was 0 — a new knob), knocking sooner when ahead to lock in a lead and
-  holding out for gin when behind.  Over full games this lifts its win rate
-  from roughly 42% to 50% against `MonteCarloBot` and to about 60% against
-  the previous default.  A round played outside a game (no scoreboard) is
+  40, was 0 — a new knob), knocking sooner when ahead to lock in a lead and
+  holding out for gin when behind.  The score shift is keyed to the
+  leader's distance to the winning line, not the raw margin, so the same
+  lead bends the knock threshold ever harder as the game nears its end — a
+  nudge early on becomes a knock at any deadwood once the front-runner is a
+  hand from `game_target`.  Over full games this lifts its win rate from
+  roughly 42% to 50% against `MonteCarloBot` and to about 60% against the
+  previous default.  A round played outside a game (no scoreboard) is
   unaffected; `HeuristicBot::new()` and `HeuristicConfig::default()` change
   accordingly.
 - Require gin-rummy >= 0.1.2, whose `best_melds` now breaks equal-deadwood
@@ -58,8 +62,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Table::scores()` attaches the running game totals to a round; `play_game`
   now supplies them, so any bot it drives sees the live margin.
 - `HeuristicConfig::score_awareness`, the knob that couples the knock
-  threshold to the game score.  Zero reproduces the previous score-blind
-  play.
+  threshold to the game score, scaled by the leader's distance to
+  `game_target` so it bites hardest as a game nears its end.  Zero
+  reproduces the previous score-blind play.
 - A `tune` example: whole-game A/B self-play that sweeps the heuristic's
   knock knobs against a fixed opponent (`greedy` or `mc`), reporting each
   arm's game-win rate with a Wilson interval.  It picked the new defaults.

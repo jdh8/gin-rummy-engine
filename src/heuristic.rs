@@ -76,25 +76,30 @@ pub struct HeuristicConfig {
     pub safety_weight: u8,
     /// How strongly the game score shifts the knock threshold
     ///
-    /// Points of threshold shift per unit of `game_margin / game_target`:
-    /// ahead in the game the effective threshold rises toward the legal
-    /// limit (bank the lead by knocking early), behind it falls toward
-    /// zero (hold out for a gin that swings the deficit).  Zero ignores
-    /// the score, so a round played outside a game is unaffected.  At the
-    /// default of 32 a roughly 19-point lead reaches the knock limit and a
-    /// 13-point deficit reaches gin-only.
+    /// Points of threshold shift per unit of `game_margin / (game_target −
+    /// leader_score)`, where `leader_score` is the higher of the two
+    /// running totals.  Ahead the effective threshold rises toward the
+    /// legal limit (bank the lead by knocking early); behind it falls
+    /// toward zero (hold out for a gin that swings the deficit).  The
+    /// denominator is the leader's distance to the winning line, not the
+    /// full target, so the same lead bends the threshold ever harder as
+    /// the game nears its end: a modest early-game nudge becomes a knock
+    /// at any deadwood once the front-runner is a hand from winning.  Zero
+    /// ignores the score, so a round played outside a game is unaffected.
     pub score_awareness: u8,
 }
 
 impl Default for HeuristicConfig {
     fn default() -> Self {
-        // Tuned by whole-game self-play (see `examples/tune.rs`): against
-        // the Monte Carlo bot this lifts the heuristic's game-win rate from
-        // ~42% to ~50%, most of it from holding past the first legal knock.
+        // Tuned by whole-game self-play (see `examples/tune.rs`): holding
+        // past the first legal knock and shifting the knock threshold by
+        // the leader's distance to the winning line lift the heuristic's
+        // game-win rate to ~50% against the Monte Carlo bot, up from ~42%
+        // for score-blind play.
         Self {
             knock_threshold: 4,
             safety_weight: 1,
-            score_awareness: 32,
+            score_awareness: 40,
         }
     }
 }
@@ -162,13 +167,17 @@ impl HeuristicBot {
     /// The knock threshold in effect, shifted by the game score
     ///
     /// The neutral base is `knock_threshold`; `score_awareness` scales the
-    /// shift by `game_margin / game_target`, so the same lead matters more
-    /// in a short game.  Ahead the threshold rises (knock sooner), behind
-    /// it falls toward zero (hold out for gin).
+    /// shift by `game_margin / (game_target − leader_score)`.  Ahead the
+    /// threshold rises (knock sooner), behind it falls toward zero (hold
+    /// out for gin); dividing by the leader's distance to the line, not
+    /// the full target, makes the same lead matter more late in the game.
     fn knock_threshold(&self, view: &View<'_>) -> u8 {
         let base = i32::from(self.config.knock_threshold);
-        let target = i32::from(view.rules().game_target).max(1);
-        let bias = i32::from(self.config.score_awareness) * view.game_margin() / target;
+        let [mine, theirs] = view.game_scores().map(i32::from);
+        // The leader's distance to the winning line: the score bias grows
+        // as the game nears its end, not merely with the raw margin.
+        let remaining = i32::from(view.rules().game_target) - mine.max(theirs);
+        let bias = i32::from(self.config.score_awareness) * (mine - theirs) / remaining.max(1);
         (base + bias).clamp(0, i32::from(u8::MAX)) as u8
     }
 
@@ -330,8 +339,9 @@ mod tests {
         )
         .expect("a partitioned deck");
 
-        // Base 6, and the game target is 100, so a 60-point margin shifts
-        // the threshold by 32 * 60 / 100 ≈ 19, clamped to knock-limit range.
+        // Base 6, target 100: with a 60-point margin and the leader 40
+        // points from the line the shift is 32 * 60 / 40 = 48, clamped
+        // into knock-limit range.
         let bot = HeuristicBot::with_config(HeuristicConfig {
             knock_threshold: 6,
             score_awareness: 32,
@@ -340,7 +350,7 @@ mod tests {
 
         let ahead = Table::new(round.clone()).scores([60, 0]);
         let level = Table::new(round.clone());
-        let behind = Table::new(round).scores([0, 60]);
+        let behind = Table::new(round.clone()).scores([0, 60]);
 
         // Level score leaves the base untouched; ahead raises it, behind
         // drops it toward zero (hold out for gin).
@@ -350,6 +360,18 @@ mod tests {
                 > bot.knock_threshold(&level.view(Player::One))
         );
         assert!(bot.knock_threshold(&behind.view(Player::One)) < 6);
+
+        // Proximity to the winning line, not the raw margin, drives the
+        // shift: the same 10-point lead bends the threshold far more when
+        // the leader is a hand from the target (denominator 10) than early
+        // in the game (denominator 90).  The old target-normalized formula
+        // scored these two equal.
+        let near_line = Table::new(round.clone()).scores([90, 80]);
+        let early = Table::new(round).scores([10, 0]);
+        assert!(
+            bot.knock_threshold(&near_line.view(Player::One))
+                > bot.knock_threshold(&early.view(Player::One))
+        );
 
         // A score-blind bot ignores the margin entirely.
         let blind = HeuristicBot::with_config(HeuristicConfig {
