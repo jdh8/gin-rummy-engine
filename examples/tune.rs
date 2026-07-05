@@ -11,7 +11,9 @@
 //! (a single round has no scoreboard), so evaluation is game-based, not
 //! round-based like `arena`.  Every arm replays the *same* seeded deals
 //! (common random numbers), so the arms are paired and directly
-//! comparable, and the printed table is sorted by game-win rate.
+//! comparable, and the printed table is sorted by game-win rate.  Each
+//! arm's games are seeded by index and played in parallel across the
+//! CPUs, so the win counts stay deterministic however the work schedules.
 //!
 //! Comparing many arms on one seed and keeping the maximum overstates the
 //! winner.  Search on one seed, then re-confirm the single best arm on
@@ -27,6 +29,7 @@ use gin_rummy::{Game, Player, Rules};
 use gin_rummy_engine::{HeuristicBot, HeuristicConfig, MonteCarloBot, Strategy, play_game};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
+use rayon::prelude::*;
 use std::time::Instant;
 
 /// The fixed opponent every candidate is scored against
@@ -152,37 +155,56 @@ fn wilson(wins: u32, n: u32) -> (f64, f64) {
     (center - half, center + half)
 }
 
-/// The candidate's game wins against the fixed opponent over `games` whole
-/// games, seats and dealer alternating so neither seat is favoured.
+/// Play game `index` of an arm and report whether the candidate won.
 ///
-/// The deal RNG resets to `seed` here, so every arm replays the same deals
-/// (and the same Monte Carlo opponent) — the arms are paired.
-fn evaluate(knock: u8, awareness: u8, config: &Config) -> Result<u32> {
-    let mut rng = StdRng::seed_from_u64(config.seed);
+/// The deal and the Monte Carlo opponent are seeded from `index` alone,
+/// not from the arm's knobs, so every arm plays game `index` on the same
+/// deal against the same opponent — the common random numbers that pair
+/// the arms — regardless of the order the games run in.
+fn play_one(knock: u8, awareness: u8, config: &Config, index: u32) -> Result<bool> {
+    // SplitMix64 constants: mix the index so adjacent games get
+    // decorrelated seeds, and offset the opponent onto its own stream.
+    let mixed = u64::from(index).wrapping_mul(0x9E37_79B9_7F4A_7C15);
+    let mut rng = StdRng::seed_from_u64(config.seed ^ mixed);
     let mut candidate = candidate(knock, awareness);
-    // A distinct, fixed seed for any Monte Carlo opponent's own RNG.
-    let mut opponent = opponent(&config.opponent, config.seed ^ 0x9E37_79B9);
-    let mut wins = [0u32; 2];
+    let mut opponent = opponent(
+        &config.opponent,
+        config.seed ^ mixed ^ 0xD1B5_4A32_D192_ED03,
+    );
 
-    for index in 0..config.games {
-        // Swap seats every game and alternate the dealer.
-        let swapped = index % 2 == 1;
-        let bot_of_seat = if swapped { [1, 0] } else { [0, 1] };
-        let dealer = if index % 4 < 2 {
-            Player::One
-        } else {
-            Player::Two
-        };
-        let seats: [&mut dyn Strategy; 2] = if swapped {
-            [&mut *opponent, &mut candidate]
-        } else {
-            [&mut candidate, &mut *opponent]
-        };
-        let mut game = Game::new(config.rules, dealer);
-        let score = play_game(&mut game, seats, &mut rng)?;
-        wins[bot_of_seat[score.winner as usize]] += 1;
-    }
-    Ok(wins[0])
+    // Swap seats every game and alternate the dealer so neither is favoured.
+    let swapped = index % 2 == 1;
+    let candidate_seat = usize::from(swapped);
+    let dealer = if index % 4 < 2 {
+        Player::One
+    } else {
+        Player::Two
+    };
+    let seats: [&mut dyn Strategy; 2] = if swapped {
+        [&mut *opponent, &mut candidate]
+    } else {
+        [&mut candidate, &mut *opponent]
+    };
+    let mut game = Game::new(config.rules, dealer);
+    let score = play_game(&mut game, seats, &mut rng)?;
+    Ok(score.winner as usize == candidate_seat)
+}
+
+/// The candidate's game wins against the fixed opponent over `games` whole
+/// games.
+///
+/// Games are seeded per index (see [`play_one`]) and played in parallel
+/// across the available CPUs; every arm still plays game `i` on the same
+/// deal against the same opponent, so the arms stay paired and the win
+/// count does not depend on how the work is scheduled.
+fn evaluate(knock: u8, awareness: u8, config: &Config) -> Result<u32> {
+    // Per-game seeding makes the games independent, so rayon can fan them
+    // across the pool; summing an associative reduce keeps the count
+    // deterministic however the work splits.
+    (0..config.games)
+        .into_par_iter()
+        .map(|index| play_one(knock, awareness, config, index).map(u32::from))
+        .try_reduce(|| 0, |a, b| Ok(a + b))
 }
 
 fn main() -> Result<()> {

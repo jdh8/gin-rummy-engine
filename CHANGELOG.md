@@ -67,7 +67,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reproduces the previous score-blind play.
 - A `tune` example: whole-game A/B self-play that sweeps the heuristic's
   knock knobs against a fixed opponent (`greedy` or `mc`), reporting each
-  arm's game-win rate with a Wilson interval.  It picked the new defaults.
+  arm's game-win rate with a Wilson interval.  Each arm's games are seeded
+  by index and played in parallel across the CPUs, so the counts stay
+  deterministic; it picked the new defaults.
 - The browser front end has a Difficulty dropdown (Easy/Medium/Hard) in the
   header, so picking an opponent no longer requires editing `app.js`.  The
   three tiers are distinct opponents rather than Monte Carlo sample-count
