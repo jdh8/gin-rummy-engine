@@ -40,17 +40,41 @@ pub struct View<'a> {
     round: &'a Round,
     seat: Player,
     know: &'a Knowledge,
+    margin: i32,
 }
 
 impl<'a> View<'a> {
-    pub(crate) const fn new(round: &'a Round, seat: Player, know: &'a Knowledge) -> Self {
-        Self { round, seat, know }
+    pub(crate) const fn new(
+        round: &'a Round,
+        seat: Player,
+        know: &'a Knowledge,
+        margin: i32,
+    ) -> Self {
+        Self {
+            round,
+            seat,
+            know,
+            margin,
+        }
     }
 
     /// The seat this view belongs to
     #[must_use]
     pub const fn seat(&self) -> Player {
         self.seat
+    }
+
+    /// This seat's lead in the game score: its running total minus the
+    /// opponent's, in points
+    ///
+    /// Positive when ahead in the game, negative when behind.  Always zero
+    /// for a standalone round played outside a [`Game`](gin_rummy::Game),
+    /// which has no scoreboard.  The game score is public — both players
+    /// see it — so it is part of the legal whitelist.  The target to win
+    /// is [`rules().game_target`](gin_rummy::Rules::game_target).
+    #[must_use]
+    pub const fn game_margin(&self) -> i32 {
+        self.margin
     }
 
     /// The scoring rules of the round

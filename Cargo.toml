@@ -49,5 +49,9 @@ required-features = ["rand"]
 name = "arena"
 required-features = ["rand"]
 
+[[example]]
+name = "tune"
+required-features = ["rand"]
+
 [profile.dev.package."*"]
 opt-level = 2

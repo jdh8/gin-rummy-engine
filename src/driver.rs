@@ -35,6 +35,7 @@ pub enum EngineError {
 pub struct Table {
     round: Round,
     knowledge: [Knowledge; 2],
+    scores: [u16; 2],
 }
 
 impl Table {
@@ -42,13 +43,30 @@ impl Table {
     ///
     /// The round must still be in the upcard phase: knowledge accumulated
     /// during earlier play cannot be reconstructed from a mid-game round.
+    ///
+    /// The game score defaults to level (both seats at zero), so a
+    /// standalone round reports a [`game_margin`](View::game_margin) of
+    /// zero.  Set it with [`Table::scores`] when driving a round within a
+    /// game.
     #[must_use]
     pub fn new(round: Round) -> Self {
         debug_assert_eq!(round.phase(), Phase::Upcard);
         Self {
             round,
             knowledge: [Knowledge::default(); 2],
+            scores: [0; 2],
         }
+    }
+
+    /// Set the running game totals, indexed by [`Player`]
+    ///
+    /// Each seat's [`View`] then reports the seat-relative
+    /// [`game_margin`](View::game_margin), letting score-aware strategies
+    /// bank a lead or gamble from behind.
+    #[must_use]
+    pub const fn scores(mut self, scores: [u16; 2]) -> Self {
+        self.scores = scores;
+        self
     }
 
     /// Shuffle and deal a fresh round onto a new table
@@ -77,7 +95,9 @@ impl Table {
     /// The legally visible information for one seat
     #[must_use]
     pub const fn view(&self, seat: Player) -> View<'_> {
-        View::new(&self.round, seat, &self.knowledge[seat as usize])
+        let margin =
+            self.scores[seat as usize] as i32 - self.scores[seat.opponent() as usize] as i32;
+        View::new(&self.round, seat, &self.knowledge[seat as usize], margin)
     }
 
     /// Ask `strategy` — which must belong to the seat to act — for one
@@ -231,7 +251,8 @@ pub fn play_game(
 ) -> Result<gin_rummy::FinalScore, EngineError> {
     let [one, two] = strategies;
     while !game.is_over() {
-        let mut table = Table::new(game.deal(rng));
+        let scores = [game.score(Player::One), game.score(Player::Two)];
+        let mut table = Table::new(game.deal(rng)).scores(scores);
         let result = table.play([&mut *one, &mut *two])?;
         game.record(result)
             .expect("a result produced by the round it was dealt for records cleanly");

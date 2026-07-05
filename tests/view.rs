@@ -50,6 +50,11 @@ fn fixed_deal(dealer: Player) -> Round {
 
 /// Everything a view must satisfy at any point of any round
 fn assert_hygiene(table: &Table) {
+    // The game margin is public and antisymmetric between the seats.
+    assert_eq!(
+        table.view(Player::One).game_margin(),
+        -table.view(Player::Two).game_margin(),
+    );
     for seat in Player::ALL {
         let view = table.view(seat);
         let opponent = seat.opponent();
@@ -143,6 +148,19 @@ fn double_pass_forces_the_stock_draw() {
     // Normal draws may take the pile again afterwards.
     table.step(&mut passer).expect("shedding is legal");
     assert!(table.view(Player::One).can_take_discard());
+}
+
+#[test]
+fn game_margin_is_seat_relative() {
+    // A standalone round has no scoreboard: both seats see a level game.
+    let table = Table::new(fixed_deal(Player::One));
+    assert_eq!(table.view(Player::One).game_margin(), 0);
+    assert_eq!(table.view(Player::Two).game_margin(), 0);
+
+    // With running totals attached, each seat sees its own lead.
+    let table = Table::new(fixed_deal(Player::One)).scores([40, 25]);
+    assert_eq!(table.view(Player::One).game_margin(), 15);
+    assert_eq!(table.view(Player::Two).game_margin(), -15);
 }
 
 #[test]

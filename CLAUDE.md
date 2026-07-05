@@ -14,7 +14,7 @@ belongs in this crate.
 | ---- | -------- |
 | `src/strategy.rs` | The `Strategy` trait: four decision methods against a `View`, object-safe. |
 | `src/action.rs` | Per-phase action types, so a structurally illegal action cannot be expressed. |
-| `src/view.rs` | `View` (public) plus the crate-private `Knowledge` the driver accumulates. |
+| `src/view.rs` | `View` (public, includes the public `game_margin`) plus the crate-private `Knowledge` the driver accumulates. |
 | `src/driver.rs` | `Table`, `play_round`, `play_game`, `EngineError`: validates and applies decisions, keeps both seats' `Knowledge` current. |
 | `src/heuristic.rs` | `HeuristicBot`, `HeuristicConfig`, and the shared greedy primitives `best_shed`, `improves`, `greedy_layoff`. |
 | `src/mc.rs` | `MonteCarloBot` (feature `rand`): plausibility-biased world sampling, common random numbers, significance-gated deviation from the greedy baseline. |
@@ -26,6 +26,7 @@ belongs in this crate.
 | `benches/decision.rs` | Criterion benches for per-decision latency. |
 | `examples/play.rs` | Human vs bot in the terminal. |
 | `examples/arena.rs` | Bot-vs-bot tournaments with Wilson score intervals. |
+| `examples/tune.rs` | Whole-game A/B self-play sweep for tuning the heuristic's knock knobs against a fixed opponent. |
 
 ## Invariants
 

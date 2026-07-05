@@ -217,6 +217,7 @@ mod tests {
         HeuristicBot::with_config(HeuristicConfig {
             knock_threshold: u8::MAX,
             safety_weight: 0,
+            score_awareness: 0,
         })
     }
 

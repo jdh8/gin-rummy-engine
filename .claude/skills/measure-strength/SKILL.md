@@ -12,9 +12,11 @@ timing you observe in them is meaningless.
 
 ## Baselines (default configs, `Rules::default()`)
 
-- `mc:128` beats `greedy` in ≈56% of decisive rounds, at ~10 ms per turn.
+- `mc:128` beats the default `greedy` in ≈65% of decisive rounds, at ~10 ms
+  per turn.  The default heuristic is tuned for whole-game play and so
+  concedes single rounds; this round figure is not a game-strength number.
 - The tripwire (`tests/strength.rs`) demands >52.5% over 1000 rounds: a
-  true 56% bot passes with >99% probability, an even bot sneaks through
+  true 65% bot passes with near certainty, an even bot sneaks through
   less than 6% of the time.
 
 If a change moves these baselines, update them here, in `tests/strength.rs`,
@@ -53,6 +55,26 @@ and in the doc comment on `MonteCarloBot::samples`.
   points per round, not just the percentage.
 - Compare within one rules preset; strength does not transfer across
   `--rules modern|classic|palace`.
+
+## Score-aware changes are game-only
+
+Anything that reads `View::game_margin()` — `HeuristicConfig::score_awareness`
+and any future score-sensitive policy — is inert in a single round, which
+carries a zero margin.  Measure it over **whole games**, never rounds:
+
+```console
+cargo run --release --example tune -- --games 20000 --seed 1 \
+  --knock 4 --awareness 0,32 --opponent mc:64
+```
+
+`tune` pits a candidate `HeuristicConfig` against a fixed opponent (`greedy`,
+`greedy:knock:awareness`, or `mc:N`) over whole games with paired seeds, and
+sweeps a grid of `(knock_threshold, score_awareness)`.  The round-based
+tripwire and `arena --rounds` cannot see these changes — they neither catch
+a regression nor credit an improvement.  Always confirm the winner against a
+**strong** opponent (`--opponent mc:64`), not just the default greedy: a
+config that beats weak greedy but not `mc` is exploiting it, not genuinely
+stronger.  Search on one seed, re-confirm the single best arm on another.
 
 ## Speed
 

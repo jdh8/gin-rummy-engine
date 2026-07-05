@@ -5,8 +5,9 @@
 //! ```
 //!
 //! Debug builds are far too slow for Monte Carlo rollouts at this scale;
-//! always run it in release mode.  With the bot's true win rate around
-//! 56%, the 52.5% bar over 1000 rounds passes with better than 99%
+//! always run it in release mode.  The default `HeuristicBot` is tuned for
+//! whole-game play and concedes single rounds, so `mc:128` takes about 65%
+//! of them; the 52.5% bar over 1000 rounds then passes with overwhelming
 //! probability, while an even bot slips through less than 6% of the time.
 
 #![cfg(feature = "rand")]

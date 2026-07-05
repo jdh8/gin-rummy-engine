@@ -63,21 +63,38 @@ pub struct HeuristicConfig {
     /// Knock whenever the residual deadwood is at most
     /// `min(knock_limit, knock_threshold)`
     ///
-    /// The default of 10 knocks as soon as the rules allow; lower values
-    /// hold out for gin.
+    /// The default of 4 holds out past the first legal knock — banking a
+    /// small knock every hand loses a game to the gin and undercut bonuses.
+    /// Raise it toward the knock limit to knock as soon as the rules allow,
+    /// or lower it to hunt gin.  [`score_awareness`](Self::score_awareness)
+    /// bends this threshold by the game score at play time.
     pub knock_threshold: u8,
     /// Weight of discard safety against the opponent's revealed cards
     ///
     /// Zero ignores the opponent entirely, reproducing the pure greedy
     /// player.  The default is 1.
     pub safety_weight: u8,
+    /// How strongly the game score shifts the knock threshold
+    ///
+    /// Points of threshold shift per unit of `game_margin / game_target`:
+    /// ahead in the game the effective threshold rises toward the legal
+    /// limit (bank the lead by knocking early), behind it falls toward
+    /// zero (hold out for a gin that swings the deficit).  Zero ignores
+    /// the score, so a round played outside a game is unaffected.  At the
+    /// default of 32 a roughly 19-point lead reaches the knock limit and a
+    /// 13-point deficit reaches gin-only.
+    pub score_awareness: u8,
 }
 
 impl Default for HeuristicConfig {
     fn default() -> Self {
+        // Tuned by whole-game self-play (see `examples/tune.rs`): against
+        // the Monte Carlo bot this lifts the heuristic's game-win rate from
+        // ~42% to ~50%, most of it from holding past the first legal knock.
         Self {
-            knock_threshold: 10,
+            knock_threshold: 4,
             safety_weight: 1,
+            score_awareness: 32,
         }
     }
 }
@@ -142,6 +159,19 @@ impl HeuristicBot {
         2 * known + unseen - 2 * cold
     }
 
+    /// The knock threshold in effect, shifted by the game score
+    ///
+    /// The neutral base is `knock_threshold`; `score_awareness` scales the
+    /// shift by `game_margin / game_target`, so the same lead matters more
+    /// in a short game.  Ahead the threshold rises (knock sooner), behind
+    /// it falls toward zero (hold out for gin).
+    fn knock_threshold(&self, view: &View<'_>) -> u8 {
+        let base = i32::from(self.config.knock_threshold);
+        let target = i32::from(view.rules().game_target).max(1);
+        let bias = i32::from(self.config.score_awareness) * view.game_margin() / target;
+        (base + bias).clamp(0, i32::from(u8::MAX)) as u8
+    }
+
     /// The shed minimizing `(residual deadwood, weighted danger, -pips)`
     fn choose_shed(&self, view: &View<'_>) -> (Card, u8) {
         let hand = view.hand();
@@ -187,7 +217,7 @@ impl Strategy for HeuristicBot {
         }
 
         let (card, rest) = self.choose_shed(view);
-        if rest <= view.knock_limit().min(self.config.knock_threshold) {
+        if rest <= view.knock_limit().min(self.knock_threshold(view)) {
             TurnAction::Knock {
                 discard: card,
                 melds: best_melds(hand - card.into()),
@@ -279,5 +309,55 @@ mod tests {
         }
         assert_eq!(laid, ["♣8", "♣9"].map(card));
         assert!(hand.is_empty());
+    }
+
+    #[test]
+    fn score_awareness_shifts_the_knock_threshold() {
+        use crate::Table;
+        use gin_rummy::{Player, Round, Rules};
+
+        let deck: Vec<Card> = Hand::ALL.iter().collect();
+        let hands = [
+            deck.iter().step_by(2).take(10).copied().collect::<Hand>(),
+            deck.iter().skip(1).step_by(2).take(10).copied().collect(),
+        ];
+        let round = Round::from_deal(
+            Rules::default(),
+            Player::One,
+            hands,
+            deck[20],
+            deck[21..].to_vec(),
+        )
+        .expect("a partitioned deck");
+
+        // Base 6, and the game target is 100, so a 60-point margin shifts
+        // the threshold by 32 * 60 / 100 ≈ 19, clamped to knock-limit range.
+        let bot = HeuristicBot::with_config(HeuristicConfig {
+            knock_threshold: 6,
+            score_awareness: 32,
+            ..HeuristicConfig::default()
+        });
+
+        let ahead = Table::new(round.clone()).scores([60, 0]);
+        let level = Table::new(round.clone());
+        let behind = Table::new(round).scores([0, 60]);
+
+        // Level score leaves the base untouched; ahead raises it, behind
+        // drops it toward zero (hold out for gin).
+        assert_eq!(bot.knock_threshold(&level.view(Player::One)), 6);
+        assert!(
+            bot.knock_threshold(&ahead.view(Player::One))
+                > bot.knock_threshold(&level.view(Player::One))
+        );
+        assert!(bot.knock_threshold(&behind.view(Player::One)) < 6);
+
+        // A score-blind bot ignores the margin entirely.
+        let blind = HeuristicBot::with_config(HeuristicConfig {
+            knock_threshold: 6,
+            score_awareness: 0,
+            ..HeuristicConfig::default()
+        });
+        assert_eq!(blind.knock_threshold(&ahead.view(Player::One)), 6);
+        assert_eq!(blind.knock_threshold(&behind.view(Player::One)), 6);
     }
 }

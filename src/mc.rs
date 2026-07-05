@@ -49,9 +49,10 @@ impl<R: Rng> MonteCarloBot<R> {
     /// Set how many worlds each decision samples
     ///
     /// More samples play stronger and slower.  At the default of 128 the
-    /// bot wins about 56% of decisive rounds against [`HeuristicBot`]
-    /// (~10 ms per turn in release builds); 32 keeps a smaller edge at a
-    /// quarter of the cost.
+    /// bot wins about 65% of decisive rounds against the default
+    /// [`HeuristicBot`] — which is tuned for whole-game play and so concedes
+    /// single rounds — at ~10 ms per turn in release builds; 32 keeps a
+    /// smaller edge at a quarter of the cost.
     ///
     /// [`HeuristicBot`]: crate::HeuristicBot
     #[must_use]
