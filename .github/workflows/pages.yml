@@ -26,7 +26,7 @@ jobs:
     steps:
     # The web crate depends on gin-rummy from crates.io, so a plain checkout is
     # enough — no sibling gin-rummy checkout needed.
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
     - name: Install wasm-pack
       run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
     - name: Build wasm
@@ -37,8 +37,8 @@ jobs:
         cd web
         mkdir _site
         cp -r index.html app.js style.css pkg _site/
-    - uses: actions/upload-pages-artifact@v3
+    - uses: actions/upload-pages-artifact@v5
       with:
         path: web/_site
     - id: deployment
-      uses: actions/deploy-pages@v4
+      uses: actions/deploy-pages@v5
