@@ -17,8 +17,8 @@
 use anyhow::{Context as _, Result, bail};
 use gin_rummy::{Card, Hand, Phase, Player, Rank, RoundResult, Rules, Suit, best_melds, deadwood};
 use gin_rummy_engine::{
-    DrawAction, EngineError, HeuristicBot, Layoff, MonteCarloBot, Strategy, Table, TurnAction,
-    UpcardAction, View,
+    DrawAction, EngineError, HeuristicBot, HeuristicConfig, Layoff, MonteCarloBot, Strategy, Table,
+    TurnAction, UpcardAction, View,
 };
 use rand::rngs::StdRng;
 use rand::{RngExt as _, SeedableRng};
@@ -56,11 +56,20 @@ fn make_bot(spec: &str, rng: &mut StdRng) -> Result<Box<dyn Strategy>> {
         None => (spec, None),
     };
     match kind {
+        // A newcomer: knocks at the first legal chance, and is blind both to
+        // the game score and to what a discard hands the opponent.
+        "newbie" => {
+            let mut config = HeuristicConfig::default();
+            config.knock_threshold = 10;
+            config.safety_weight = 0;
+            config.score_awareness = 0;
+            Ok(Box::new(HeuristicBot::with_config(config)))
+        }
         "greedy" => Ok(Box::new(HeuristicBot::new())),
         "mc" => Ok(Box::new(
             MonteCarloBot::new(StdRng::seed_from_u64(rng.random())).samples(samples.unwrap_or(64)),
         )),
-        other => bail!("unknown bot {other:?} (greedy | mc[:samples])"),
+        other => bail!("unknown bot {other:?} (newbie | greedy | mc[:samples])"),
     }
 }
 

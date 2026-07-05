@@ -13,8 +13,8 @@
 
 use gin_rummy::{Card, Game, Hand, Melds, Phase, Player, RoundResult, Rules, best_melds, deadwood};
 use gin_rummy_engine::{
-    DrawAction, HeuristicBot, Layoff, MonteCarloBot, Strategy, Table, TurnAction, UpcardAction,
-    View,
+    DrawAction, HeuristicBot, HeuristicConfig, Layoff, MonteCarloBot, Strategy, Table, TurnAction,
+    UpcardAction, View,
 };
 use rand::rngs::StdRng;
 use rand::{RngExt as _, SeedableRng};
@@ -560,7 +560,7 @@ pub struct WebGame {
 
 #[wasm_bindgen]
 impl WebGame {
-    /// Start a game.  `bot` is `greedy` or `mc[:samples]`, `rules` is
+    /// Start a game.  `bot` is `newbie`, `greedy`, or `mc[:samples]`, `rules` is
     /// `modern`/`classic`/`palace`, and `seed` is a decimal string (a shared
     /// seed reproduces the terminal `play` example exactly).
     #[wasm_bindgen(constructor)]
@@ -642,6 +642,15 @@ fn make_bot(spec: &str, rng: &mut StdRng) -> Box<dyn Strategy> {
         None => (spec, None),
     };
     match kind {
+        // A newcomer: knocks at the first legal chance, and is blind both to
+        // the game score and to what a discard hands the opponent.
+        "newbie" => {
+            let mut config = HeuristicConfig::default();
+            config.knock_threshold = 10;
+            config.safety_weight = 0;
+            config.score_awareness = 0;
+            Box::new(HeuristicBot::with_config(config))
+        }
         "greedy" => Box::new(HeuristicBot::new()),
         // Default to the Monte Carlo bot; it needs its own seeded generator.
         _ => Box::new(

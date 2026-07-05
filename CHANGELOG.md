@@ -63,9 +63,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A `tune` example: whole-game A/B self-play that sweeps the heuristic's
   knock knobs against a fixed opponent (`greedy` or `mc`), reporting each
   arm's game-win rate with a Wilson interval.  It picked the new defaults.
-- The browser front end has a Difficulty dropdown (Easy/Medium/Hard, mapping
-  to `greedy`/`mc:16`/`mc:64`) in the header, so picking an opponent no longer
-  requires editing `app.js`.
+- The browser front end has a Difficulty dropdown (Easy/Medium/Hard) in the
+  header, so picking an opponent no longer requires editing `app.js`.  The
+  three tiers are distinct opponents rather than Monte Carlo sample-count
+  variants: a `newbie` heuristic that knocks at the first legal chance and is
+  blind to both the game score and discard safety, the score-aware default
+  heuristic, and `mc:128`.  The `play` example accepts `--bot newbie` as well.
 
 ## [0.1.1] - 2026-07-05
 
