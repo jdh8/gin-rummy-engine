@@ -118,7 +118,8 @@ impl Core {
         let bot = make_bot(bot_spec, &mut rng);
         let game = Game::new(rules, HUMAN);
         let dealer = game.next_dealer();
-        let table = Table::new(game.deal(&mut rng));
+        let scores = [game.score(Player::One), game.score(Player::Two)];
+        let table = Table::new(game.deal(&mut rng)).scores(scores);
         // The UI paces the game from the deal by ticking `step_once`, so unlike
         // `play.rs` we do not drain to the first human decision here.
         Self {
@@ -342,7 +343,8 @@ impl Core {
         self.last_result = None;
         self.round_no += 1;
         let dealer = self.game.next_dealer();
-        self.table = Table::new(self.game.deal(&mut self.rng));
+        let scores = [self.game.score(Player::One), self.game.score(Player::Two)];
+        self.table = Table::new(self.game.deal(&mut self.rng)).scores(scores);
         self.log.push(round_header(self.round_no, dealer));
     }
 

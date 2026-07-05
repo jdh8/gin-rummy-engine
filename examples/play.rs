@@ -447,7 +447,8 @@ fn main() -> Result<()> {
                 "bot's"
             },
         );
-        let mut table = Table::new(game.deal(&mut rng));
+        let scores = [game.score(Player::One), game.score(Player::Two)];
+        let mut table = Table::new(game.deal(&mut rng)).scores(scores);
 
         while let Some(seat) = table.turn() {
             if seat == HUMAN {

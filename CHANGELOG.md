@@ -37,6 +37,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   layoff or a knock's reported melds may pick a different (equally optimal)
   arrangement on hands where a run and a set tie.
 
+### Fixed
+
+- The `play` example and the browser front end now attach the running game
+  totals to each round's table, so score-aware strategies — the retuned
+  `HeuristicBot` and now `MonteCarloBot` — actually see the score when
+  playing a human.  Previously they played every round as if the game were
+  level.
+
 ### Added
 
 - `View::game_scores()` reports both running game totals, this seat's
