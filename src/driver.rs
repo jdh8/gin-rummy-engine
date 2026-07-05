@@ -45,9 +45,9 @@ impl Table {
     /// during earlier play cannot be reconstructed from a mid-game round.
     ///
     /// The game score defaults to level (both seats at zero), so a
-    /// standalone round reports a [`game_margin`](View::game_margin) of
-    /// zero.  Set it with [`Table::scores`] when driving a round within a
-    /// game.
+    /// standalone round reports [`game_scores`](View::game_scores) of
+    /// `[0, 0]` and a [`game_margin`](View::game_margin) of zero.  Set it
+    /// with [`Table::scores`] when driving a round within a game.
     #[must_use]
     pub fn new(round: Round) -> Self {
         debug_assert_eq!(round.phase(), Phase::Upcard);
@@ -61,6 +61,7 @@ impl Table {
     /// Set the running game totals, indexed by [`Player`]
     ///
     /// Each seat's [`View`] then reports the seat-relative
+    /// [`game_scores`](View::game_scores) and
     /// [`game_margin`](View::game_margin), letting score-aware strategies
     /// bank a lead or gamble from behind.
     #[must_use]
@@ -95,9 +96,11 @@ impl Table {
     /// The legally visible information for one seat
     #[must_use]
     pub const fn view(&self, seat: Player) -> View<'_> {
-        let margin =
-            self.scores[seat as usize] as i32 - self.scores[seat.opponent() as usize] as i32;
-        View::new(&self.round, seat, &self.knowledge[seat as usize], margin)
+        let scores = [
+            self.scores[seat as usize],
+            self.scores[seat.opponent() as usize],
+        ];
+        View::new(&self.round, seat, &self.knowledge[seat as usize], scores)
     }
 
     /// Ask `strategy` — which must belong to the seat to act — for one

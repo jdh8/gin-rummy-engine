@@ -22,10 +22,13 @@ struct World {
 /// and the remaining unseen cards are distributed between their hand and
 /// the stock, biased toward the meld-rich hands a real opponent collects —
 /// plays each world out with the greedy policy on both seats, and picks
-/// the action with the best expected score in round points.  The same
-/// worlds are reused across candidate actions (common random numbers), and
-/// the bot deviates from the greedy baseline only when the paired samples
-/// show a statistically clear gain.
+/// the action with the best expected value *for the game*: each rollout's
+/// result lands on the running [`game scores`](View::game_scores), a
+/// result that reaches [`game_target`](Rules::game_target) counts as the
+/// win or loss of the game it is, and anything short of one counts its
+/// round points.  The same worlds are reused across candidate actions
+/// (common random numbers), and the bot deviates from the greedy baseline
+/// only when the paired samples show a statistically clear gain.
 ///
 /// The bot owns its random number generator, so a seeded generator makes
 /// its play reproducible.
@@ -112,10 +115,10 @@ impl<R: Rng> MonteCarloBot<R> {
             .collect()
     }
 
-    /// Per-world signed scores of `rollout` (common random numbers: every
-    /// candidate sees the same worlds, so paired comparisons cancel most of
-    /// the rollout noise)
-    fn scores(
+    /// Per-world game-winning equities of `rollout` (common random numbers:
+    /// every candidate sees the same worlds, so paired comparisons cancel
+    /// most of the rollout noise)
+    fn equities(
         view: &View<'_>,
         worlds: &[World],
         phase: SimPhase,
@@ -123,9 +126,10 @@ impl<R: Rng> MonteCarloBot<R> {
     ) -> Vec<f64> {
         let me = view.seat();
         let rules = view.rules();
+        let standing = view.game_scores();
         worlds
             .iter()
-            .map(|world| score(rollout(Self::sim(view, world, phase)), me, rules))
+            .map(|world| equity(rollout(Self::sim(view, world, phase)), me, standing, rules))
             .collect()
     }
 
@@ -180,12 +184,56 @@ fn beats(challenger: &[f64], incumbent: &[f64]) -> bool {
     mean > 2.0 * (var / n).sqrt()
 }
 
-/// The signed value of a result from `me`'s seat, in round points
-fn score(result: RoundResult, me: Player, rules: &Rules) -> f64 {
-    match result.winner() {
-        Some(winner) if winner == me => f64::from(result.points(rules)),
-        Some(_) => -f64::from(result.points(rules)),
-        None => 0.0,
+/// The value of `result` to `me` in the game standing at the `standing`
+/// totals (`[mine, theirs]`): 1 for a result that wins the game, 0 for
+/// one that loses it, otherwise affine in the signed round points
+///
+/// The result lands on the standing exactly as [`gin_rummy::Game::record`]
+/// applies it: the winner banks [`RoundResult::points`] plus an immediate
+/// box where [`Rules::immediate_boxes`] grants one.  Deferred boxes, the
+/// game bonus, and shutout doubling only inflate the final tally — they
+/// never decide who reaches [`Rules::game_target`] first — so they are
+/// correctly absent.
+///
+/// Short of a clinch the value stays affine in round points, so `beats`
+/// makes exactly the decisions the round-point objective made and the
+/// bot deviates from its round game only when a rollout can actually end
+/// the game: it takes the knock that clinches instead of milking a
+/// bigger score, and it defends the round when losing it hands the
+/// opponent the game.  Shaped utilities that also bend mid-game play — a
+/// win-probability race over the points still needed — measured slightly
+/// *weaker* over whole games (their distortion at level scores buys
+/// nothing), and rolling whole games out instead would drown the
+/// significance gate in cross-round variance.  A non-clinch gain is less
+/// than the target by definition, so scaling by four targets pins every
+/// mid-game value inside (¼, ¾), a guaranteed gap below a clinch and
+/// above a loss.
+fn equity(result: RoundResult, me: Player, standing: [u16; 2], rules: &Rules) -> f64 {
+    let mut scores = standing;
+    let mut points = 0.0;
+    if let Some(winner) = result.winner() {
+        let immediate = if rules.immediate_boxes {
+            rules.box_bonus
+        } else {
+            0
+        };
+        let gain = result.points(rules).saturating_add(immediate);
+        let side = usize::from(winner != me);
+        scores[side] = scores[side].saturating_add(gain);
+        points = if winner == me {
+            f64::from(gain)
+        } else {
+            -f64::from(gain)
+        };
+    }
+    // Mine first: both seats over the target is unreachable in a game,
+    // where only one seat scores per round.
+    if scores[0] >= rules.game_target {
+        1.0
+    } else if scores[1] >= rules.game_target {
+        0.0
+    } else {
+        0.5 + points / (4.0 * f64::from(rules.game_target))
     }
 }
 
@@ -199,11 +247,11 @@ impl<R: Rng> Strategy for MonteCarloBot<R> {
         };
 
         let worlds = self.sample_worlds(view);
-        let take = Self::scores(view, &worlds, SimPhase::Upcard, |mut sim| {
+        let take = Self::equities(view, &worlds, SimPhase::Upcard, |mut sim| {
             sim.take_discard();
             sim.rollout()
         });
-        let pass = Self::scores(view, &worlds, SimPhase::Upcard, |mut sim| {
+        let pass = Self::equities(view, &worlds, SimPhase::Upcard, |mut sim| {
             sim.pass();
             sim.rollout()
         });
@@ -228,11 +276,11 @@ impl<R: Rng> Strategy for MonteCarloBot<R> {
         };
 
         let worlds = self.sample_worlds(view);
-        let stock = Self::scores(view, &worlds, SimPhase::Draw, |mut sim| {
+        let stock = Self::equities(view, &worlds, SimPhase::Draw, |mut sim| {
             sim.draw_stock();
             sim.rollout()
         });
-        let pile = Self::scores(view, &worlds, SimPhase::Draw, |mut sim| {
+        let pile = Self::equities(view, &worlds, SimPhase::Draw, |mut sim| {
             sim.take_discard();
             sim.rollout()
         });
@@ -273,7 +321,7 @@ impl<R: Rng> Strategy for MonteCarloBot<R> {
                 let melds = best_melds(hand - card.into());
                 let knock = (rest <= limit).then(|| {
                     let scores =
-                        Self::scores(view, &worlds, SimPhase::Shed, |sim| sim.knock(card, melds));
+                        Self::equities(view, &worlds, SimPhase::Shed, |sim| sim.knock(card, melds));
                     (
                         TurnAction::Knock {
                             discard: card,
@@ -282,7 +330,7 @@ impl<R: Rng> Strategy for MonteCarloBot<R> {
                         scores,
                     )
                 });
-                let discard = Self::scores(view, &worlds, SimPhase::Shed, |mut sim| {
+                let discard = Self::equities(view, &worlds, SimPhase::Shed, |mut sim| {
                     sim.discard(card).unwrap_or_else(|| sim.rollout())
                 });
                 knock
@@ -377,6 +425,92 @@ mod tests {
             bot.offer_upcard(&table.view(Player::Two))
         };
         assert_eq!(decide(3), decide(3));
+    }
+
+    #[test]
+    fn equity_is_terminal_at_the_target() {
+        let rules = Rules::default();
+        let me = Player::One;
+        let win = RoundResult::Knock {
+            winner: me,
+            margin: 15,
+        };
+        assert_eq!(equity(win, me, [90, 50], &rules), 1.0);
+
+        let loss = RoundResult::Knock {
+            winner: me.opponent(),
+            margin: 15,
+        };
+        assert_eq!(equity(loss, me, [50, 90], &rules), 0.0);
+    }
+
+    #[test]
+    fn equity_prices_immediate_boxes() {
+        // 95 + 3 crosses 100 only with the palace box of 10.
+        let me = Player::One;
+        let result = RoundResult::Knock {
+            winner: me,
+            margin: 3,
+        };
+        assert_eq!(equity(result, me, [95, 95], &Rules::palace()), 1.0);
+
+        let deferred = equity(result, me, [95, 95], &Rules::default());
+        assert!(deferred > 0.5 && deferred < 1.0);
+    }
+
+    #[test]
+    fn equity_orders_results_at_level_scores() {
+        let rules = Rules::default();
+        let me = Player::One;
+        let gin = equity(
+            RoundResult::Gin {
+                winner: me,
+                deadwood: 30,
+            },
+            me,
+            [0, 0],
+            &rules,
+        );
+        let knock = equity(
+            RoundResult::Knock {
+                winner: me,
+                margin: 10,
+            },
+            me,
+            [0, 0],
+            &rules,
+        );
+        let dead = equity(RoundResult::Dead, me, [0, 0], &rules);
+        let loss = equity(
+            RoundResult::Knock {
+                winner: me.opponent(),
+                margin: 10,
+            },
+            me,
+            [0, 0],
+            &rules,
+        );
+        assert!(gin > knock && knock > dead && dead > loss);
+        assert_eq!(dead, 0.5);
+    }
+
+    #[test]
+    fn mid_game_equity_is_affine_in_round_points() {
+        // Short of a clinch the standing shifts nothing: a dead round is
+        // worth exactly 1/2, and a win is worth the same premium over it
+        // from any standing — so mid-game decisions reduce to the
+        // round-point objective.
+        let rules = Rules::default();
+        let me = Player::One;
+        let win = RoundResult::Knock {
+            winner: me,
+            margin: 10,
+        };
+        assert_eq!(equity(RoundResult::Dead, me, [60, 20], &rules), 0.5);
+        assert_eq!(
+            equity(win, me, [60, 20], &rules),
+            equity(win, me, [0, 0], &rules),
+        );
     }
 
     #[test]

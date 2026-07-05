@@ -50,7 +50,14 @@ fn fixed_deal(dealer: Player) -> Round {
 
 /// Everything a view must satisfy at any point of any round
 fn assert_hygiene(table: &Table) {
-    // The game margin is public and antisymmetric between the seats.
+    // The game score is public: the seats see mirrored totals, and the
+    // margin is their difference.
+    let [a, b] = table.view(Player::One).game_scores();
+    assert_eq!(table.view(Player::Two).game_scores(), [b, a]);
+    assert_eq!(
+        table.view(Player::One).game_margin(),
+        i32::from(a) - i32::from(b),
+    );
     assert_eq!(
         table.view(Player::One).game_margin(),
         -table.view(Player::Two).game_margin(),
@@ -154,11 +161,15 @@ fn double_pass_forces_the_stock_draw() {
 fn game_margin_is_seat_relative() {
     // A standalone round has no scoreboard: both seats see a level game.
     let table = Table::new(fixed_deal(Player::One));
+    assert_eq!(table.view(Player::One).game_scores(), [0, 0]);
     assert_eq!(table.view(Player::One).game_margin(), 0);
     assert_eq!(table.view(Player::Two).game_margin(), 0);
 
-    // With running totals attached, each seat sees its own lead.
+    // With running totals attached, each seat sees its own totals first
+    // and its own lead.
     let table = Table::new(fixed_deal(Player::One)).scores([40, 25]);
+    assert_eq!(table.view(Player::One).game_scores(), [40, 25]);
+    assert_eq!(table.view(Player::Two).game_scores(), [25, 40]);
     assert_eq!(table.view(Player::One).game_margin(), 15);
     assert_eq!(table.view(Player::Two).game_margin(), -15);
 }

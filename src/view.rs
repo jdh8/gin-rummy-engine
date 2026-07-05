@@ -40,7 +40,8 @@ pub struct View<'a> {
     round: &'a Round,
     seat: Player,
     know: &'a Knowledge,
-    margin: i32,
+    /// Running game totals, this seat's first
+    scores: [u16; 2],
 }
 
 impl<'a> View<'a> {
@@ -48,13 +49,13 @@ impl<'a> View<'a> {
         round: &'a Round,
         seat: Player,
         know: &'a Knowledge,
-        margin: i32,
+        scores: [u16; 2],
     ) -> Self {
         Self {
             round,
             seat,
             know,
-            margin,
+            scores,
         }
     }
 
@@ -74,7 +75,22 @@ impl<'a> View<'a> {
     /// is [`rules().game_target`](gin_rummy::Rules::game_target).
     #[must_use]
     pub const fn game_margin(&self) -> i32 {
-        self.margin
+        self.scores[0] as i32 - self.scores[1] as i32
+    }
+
+    /// The running game totals, this seat's first: `[mine, theirs]`
+    ///
+    /// Note the order: seat-relative, unlike [`Table::scores`], which is
+    /// indexed by [`Player`].  Both totals sit on the scoreboard in plain
+    /// sight, so they are part of the legal whitelist.  `[0, 0]` for a
+    /// standalone round played outside a [`Game`](gin_rummy::Game); the
+    /// target to win is
+    /// [`rules().game_target`](gin_rummy::Rules::game_target).
+    ///
+    /// [`Table::scores`]: crate::Table::scores
+    #[must_use]
+    pub const fn game_scores(&self) -> [u16; 2] {
+        self.scores
     }
 
     /// The scoring rules of the round

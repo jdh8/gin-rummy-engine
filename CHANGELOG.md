@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `MonteCarloBot` now plays for the game, not just the round.  Each
+  rollout result lands on the running game totals: a result that reaches
+  `game_target` counts as the game win or loss it is, and anything short
+  of a clinch counts its round points as before.  Immediate boxes
+  (palace-style rules) are priced in; deferred boxes and game bonuses
+  never decide who goes out first and are ignored.  Mid-game decisions
+  are unchanged by construction, and so is play outside a game; the bot
+  deviates exactly when a round can end the game — it takes a knock that
+  clinches instead of milking a bigger score, and it defends the round
+  when losing it would hand the opponent the game.  Aggregate strength
+  against the default heuristic is unchanged within measurement error:
+  mc:64 still wins ≈54% of modern-rules games and ≈61% of palace games,
+  and mc:128 ≈65% of decisive standalone rounds.
 - `HeuristicBot` now plays for the game, not just the round.  Its default
   configuration is retuned by whole-game self-play: it holds past the first
   legal knock (`knock_threshold` 4, was 10) rather than banking a small
@@ -26,6 +39,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `View::game_scores()` reports both running game totals, this seat's
+  first — the whole scoreboard is public, so information hygiene holds —
+  giving strategies the distance to `game_target` that `game_margin`
+  alone cannot recover.
 - `View::game_margin()` reports the seat's running lead in the game score —
   positive ahead, negative behind, zero for a round played on its own — so a
   strategy can bank a lead or gamble from behind.  The game score is public

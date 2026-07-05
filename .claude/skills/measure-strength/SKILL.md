@@ -58,9 +58,17 @@ and in the doc comment on `MonteCarloBot::samples`.
 
 ## Score-aware changes are game-only
 
-Anything that reads `View::game_margin()` — `HeuristicConfig::score_awareness`
-and any future score-sensitive policy — is inert in a single round, which
-carries a zero margin.  Measure it over **whole games**, never rounds:
+Anything that reads the game score from the `View` — the heuristic's
+`score_awareness` knob and `MonteCarloBot`'s game equity objective — can
+only differentiate itself over **whole games**; a single round carries a
+level scoreboard.  The heuristic's shift is exactly inert at a zero
+margin; the Monte Carlo equity stays affine in round points until a
+rollout can end the game, so it too is inert in standalone rounds (a
+100-point clinch from a level board is the vanishing exception).  A
+shaped equity that also bent mid-game play — a win-probability race over
+the points still needed — measured *weaker* over whole games (−2 points
+over 4000 palace games, nothing gained elsewhere); don't reintroduce one
+without beating that bar.  Measure over games, never rounds:
 
 ```console
 cargo run --release --example tune -- --games 20000 --seed 1 \
