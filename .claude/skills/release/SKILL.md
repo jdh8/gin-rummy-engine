@@ -1,6 +1,6 @@
 ---
 name: release
-description: Cut a release of gin-rummy-engine — version bump, changelog rollover, tag, and the crates.io publish-order constraint with the sibling gin-rummy crate. Use when asked to release, publish, or bump the version.
+description: Cut a release of gin-rummy-engine — version bump, changelog rollover, tag, GitHub release, and the crates.io publish-order constraint with the sibling gin-rummy crate. Use when asked to release, publish, or bump the version.
 ---
 
 # Release gin-rummy-engine
@@ -17,11 +17,13 @@ description: Cut a release of gin-rummy-engine — version bump, changelog rollo
 
 ## The publish-order constraint
 
-gin-rummy is a path dependency (`path = "../gin-rummy"` with a version
-bound).  `cargo publish` strips the path and keeps the version, so
-publishing requires a gin-rummy release satisfying that bound on crates.io
-**first**.  If gin-rummy changed too, release it before this crate and
-bump the version bound in `Cargo.toml` here.
+gin-rummy is normally a plain version dependency and both crates are on
+crates.io, so a routine release has no ordering to worry about.  If a
+coordinated change is in flight — the dependency temporarily points at
+`path = "../gin-rummy"`, or the release needs unreleased gin-rummy
+commits — release gin-rummy **first**, bump the version bound in
+`Cargo.toml` here, and switch the dependency back to a pure version
+requirement before continuing.
 
 ## Steps
 
@@ -30,28 +32,43 @@ bump the version bound in `Cargo.toml` here.
    and fixes bump the patch (0.1.0 → 0.1.1).  Anything `#[non_exhaustive]`
    gaining fields or variants is non-breaking by design.
 2. `Cargo.toml`: bump `version`.  Run `cargo check` so `Cargo.lock` picks
-   up the new version; commit both files.
+   up the new version, and `cargo check` in `web/` too — it depends on
+   the parent by path, so its own `Cargo.lock` records the version.
 3. CHANGELOG.md rollover:
    - Rename `## [Unreleased]` to `## [x.y.z] - YYYY-MM-DD` and add a fresh
      empty `## [Unreleased]` above it.
    - Update the link references at the bottom: point `[Unreleased]` at
      `compare/x.y.z...HEAD` and add `[x.y.z]` (compare from the previous
      tag, or `releases/tag/x.y.z` for a first entry).
-4. Commit as `Release x.y.z` (see `git log` for the house style), then
-   tag and push.  Tags are unprefixed (`x.y.z`, not `vx.y.z`), matching
-   the sibling crates and the GitHub release title:
+4. Commit as `Release x.y.z` (see `git log` for the house style) and
+   `git push`.  **Do not tag yet.**
+5. Wait for GitHub CI to go green on that commit
+   (`gh run watch` or `gh run list`).  Nothing ships before it passes.
+6. Tag and push the tag.  Tags are unprefixed (`x.y.z`, not `vx.y.z`),
+   matching the sibling crates and the GitHub release title:
 
    ```console
    git tag x.y.z
-   git push && git push --tags
+   git push --tags
    ```
 
-5. Publish, once the ordering constraint is satisfied:
+7. Create the GitHub release (skipping this is how 0.1.2 ended up with a
+   tag but no release).  House format, matching `gh release view 0.1.1`:
+   title is the bare version; the body opens with a one-paragraph summary
+   of the release's character, then the changelog sections for this
+   version, then a footer pinned to the tag:
+
+   ```
+   📦 [crates.io/crates/gin-rummy-engine](…) · 📖 [docs.rs/gin-rummy-engine](…) · See [CHANGELOG.md](https://github.com/jdh8/gin-rummy-engine/blob/x.y.z/CHANGELOG.md).
+   ```
+
+   ```console
+   gh release create x.y.z --title x.y.z --notes-file <body.md>
+   ```
+
+8. Publish:
 
    ```console
    cargo publish --dry-run
    cargo publish
    ```
-
-   While gin-rummy is not yet on crates.io, stop after the tag — the dry
-   run will fail on the unpublished dependency, and that is expected.
