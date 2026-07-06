@@ -218,6 +218,12 @@ fn print_hints(rows: &[Assessment]) {
         return;
     }
     println!("Solver — equity is your chance to win the game, EV your expected round points:");
+    // The bot deviates from its greedy default only on a statistically clear
+    // equity gain, so its pick can sit below a higher point-estimate that is
+    // really just sampling noise.  Say so only when it actually happens.
+    if !rows[0].recommended {
+        println!("(Equities within the sampling noise are ties; the bot holds its default move.)");
+    }
     for row in rows {
         let mark = if row.recommended { "▸" } else { " " };
         let line = format!(

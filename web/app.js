@@ -325,10 +325,18 @@ function renderHint(rows) {
       );
     })
     .join('');
+  // The bot deviates from its greedy default only on a statistically clear
+  // equity gain, so its pick can sit below a higher point-estimate that is
+  // really just sampling noise.  Explain that only when it actually happens.
+  const tied = rows[0].recommended
+    ? ''
+    : '<p class="hint-note">Equities within the sampling noise are ties; the ' +
+      'bot holds its default move unless one clearly leads.</p>';
   const panel = id('hint');
   panel.innerHTML =
     '<h2>Solver</h2>' +
     '<p class="hint-note">Equity is your chance to win the game; EV your expected points.</p>' +
+    tied +
     head +
     body;
   panel.hidden = false;
