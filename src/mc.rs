@@ -4,7 +4,7 @@ use crate::heuristic::greedy_layoff;
 use crate::sim::{Sim, SimPhase};
 use crate::{DrawAction, Layoff, Strategy, TurnAction, UpcardAction, View};
 use gin_rummy::deck::Deck;
-use gin_rummy::{Card, Hand, Player, RoundResult, Rules, best_melds, deadwood};
+use gin_rummy::{Card, Hand, Phase, Player, RoundResult, Rules, best_melds, deadwood};
 use rand::Rng;
 
 /// One determinized world: a concrete opponent hand and stock order
@@ -36,6 +36,30 @@ pub struct MonteCarloBot<R: Rng> {
     rng: R,
     samples: u32,
     max_candidates: usize,
+}
+
+/// One candidate action's Monte Carlo assessment, for a solver or hint view
+///
+/// Produced by [`MonteCarloBot::assess`]: the same rollouts the bot chooses
+/// with, surfaced per candidate instead of collapsed to the single action a
+/// [`Strategy`] method returns.
+#[derive(Debug, Clone)]
+#[non_exhaustive]
+pub struct Assessment {
+    /// A rendered label for the action, e.g. `"discard 4♠"`, `"knock, drop
+    /// 4♠"`, `"take"`, `"pass"`, `"draw stock"`, `"take pile"`, `"big gin"`.
+    pub action: String,
+    /// Mean game-winning equity in `[0, 1]` — the quantity the bot
+    /// maximizes, so candidates rank by it.
+    pub equity: f64,
+    /// Mean signed round points the action wins the deciding seat: positive
+    /// for a net gain, negative for a net loss.
+    pub ev: f64,
+    /// Whether this is the bot's own pick — the move a [`Strategy`] method
+    /// would return on this view.  Because the bot deviates from the greedy
+    /// baseline only on a statistically clear gain, this need not be the
+    /// highest-equity candidate.
+    pub recommended: bool,
 }
 
 impl<R: Rng> MonteCarloBot<R> {
@@ -153,6 +177,161 @@ impl<R: Rng> MonteCarloBot<R> {
             forced_stock: false,
         }
     }
+
+    /// Assess every candidate action for the current decision, each with its
+    /// Monte Carlo equity and expected round points, ranked by equity with
+    /// the bot's own pick flagged — the read a solver or hint view shows
+    ///
+    /// The candidates and the flagged pick mirror the matching [`Strategy`]
+    /// method on the same sampled worlds, so the recommended row is the move
+    /// the bot would play — with one deliberate contraction: a knock's shed
+    /// is not a real choice (dropping the largest deadwood is always the best
+    /// knock), so the discard phase lists a single knock rather than one per
+    /// shed.  Returns empty when the seat has no real choice: a forced stock
+    /// draw, the layoff phase, or a finished round.
+    #[must_use]
+    pub fn assess(&mut self, view: &View<'_>) -> Vec<Assessment> {
+        let worlds = self.sample_worlds(view);
+        match view.phase() {
+            Phase::Upcard => {
+                let take = Self::score(view, &worlds, SimPhase::Upcard, |mut sim| {
+                    sim.take_discard();
+                    sim.rollout()
+                });
+                let pass = Self::score(view, &worlds, SimPhase::Upcard, |mut sim| {
+                    sim.pass();
+                    sim.rollout()
+                });
+                let take = ("take".to_string(), take.0, take.1);
+                let pass = ("pass".to_string(), pass.0, pass.1);
+                let top = view.upcard().expect("the upcard offer has an upcard");
+                // Incumbent first, so the gate compares the challenger against
+                // it exactly as `offer_upcard` does.
+                if crate::heuristic::improves(view.hand(), top) {
+                    let flip = beats(&pass.1, &take.1);
+                    Self::rank(vec![take, pass], usize::from(flip))
+                } else {
+                    let flip = beats(&take.1, &pass.1);
+                    Self::rank(vec![pass, take], usize::from(flip))
+                }
+            }
+            Phase::Draw => {
+                if !view.can_take_discard() {
+                    // A forced stock draw is not a choice.
+                    return Vec::new();
+                }
+                let stock = Self::score(view, &worlds, SimPhase::Draw, |mut sim| {
+                    sim.draw_stock();
+                    sim.rollout()
+                });
+                let pile = Self::score(view, &worlds, SimPhase::Draw, |mut sim| {
+                    sim.take_discard();
+                    sim.rollout()
+                });
+                let stock = ("draw stock".to_string(), stock.0, stock.1);
+                let pile = ("take pile".to_string(), pile.0, pile.1);
+                let top = view.upcard().expect("the pile is never empty on a draw");
+                // Incumbent first, mirroring `choose_draw`.
+                if crate::heuristic::improves(view.hand(), top) {
+                    let flip = beats(&stock.1, &pile.1);
+                    Self::rank(vec![pile, stock], usize::from(flip))
+                } else {
+                    let flip = beats(&pile.1, &stock.1);
+                    Self::rank(vec![stock, pile], usize::from(flip))
+                }
+            }
+            Phase::Discard => {
+                let hand = view.hand();
+                if deadwood(hand) == 0 && view.rules().big_gin_bonus.is_some() {
+                    let (eq, ev) = Self::score(view, &worlds, SimPhase::Shed, |sim| sim.big_gin());
+                    return Self::rank(vec![("big gin".to_string(), eq, ev)], 0);
+                }
+                // The same greedy candidate ranking `play_turn` evaluates.
+                let mut candidates: Vec<(Card, u8)> = hand
+                    .iter()
+                    .filter(|&card| Some(card) != view.taken_discard())
+                    .map(|card| (card, deadwood(hand - card.into())))
+                    .collect();
+                candidates.sort_by_key(|&(card, rest)| (rest, u8::MAX - card.rank.deadwood()));
+                candidates.truncate(self.max_candidates.max(1));
+
+                let limit = view.knock_limit();
+                let mut actions: Vec<(String, Vec<f64>, f64)> = Vec::new();
+                // The knock shed is not a real choice: dropping the card that
+                // leaves the least deadwood is always the best knock, and the
+                // candidates are sorted so that is the first one.  Report that
+                // single knock — leading, as the greedy incumbent — not one
+                // per shed.  If even it exceeds the limit, no shed can knock.
+                if let Some(&(card, rest)) = candidates.first()
+                    && rest <= limit
+                {
+                    let melds = best_melds(hand - card.into());
+                    let (eq, ev) =
+                        Self::score(view, &worlds, SimPhase::Shed, |sim| sim.knock(card, melds));
+                    actions.push((format!("knock, drop {card}"), eq, ev));
+                }
+                for &(card, _) in &candidates {
+                    let (eq, ev) = Self::score(view, &worlds, SimPhase::Shed, |mut sim| {
+                        sim.discard(card).unwrap_or_else(|| sim.rollout())
+                    });
+                    actions.push((format!("discard {card}"), eq, ev));
+                }
+
+                // The incumbent is the first candidate's action; the pick
+                // deviates only on a gain the gate trusts, taking the largest,
+                // exactly as `play_turn` selects.
+                let mean = |e: &[f64]| e.iter().sum::<f64>() / e.len() as f64;
+                let means: Vec<f64> = actions.iter().map(|(_, eq, _)| mean(eq)).collect();
+                let defend = &actions[0].1;
+                let recommended = (1..actions.len())
+                    .filter(|&i| beats(&actions[i].1, defend))
+                    .max_by(|&a, &b| means[a].total_cmp(&means[b]))
+                    .unwrap_or(0);
+                Self::rank(actions, recommended)
+            }
+            _ => Vec::new(),
+        }
+    }
+
+    /// Per-world equities and mean expected round points of `rollout` (common
+    /// random numbers, as [`Self::equities`]), folding one rollout pass into
+    /// both statistics a solver view shows
+    fn score(
+        view: &View<'_>,
+        worlds: &[World],
+        phase: SimPhase,
+        rollout: impl Fn(Sim) -> RoundResult,
+    ) -> (Vec<f64>, f64) {
+        let me = view.seat();
+        let rules = view.rules();
+        let standing = view.game_scores();
+        let mut equities = Vec::with_capacity(worlds.len());
+        let mut ev_sum = 0.0;
+        for world in worlds {
+            let result = rollout(Self::sim(view, world, phase));
+            equities.push(equity(result, me, standing, rules));
+            ev_sum += round_points(result, me, rules);
+        }
+        (equities, ev_sum / worlds.len() as f64)
+    }
+
+    /// Reduce scored options — each `(label, per-world equities, mean EV)`,
+    /// with `recommended` the index of the bot's pick — to assessments ranked
+    /// by mean equity
+    fn rank(options: Vec<(String, Vec<f64>, f64)>, recommended: usize) -> Vec<Assessment> {
+        let mut out: Vec<Assessment> = options
+            .into_iter()
+            .enumerate()
+            .map(|(i, (action, equities, ev))| Assessment {
+                action,
+                equity: equities.iter().sum::<f64>() / equities.len() as f64,
+                ev,
+                recommended: i == recommended,
+            })
+            .collect();
+        out.sort_by(|a, b| b.equity.total_cmp(&a.equity));
+        out
+    }
 }
 
 /// Whether the challenger's paired advantage over the incumbent is large
@@ -234,6 +413,31 @@ fn equity(result: RoundResult, me: Player, standing: [u16; 2], rules: &Rules) ->
         0.0
     } else {
         0.5 + points / (4.0 * f64::from(rules.game_target))
+    }
+}
+
+/// The signed round points `result` wins `me`, the expected-value column of
+/// [`MonteCarloBot::assess`]
+///
+/// Mirrors the `points` figure inside [`equity`] — the winner banks
+/// [`RoundResult::points`] plus an immediate box where
+/// [`Rules::immediate_boxes`] grants one — but returns the raw round points
+/// rather than [`equity`]'s game-winning rescaling, so a solver can show
+/// expected points beside the win-rate equity.
+fn round_points(result: RoundResult, me: Player, rules: &Rules) -> f64 {
+    let Some(winner) = result.winner() else {
+        return 0.0;
+    };
+    let immediate = if rules.immediate_boxes {
+        rules.box_bonus
+    } else {
+        0
+    };
+    let gain = result.points(rules).saturating_add(immediate);
+    if winner == me {
+        f64::from(gain)
+    } else {
+        -f64::from(gain)
     }
 }
 
@@ -531,5 +735,93 @@ mod tests {
         assert!(!beats(&base, &better));
         // Equality never beats.
         assert!(!beats(&base, &base));
+    }
+
+    #[test]
+    fn assess_ranks_candidates_and_flags_the_bots_pick() {
+        let table = fixed_table();
+        let seat = table.turn().expect("a fresh deal has a mover");
+        let view = table.view(seat);
+
+        // A solver and a chooser seeded alike sample identical worlds (the
+        // rollout draws no randomness), so the flagged row must be the move
+        // the bot actually plays.
+        let mut solver = MonteCarloBot::new(StdRng::seed_from_u64(7)).samples(64);
+        let mut chooser = MonteCarloBot::new(StdRng::seed_from_u64(7)).samples(64);
+
+        let rows = solver.assess(&view);
+        assert!(!rows.is_empty(), "the upcard offer is a real choice");
+
+        // Equities are probabilities, and the table is ranked by them.
+        for row in &rows {
+            assert!((0.0..=1.0).contains(&row.equity));
+        }
+        assert!(rows.windows(2).all(|w| w[0].equity >= w[1].equity));
+
+        // Exactly one recommendation, and it is the move the bot returns.
+        assert_eq!(rows.iter().filter(|r| r.recommended).count(), 1);
+        let picked = rows.iter().find(|r| r.recommended).expect("a flagged pick");
+        let expected = match chooser.offer_upcard(&view) {
+            UpcardAction::Take => "take",
+            UpcardAction::Pass => "pass",
+        };
+        assert_eq!(picked.action, expected);
+    }
+
+    #[test]
+    fn assess_reports_a_single_knock_at_a_discard() {
+        // A knock's shed is forced — dropping the largest deadwood is always
+        // the best knock — so the solver lists one knock row, not one per
+        // shed, and it sheds that largest card.
+        let two: Hand = "A23.456.789.2".parse().expect("a legal hand");
+        let one: Hand = "TJ.TJ.TJ.3456".parse().expect("a legal hand");
+        let upcard: Card = "QS".parse().expect("a card");
+        // The non-dealer draws this off the stock (last card drawn first),
+        // reaching an 11-card hand whose only loose cards are 2♠ and K♠.
+        let king: Card = "KS".parse().expect("a card");
+        let mut stock: Vec<Card> = (Hand::ALL - two - one - upcard.into() - king.into())
+            .iter()
+            .collect();
+        stock.push(king);
+        let round = Round::from_deal(Rules::default(), Player::One, [one, two], upcard, stock)
+            .expect("a partitioned deck");
+        let mut table = Table::new(round);
+
+        // Both pass the upcard, forcing the non-dealer's stock draw and
+        // landing them on the discard with nothing locked by a take.
+        struct Passer;
+        impl Strategy for Passer {
+            fn offer_upcard(&mut self, _: &View<'_>) -> UpcardAction {
+                UpcardAction::Pass
+            }
+            fn choose_draw(&mut self, _: &View<'_>) -> DrawAction {
+                DrawAction::Stock
+            }
+            fn play_turn(&mut self, _: &View<'_>) -> TurnAction {
+                unreachable!("the round stops at the discard")
+            }
+            fn choose_layoff(&mut self, _: &View<'_>) -> Option<Layoff> {
+                None
+            }
+            fn name(&self) -> &str {
+                "passer"
+            }
+        }
+        while table.round().phase() != Phase::Discard {
+            table
+                .step(&mut Passer)
+                .expect("a legal pass or forced draw");
+        }
+
+        let seat = table.turn().expect("the drawer is mid-turn");
+        let mut solver = MonteCarloBot::new(StdRng::seed_from_u64(1)).samples(32);
+        let rows = solver.assess(&table.view(seat));
+
+        let knocks: Vec<_> = rows
+            .iter()
+            .filter(|r| r.action.starts_with("knock"))
+            .collect();
+        assert_eq!(knocks.len(), 1, "one knock row, not one per shed");
+        assert_eq!(knocks[0].action, "knock, drop K♠");
     }
 }

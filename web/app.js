@@ -42,6 +42,7 @@ async function main() {
     if (e.metaKey || e.ctrlKey) return;
     if (e.key === 'v') toggleSort();
     if (e.key === 'l') toggleLog();
+    if (e.key === 'h') showHint();
   });
   updateSortButton();
   updateLogButton();
@@ -267,6 +268,7 @@ function group(cards, clickable, meld) {
 function renderActions(s) {
   const box = id('actions');
   box.innerHTML = '';
+  hideHint(); // a solver read is for one decision; drop it when the view changes
   if (s.game_over) {
     box.append(
       text(s.winner === 'you' ? 'You win! 🎉' : 'Bot wins.', 'banner'),
@@ -291,6 +293,45 @@ function renderActions(s) {
     box.append(text(s.can_knock ? 'Click a card to discard, or' : 'Click a card to discard.'));
     if (s.can_knock) box.append(button('Knock', () => act('knock')));
   }
+  box.append(button('Hint', showHint));
+}
+
+// Ask the engine's Monte Carlo solver to rate every candidate move and show
+// the table.  A full evaluation runs synchronously, so it happens only on
+// request (a click or `h`), never on the render path.
+function showHint() {
+  if (busy || !state || !state.your_turn) return;
+  renderHint(JSON.parse(game.hint()));
+}
+
+function hideHint() {
+  const panel = id('hint');
+  panel.hidden = true;
+  panel.innerHTML = '';
+}
+
+function renderHint(rows) {
+  if (!rows.length) return hideHint();
+  const head =
+    '<div class="hint-row hint-head"><span>Move</span><span>Equity</span><span>EV</span></div>';
+  const body = rows
+    .map((r) => {
+      const ev = (r.ev >= 0 ? '+' : '') + r.ev.toFixed(1);
+      return (
+        `<div class="hint-row${r.recommended ? ' best' : ''}">` +
+        `<span>${escape(r.action)}</span>` +
+        `<span>${(r.equity * 100).toFixed(1)}%</span>` +
+        `<span>${ev}</span></div>`
+      );
+    })
+    .join('');
+  const panel = id('hint');
+  panel.innerHTML =
+    '<h2>Solver</h2>' +
+    '<p class="hint-note">Equity is your chance to win the game; EV your expected points.</p>' +
+    head +
+    body;
+  panel.hidden = false;
 }
 
 function renderLog(s) {

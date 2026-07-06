@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- A solver/hint view surfaces the Monte Carlo bot's read on a decision.  The
+  new `MonteCarloBot::assess` method and public `Assessment` type return every
+  candidate move for the current phase with its equity (its chance to win the
+  game) and expected round points, ranked, with the bot's own pick flagged —
+  the numbers the bot already computes to choose, now available to a caller.
+  The terminal `play` example shows the table on a `hint` command (or `h`,
+  except on the discard prompt where a lone `h` names a heart), and the
+  browser front end on a `Hint` button (or the `h` key), so a human can weigh
+  each move without the bot playing it for them.
+
 ### Changed
 
 - The browser front end now hides the move log by default, so a long game

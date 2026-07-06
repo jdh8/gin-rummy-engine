@@ -19,6 +19,6 @@ pub use driver::play_game;
 pub use driver::{EngineError, Table, play_round};
 pub use heuristic::{HeuristicBot, HeuristicConfig};
 #[cfg(feature = "rand")]
-pub use mc::MonteCarloBot;
+pub use mc::{Assessment, MonteCarloBot};
 pub use strategy::Strategy;
 pub use view::View;

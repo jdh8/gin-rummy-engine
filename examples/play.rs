@@ -12,13 +12,16 @@
 //! card.  To move, type a card to discard it or `knock` (or `n`) to knock
 //! the smallest deadwood.  A fully-melded hand declares big gin on its own.
 //! Type `view` (or `sort`, or `v`) at any prompt to flip the loose-deadwood
-//! ordering between by-rank and by-suit.
+//! ordering between by-rank and by-suit.  Type `hint` (or `h`, except on the
+//! discard prompt where a lone `h` names a heart) for the Monte Carlo
+//! solver's read on the current decision: every candidate move with its
+//! chance to win the game and its expected points.
 
 use anyhow::{Context as _, Result, bail};
 use gin_rummy::{Card, Hand, Phase, Player, Rank, RoundResult, Rules, Suit, best_melds, deadwood};
 use gin_rummy_engine::{
-    DrawAction, EngineError, HeuristicBot, HeuristicConfig, Layoff, MonteCarloBot, Strategy, Table,
-    TurnAction, UpcardAction, View,
+    Assessment, DrawAction, EngineError, HeuristicBot, HeuristicConfig, Layoff, MonteCarloBot,
+    Strategy, Table, TurnAction, UpcardAction, View,
 };
 use rand::rngs::StdRng;
 use rand::{RngExt as _, SeedableRng};
@@ -206,6 +209,32 @@ fn show_position(view: &View<'_>, by_suit: bool, drawn: Option<Card>) {
     }
 }
 
+/// Print the Monte Carlo solver's read on the current decision: each
+/// candidate with its win-the-game equity and expected round points, ranked
+/// by equity and the bot's own pick highlighted.  A display-only command.
+fn print_hints(rows: &[Assessment]) {
+    if rows.is_empty() {
+        println!("Nothing to weigh here — the move is forced.");
+        return;
+    }
+    println!("Solver — equity is your chance to win the game, EV your expected round points:");
+    for row in rows {
+        let mark = if row.recommended { "▸" } else { " " };
+        let line = format!(
+            "  {mark} {:<15} {:>5.1}%   EV {:+5.1}",
+            row.action,
+            row.equity * 100.0,
+            row.ev,
+        );
+        // Reverse-video the pick, the same accent the drawn card uses.
+        if row.recommended {
+            println!("\x1b[7m{line}\x1b[0m");
+        } else {
+            println!("{line}");
+        }
+    }
+}
+
 /// Interactive human seat.  `by_suit` toggles the deadwood ordering between
 /// by-rank (the default) and by-suit via the `view`/`sort`/`v` command.
 struct HumanCli {
@@ -213,6 +242,9 @@ struct HumanCli {
     /// The hand just before the current draw, so `drawn` can name the card
     /// the draw added.
     predraw: Option<Hand>,
+    /// A private Monte Carlo bot that answers the `hint` command, seeded
+    /// apart from the deal so it never perturbs the game's own randomness.
+    hinter: MonteCarloBot<StdRng>,
 }
 
 impl HumanCli {
@@ -236,15 +268,18 @@ impl Strategy for HumanCli {
         self.predraw = Some(view.hand());
         show_position(view, self.by_suit, self.drawn(view));
         loop {
-            match read_command("Take the upcard or pass? [take/pass/\x1b[7mv\x1b[0miew]")
-                .unwrap_or_else(|| "quit".into())
-                .as_str()
+            match read_command(
+                "Take the upcard or pass? [take/pass/\x1b[7mh\x1b[0mint/\x1b[7mv\x1b[0miew]",
+            )
+            .unwrap_or_else(|| "quit".into())
+            .as_str()
             {
                 "take" | "t" => return UpcardAction::Take,
                 "pass" | "p" => return UpcardAction::Pass,
+                "hint" | "h" => print_hints(&self.hinter.assess(view)),
                 "sort" | "view" | "v" => self.toggle_sort(view),
                 "quit" => std::process::exit(0),
-                _ => println!("Commands: take, pass, sort/view, quit."),
+                _ => println!("Commands: take, pass, hint, sort/view, quit."),
             }
         }
     }
@@ -254,16 +289,17 @@ impl Strategy for HumanCli {
         show_position(view, self.by_suit, self.drawn(view));
         loop {
             match read_command(
-                "Draw from the stock or take the pile top? [draw/take/\x1b[7mv\x1b[0miew]",
+                "Draw from the stock or take the pile top? [draw/take/\x1b[7mh\x1b[0mint/\x1b[7mv\x1b[0miew]",
             )
             .unwrap_or_else(|| "quit".into())
             .as_str()
             {
                 "draw" | "d" => return DrawAction::Stock,
                 "take" | "t" => return DrawAction::TakeDiscard,
+                "hint" | "h" => print_hints(&self.hinter.assess(view)),
                 "sort" | "view" | "v" => self.toggle_sort(view),
                 "quit" => std::process::exit(0),
-                _ => println!("Commands: draw, take, sort/view, quit."),
+                _ => println!("Commands: draw, take, hint, sort/view, quit."),
             }
         }
     }
@@ -282,7 +318,7 @@ impl Strategy for HumanCli {
         }
         loop {
             match read_command(
-                "Your move [<card> to discard / k\x1b[7mn\x1b[0mock / \x1b[7mv\x1b[0miew]:",
+                "Your move [<card> to discard / k\x1b[7mn\x1b[0mock / hint / \x1b[7mv\x1b[0miew]:",
             )
             .unwrap_or_else(|| "quit".into())
             .as_str()
@@ -298,6 +334,8 @@ impl Strategy for HumanCli {
                         melds: best_melds(view.hand() - discard.into()),
                     };
                 }
+                // Only the full word: a bare `h` names your lone heart.
+                "hint" => print_hints(&self.hinter.assess(view)),
                 "sort" | "view" | "v" => self.toggle_sort(view),
                 // Quit has no `q` shortcut: a bare `q` names your only queen.
                 "quit" => std::process::exit(0),
@@ -438,6 +476,8 @@ fn main() -> Result<()> {
     let mut human = HumanCli {
         by_suit: false,
         predraw: None,
+        // A separate seed stream, so pressing `hint` never disturbs the deal.
+        hinter: MonteCarloBot::new(StdRng::seed_from_u64(seed.unwrap_or(0))),
     };
     let mut game = gin_rummy::Game::new(rules, HUMAN);
 

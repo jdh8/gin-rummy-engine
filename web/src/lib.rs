@@ -13,8 +13,8 @@
 
 use gin_rummy::{Card, Game, Hand, Melds, Phase, Player, RoundResult, Rules, best_melds, deadwood};
 use gin_rummy_engine::{
-    DrawAction, HeuristicBot, HeuristicConfig, Layoff, MonteCarloBot, Strategy, Table, TurnAction,
-    UpcardAction, View,
+    Assessment, DrawAction, HeuristicBot, HeuristicConfig, Layoff, MonteCarloBot, Strategy, Table,
+    TurnAction, UpcardAction, View,
 };
 use rand::rngs::StdRng;
 use rand::{RngExt as _, SeedableRng};
@@ -96,6 +96,9 @@ struct Core {
     game: Game,
     table: Table,
     bot: Box<dyn Strategy>,
+    /// A private Monte Carlo bot behind the Hint button, seeded apart from the
+    /// deal so asking for a hint never disturbs the game's own randomness.
+    hinter: MonteCarloBot<StdRng>,
     pending: Pending,
     rng: StdRng,
     round_no: u32,
@@ -126,6 +129,8 @@ impl Core {
             game,
             table,
             bot,
+            // A separate seed stream, independent of the deal `rng` above.
+            hinter: MonteCarloBot::new(StdRng::seed_from_u64(seed)),
             pending: Pending::default(),
             rng,
             round_no: 1,
@@ -252,6 +257,17 @@ impl Core {
         self.settled.is_none()
             && self.table.turn() == Some(HUMAN)
             && matches!(self.human_step(), HumanStep::WaitInput)
+    }
+
+    /// The Monte Carlo solver's read on the human's current decision: each
+    /// candidate move with its equity and expected points.  Empty unless the
+    /// human has a genuine choice pending.
+    fn hint(&mut self) -> Vec<Assessment> {
+        if !self.awaiting_human_input() {
+            return Vec::new();
+        }
+        let view = self.table.view(HUMAN);
+        self.hinter.assess(&view)
     }
 
     /// The move just applied, described from legally-visible information, for the
@@ -507,6 +523,19 @@ struct Move {
     card: Option<String>,
 }
 
+/// One candidate move's solver assessment, for the Hint panel.
+#[derive(Serialize)]
+struct HintJson {
+    /// The move label, e.g. `"discard 4♠"`, `"knock, drop 4♠"`, `"take pile"`.
+    action: String,
+    /// Chance to win the game if this move is played, in `[0, 1]`.
+    equity: f64,
+    /// Expected signed round points the move wins the human.
+    ev: f64,
+    /// Whether this is the bot's own pick.
+    recommended: bool,
+}
+
 /// Everything one seat may legally see, plus the running transcript.
 #[derive(Serialize)]
 struct Snapshot {
@@ -627,6 +656,27 @@ impl WebGame {
     pub fn next_round(&mut self) -> String {
         self.core.next_round();
         self.snapshot()
+    }
+
+    /// The solver's read on the current decision as JSON: a list of candidate
+    /// moves, each with its equity (chance to win the game) and expected round
+    /// points, the bot's own pick flagged; empty when the move is forced.
+    /// Runs a full Monte Carlo evaluation, so the page calls it only on the
+    /// player's request, not for every snapshot.
+    #[must_use]
+    pub fn hint(&mut self) -> String {
+        let hints: Vec<HintJson> = self
+            .core
+            .hint()
+            .into_iter()
+            .map(|a| HintJson {
+                action: a.action,
+                equity: a.equity,
+                ev: a.ev,
+                recommended: a.recommended,
+            })
+            .collect();
+        json(&hints)
     }
 }
 
@@ -808,6 +858,24 @@ mod tests {
         assert_eq!(deadwood(hand), 12, "the hand still holding the shed card");
         assert_eq!(knock_deadwood(hand, None), 7, "after shedding the ♣5");
         assert!(knock_deadwood(hand, None) <= Rules::new().knock_limit);
+    }
+
+    /// The Hint button's data path: at a real human decision the solver rates
+    /// every candidate move, ranks them by equity, and flags exactly one pick.
+    #[test]
+    fn hint_rates_the_candidates_at_a_human_decision() {
+        let mut core = Core::new("greedy", Rules::new(), 42);
+        let mut guard = 0;
+        while !core.awaiting_human_input() {
+            guard += 1;
+            assert!(guard < 100_000, "the first decision must arrive");
+            core.step_once();
+        }
+        let hints = core.hint();
+        assert!(!hints.is_empty(), "a real decision has candidates to weigh");
+        assert!(hints.iter().all(|h| (0.0..=1.0).contains(&h.equity)));
+        assert!(hints.windows(2).all(|w| w[0].equity >= w[1].equity));
+        assert_eq!(hints.iter().filter(|h| h.recommended).count(), 1);
     }
 
     /// Drive a whole game to completion through the public decision methods,

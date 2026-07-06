@@ -47,6 +47,10 @@ Pick the bot's difficulty (Easy/Medium/Hard) from the dropdown in the header;
 it takes effect on the next new game.  Edit `RULES` at the top of `app.js` to
 change ruleset (`modern`/`classic`/`palace`).
 
+Click `Hint` (or press `h`) on your turn for the Monte Carlo solver's read on
+the decision: every candidate move with its equity (your chance to win the
+game) and expected points, the bot's own pick highlighted.
+
 ## Deploy
 
 `pkg/`, `index.html`, `app.js`, and `style.css` are all static — push them to
