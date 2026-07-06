@@ -43,6 +43,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the equities sharpen — with a live worlds count — over about a second and a
   half, until you move.  The instant first read is as before; it simply no
   longer stops there.
+- The browser front end remembers your difficulty choice across visits
+  instead of resetting to Medium on every reload.
 
 - The browser front end now hides the move log by default, so a long game
   no longer grows a wall of text down the right edge; the table takes the

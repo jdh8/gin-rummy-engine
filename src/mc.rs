@@ -967,8 +967,8 @@ mod tests {
         assert_eq!(rows.iter().filter(|r| r.recommended).count(), 1);
         let picked = rows.iter().find(|r| r.recommended).expect("a flagged pick");
         let expected = match chooser.offer_upcard(&view) {
-            UpcardAction::Take => "take",
-            UpcardAction::Pass => "pass",
+            UpcardAction::Take => format!("take {}", view.upcard().expect("an upcard offer")),
+            UpcardAction::Pass => "pass".to_string(),
         };
         assert_eq!(picked.action, expected);
     }

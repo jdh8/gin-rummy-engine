@@ -56,8 +56,14 @@ async function main() {
   updateSortButton();
   updateLogButton();
   // Difficulty picks the bot spec (`greedy` or `mc:samples`); changing it
-  // mid-game just starts a fresh one, the simplest way to apply it.
-  id('difficulty').onchange = newGame;
+  // mid-game just starts a fresh one, the simplest way to apply it. Stored
+  // across visits so the choice sticks instead of resetting to Medium.
+  const saved = localStorage.getItem('difficulty');
+  if (saved) id('difficulty').value = saved;
+  id('difficulty').onchange = () => {
+    localStorage.setItem('difficulty', id('difficulty').value);
+    newGame();
+  };
   await newGame();
 }
 
