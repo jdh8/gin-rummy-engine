@@ -18,6 +18,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   except on the discard prompt where a lone `h` names a heart), and the
   browser front end on a `Hint` button (or the `h` key), so a human can weigh
   each move without the bot playing it for them.
+- `MonteCarloBot::hint_open` and `hint_refine` compute that same read
+  incrementally: `hint_open` returns an instant estimate from a small batch of
+  worlds and keeps them, and each `hint_refine` folds in more worlds to sharpen
+  it without repeating the earlier rollouts.  Because the rollout is
+  deterministic and worlds are the pairing unit, the deepened read is exact —
+  identical to one `assess` over all the worlds combined — so a caller can
+  spread the work across time instead of blocking on one long evaluation.
 
 ### Changed
 
@@ -27,6 +34,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   of them the deeper the pile has grown; that scaling no longer stops
   increasing partway through, so late-round equity and EV reads no longer
   assume an opponent who stopped getting better early.
+- The browser `Hint` now answers like an analysis engine.  It shows a read at
+  once, then keeps sampling in the background and re-renders the same panel as
+  the equities sharpen — with a live worlds count — over about a second and a
+  half, until you move.  The instant first read is as before; it simply no
+  longer stops there.
 
 - The browser front end now hides the move log by default, so a long game
   no longer grows a wall of text down the right edge; the table takes the

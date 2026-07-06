@@ -9,6 +9,14 @@ const RULES = 'modern';
 const PACE_MS = 650; // pause between the bot's steps, so they can be followed
 const FLY_MS = 350; // card glide duration — keep in sync with `.ghost` in style.css
 
+// The hint refines like an analysis engine: an instant first read, then more
+// worlds folded in a batch at a time so the page stays live, up to a budget.
+// The panel repaints once per batch — every 2048 worlds, not every frame — so
+// the numbers sharpen in a few readable jumps instead of blurring past.
+const HINT_OPEN = 128; // worlds in the instant first read (~10 ms)
+const HINT_BATCH = 2048; // worlds folded in — and the panel repainted — per step (~150 ms)
+const HINT_BUDGET_MS = 5000; // keep deepening for about this long
+
 // Four-colour deck, poker convention: clubs green, diamonds blue.
 const SUITS = { C: ['♣', 'green'], D: ['♦', 'blue'], H: ['♥', 'red'], S: ['♠', 'black'] };
 const SUIT_ORDER = { C: 0, D: 1, H: 2, S: 3 }; // clubs first, as the engine iterates
@@ -18,6 +26,7 @@ let game;
 let state; // the snapshot currently on screen (the "before" state during a step)
 let busy = false; // blocks input while the bot's turn is animating
 let bySuit = false; // loose-card ordering: false = by rank, true = by suit (like the CLI's `v`)
+let hintGen = 0; // bumped on every view change, so a background refine can tell it went stale
 
 const id = (x) => document.getElementById(x);
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -169,6 +178,7 @@ function flyCard(fromEl, toEl, face) {
 // --- rendering -------------------------------------------------------------
 
 function render(s) {
+  hintGen++; // any view change abandons a hint refine still running for the old one
   id('score').textContent = `You ${s.you_score} : ${s.bot_score} Bot · round ${s.round_no}`;
 
   const opp = id('opp');
@@ -296,12 +306,27 @@ function renderActions(s) {
   box.append(button('Hint', showHint));
 }
 
-// Ask the engine's Monte Carlo solver to rate every candidate move and show
-// the table.  A full evaluation runs synchronously, so it happens only on
-// request (a click or `h`), never on the render path.
-function showHint() {
+// Ask the engine's Monte Carlo solver to rate every candidate move, showing
+// an instant first read and then sharpening it in the background — like an
+// analysis engine, not one blocking evaluation.  Each refine is a short
+// synchronous burst between `await`s, so the page stays live; a move (which
+// bumps `hintGen`) abandons the loop.
+async function showHint() {
   if (busy || !state || !state.your_turn) return;
-  renderHint(JSON.parse(game.hint()));
+  const gen = ++hintGen; // restart cleanly, cancelling any refine still in flight
+  let rows = JSON.parse(game.hint_open(HINT_OPEN));
+  if (!rows.length) return hideHint();
+  let depth = HINT_OPEN;
+  renderHint(rows, depth);
+  const start = performance.now();
+  while (performance.now() - start < HINT_BUDGET_MS) {
+    await delay(0); // yield so the paint lands and input stays responsive
+    if (gen !== hintGen || busy) return; // the view moved on
+    rows = JSON.parse(game.hint_refine(HINT_BATCH));
+    if (!rows.length) return; // session closed (the decision changed)
+    depth += HINT_BATCH;
+    renderHint(rows, depth);
+  }
 }
 
 function hideHint() {
@@ -310,7 +335,7 @@ function hideHint() {
   panel.innerHTML = '';
 }
 
-function renderHint(rows) {
+function renderHint(rows, depth) {
   if (!rows.length) return hideHint();
   const head =
     '<div class="hint-row hint-head"><span>Move</span><span>Equity</span><span>EV</span></div>';
@@ -334,7 +359,7 @@ function renderHint(rows) {
       'bot holds its default move unless one clearly leads.</p>';
   const panel = id('hint');
   panel.innerHTML =
-    '<h2>Solver</h2>' +
+    `<h2>Solver <span class="hint-depth">${depth} worlds</span></h2>` +
     '<p class="hint-note">Equity is your chance to win the game; EV your expected points.</p>' +
     tied +
     head +

@@ -4,7 +4,7 @@ use crate::heuristic::greedy_layoff;
 use crate::sim::{Sim, SimPhase};
 use crate::{DrawAction, Layoff, Strategy, TurnAction, UpcardAction, View};
 use gin_rummy::deck::Deck;
-use gin_rummy::{Card, Hand, Phase, Player, RoundResult, Rules, best_melds, deadwood};
+use gin_rummy::{Card, Hand, Melds, Phase, Player, RoundResult, Rules, best_melds, deadwood};
 use rand::Rng;
 
 /// One determinized world: a concrete opponent hand and stock order
@@ -13,6 +13,100 @@ struct World {
     opponent: Hand,
     /// Face-down draw order: the last element is drawn first
     stock: Vec<Card>,
+}
+
+/// One candidate action to score, as owned data an incremental hint session
+/// can keep and re-roll through fresh worlds across calls
+struct Candidate {
+    /// The rendered [`Assessment::action`] label.
+    label: String,
+    /// The rollout's starting phase, passed to [`MonteCarloBot::sim`].
+    phase: SimPhase,
+    /// The move to apply before the greedy playout.
+    action: RolloutAction,
+}
+
+/// The move a [`Candidate`] applies to a [`Sim`] before rolling it out
+///
+/// Owned (unlike the closures `assess` once built inline) so a session can
+/// replay the same candidates through later batches of worlds.
+#[derive(Clone, Copy)]
+enum RolloutAction {
+    /// Take the pile — the upcard offer or a draw — then play on.
+    TakeDiscard,
+    /// Pass the upcard offer, then play on.
+    Pass,
+    /// Draw the hidden stock, then play on.
+    DrawStock,
+    /// Declare big gin: all eleven cards meld.
+    BigGin,
+    /// Knock, dropping `discard` with the rest laid as `melds`.
+    Knock { discard: Card, melds: Melds },
+    /// Shed `discard`, then play on (or settle if it ends the round).
+    Discard(Card),
+}
+
+impl RolloutAction {
+    /// Apply the move to a fresh rollout state and play it to a result.
+    fn roll(self, mut sim: Sim) -> RoundResult {
+        match self {
+            Self::TakeDiscard => {
+                sim.take_discard();
+                sim.rollout()
+            }
+            Self::Pass => {
+                sim.pass();
+                sim.rollout()
+            }
+            Self::DrawStock => {
+                sim.draw_stock();
+                sim.rollout()
+            }
+            Self::BigGin => sim.big_gin(),
+            Self::Knock { discard, melds } => sim.knock(discard, melds),
+            Self::Discard(card) => sim.discard(card).unwrap_or_else(|| sim.rollout()),
+        }
+    }
+}
+
+/// A running incremental assessment of one decision, deepened batch by batch
+///
+/// Holds the ordered candidates (the greedy incumbent first) and, per
+/// candidate, the accumulated per-world equities and the running sum of
+/// signed round points.  Worlds are the pairing unit [`beats`] compares on,
+/// so appending later batches preserves the common-random-numbers structure.
+struct HintState {
+    candidates: Vec<Candidate>,
+    /// Per candidate: accumulated per-world equities and summed round points.
+    scored: Vec<(Vec<f64>, f64)>,
+    /// Total worlds sampled so far, the length of each equity vector.
+    samples: u32,
+    /// The decision this session belongs to, so a stale refine is a no-op.
+    fingerprint: Fingerprint,
+}
+
+/// A cheap identity for the decision a [`HintState`] was opened on, so a
+/// refine after the player has moved on drops the session instead of folding
+/// worlds from one decision into another
+#[derive(PartialEq)]
+struct Fingerprint {
+    phase: Phase,
+    hand: Hand,
+    upcard: Option<Card>,
+    pile_len: usize,
+    taken: Option<Card>,
+}
+
+impl Fingerprint {
+    fn of(view: &View<'_>) -> Self {
+        Self {
+            phase: view.phase(),
+            hand: view.hand(),
+            upcard: view.upcard(),
+            pile_len: view.discard_pile().len(),
+            taken: view.taken_discard(),
+        }
+    }
 }
 
 /// A determinized Monte Carlo player
@@ -36,6 +130,8 @@ pub struct MonteCarloBot<R: Rng> {
     rng: R,
     samples: u32,
     max_candidates: usize,
+    /// The open incremental hint session, if any (see [`Self::hint_open`]).
+    hint_state: Option<HintState>,
 }
 
 /// One candidate action's Monte Carlo assessment, for a solver or hint view
@@ -70,6 +166,7 @@ impl<R: Rng> MonteCarloBot<R> {
             rng,
             samples: 128,
             max_candidates: 4,
+            hint_state: None,
         }
     }
 
@@ -105,13 +202,13 @@ impl<R: Rng> MonteCarloBot<R> {
     /// them the deeper the pile — see [`opponent_strength`] — so the bias
     /// keeps intensifying for the whole round instead of leveling off
     /// partway through it.
-    fn sample_worlds(&mut self, view: &View<'_>) -> Vec<World> {
+    fn sample_worlds(&mut self, view: &View<'_>, count: u32) -> Vec<World> {
         let unseen = view.unseen();
         let known = view.opponent_known();
         let missing = view.opponent_hand_len() - known.len();
         let strength = opponent_strength(view.discard_pile().len());
 
-        (0..self.samples)
+        (0..count)
             .map(|_| {
                 let hidden = (0..strength)
                     .map(|_| {
@@ -192,28 +289,106 @@ impl<R: Rng> MonteCarloBot<R> {
     /// draw, the layoff phase, or a finished round.
     #[must_use]
     pub fn assess(&mut self, view: &View<'_>) -> Vec<Assessment> {
-        let worlds = self.sample_worlds(view);
+        let out = self.hint_open(view, self.samples);
+        // A one-shot read: leave no session for `hint_refine` to extend.
+        self.hint_state = None;
+        out
+    }
+
+    /// Open an incremental assessment of the current decision, sampling an
+    /// initial `batch` of worlds
+    ///
+    /// Returns the same ranked read as [`assess`](Self::assess) would at
+    /// `batch` samples, and keeps the batch's rollouts so that
+    /// [`hint_refine`](Self::hint_refine) can deepen the estimate without
+    /// repeating them — an analysis view that sharpens as it thinks, rather
+    /// than one blocking evaluation.  Empty when the seat has no real choice
+    /// (a forced stock draw, the layoff phase, or a finished round), in which
+    /// case no session opens.
+    #[must_use]
+    pub fn hint_open(&mut self, view: &View<'_>, batch: u32) -> Vec<Assessment> {
+        let candidates = self.hint_candidates(view);
+        if candidates.is_empty() {
+            self.hint_state = None;
+            return Vec::new();
+        }
+        let worlds = self.sample_worlds(view, batch);
+        let scored = Self::score_worlds(view, &worlds, &candidates);
+        let state = HintState {
+            candidates,
+            scored,
+            samples: batch,
+            fingerprint: Fingerprint::of(view),
+        };
+        let out = Self::rank_state(&state);
+        self.hint_state = Some(state);
+        out
+    }
+
+    /// Deepen the open assessment with `extra` more sampled worlds
+    ///
+    /// Draws `extra` fresh worlds, rolls the same candidates through them, and
+    /// folds their equities into the running estimate — the tighter read a
+    /// solver shows as it keeps thinking.  Because the rollout draws no
+    /// randomness and worlds are the pairing unit, appending later batches is
+    /// exact, not an approximation: the accumulated read matches one
+    /// [`assess`](Self::assess) over all the worlds combined.  Returns empty
+    /// (and drops the session) when no session is open or the view no longer
+    /// matches the one [`hint_open`](Self::hint_open) started on, so a stale
+    /// refine after the player has moved is a harmless no-op.
+    #[must_use]
+    pub fn hint_refine(&mut self, view: &View<'_>, extra: u32) -> Vec<Assessment> {
+        let Some(mut state) = self.hint_state.take() else {
+            return Vec::new();
+        };
+        if state.fingerprint != Fingerprint::of(view) {
+            return Vec::new();
+        }
+        let worlds = self.sample_worlds(view, extra);
+        let batch = Self::score_worlds(view, &worlds, &state.candidates);
+        for (acc, add) in state.scored.iter_mut().zip(batch) {
+            acc.0.extend(add.0);
+            acc.1 += add.1;
+        }
+        state.samples += extra;
+        let out = Self::rank_state(&state);
+        self.hint_state = Some(state);
+        out
+    }
+
+    /// The ordered candidate actions for the current decision, the greedy
+    /// incumbent first
+    ///
+    /// Mirrors the matching [`Strategy`] method's candidate set on this view,
+    /// with one deliberate contraction: a knock's shed is not a real choice
+    /// (dropping the largest deadwood is always the best knock), so the
+    /// discard phase lists a single leading knock rather than one per shed.
+    /// Empty when the seat has no real choice.
+    fn hint_candidates(&self, view: &View<'_>) -> Vec<Candidate> {
+        let shed = |label, action| Candidate {
+            label,
+            phase: SimPhase::Shed,
+            action,
+        };
         match view.phase() {
             Phase::Upcard => {
-                let take = Self::score(view, &worlds, SimPhase::Upcard, |mut sim| {
-                    sim.take_discard();
-                    sim.rollout()
-                });
-                let pass = Self::score(view, &worlds, SimPhase::Upcard, |mut sim| {
-                    sim.pass();
-                    sim.rollout()
-                });
-                let take = ("take".to_string(), take.0, take.1);
-                let pass = ("pass".to_string(), pass.0, pass.1);
+                let take = Candidate {
+                    label: "take".to_string(),
+                    phase: SimPhase::Upcard,
+                    action: RolloutAction::TakeDiscard,
+                };
+                let pass = Candidate {
+                    label: "pass".to_string(),
+                    phase: SimPhase::Upcard,
+                    action: RolloutAction::Pass,
+                };
                 let top = view.upcard().expect("the upcard offer has an upcard");
                 // Incumbent first, so the gate compares the challenger against
                 // it exactly as `offer_upcard` does.
                 if crate::heuristic::improves(view.hand(), top) {
-                    let flip = beats(&pass.1, &take.1);
-                    Self::rank(vec![take, pass], usize::from(flip))
+                    vec![take, pass]
                 } else {
-                    let flip = beats(&take.1, &pass.1);
-                    Self::rank(vec![pass, take], usize::from(flip))
+                    vec![pass, take]
                 }
             }
             Phase::Draw => {
@@ -221,31 +396,28 @@ impl<R: Rng> MonteCarloBot<R> {
                     // A forced stock draw is not a choice.
                     return Vec::new();
                 }
-                let stock = Self::score(view, &worlds, SimPhase::Draw, |mut sim| {
-                    sim.draw_stock();
-                    sim.rollout()
-                });
-                let pile = Self::score(view, &worlds, SimPhase::Draw, |mut sim| {
-                    sim.take_discard();
-                    sim.rollout()
-                });
-                let stock = ("draw stock".to_string(), stock.0, stock.1);
-                let pile = ("take pile".to_string(), pile.0, pile.1);
+                let stock = Candidate {
+                    label: "draw stock".to_string(),
+                    phase: SimPhase::Draw,
+                    action: RolloutAction::DrawStock,
+                };
+                let pile = Candidate {
+                    label: "take pile".to_string(),
+                    phase: SimPhase::Draw,
+                    action: RolloutAction::TakeDiscard,
+                };
                 let top = view.upcard().expect("the pile is never empty on a draw");
                 // Incumbent first, mirroring `choose_draw`.
                 if crate::heuristic::improves(view.hand(), top) {
-                    let flip = beats(&stock.1, &pile.1);
-                    Self::rank(vec![pile, stock], usize::from(flip))
+                    vec![pile, stock]
                 } else {
-                    let flip = beats(&pile.1, &stock.1);
-                    Self::rank(vec![stock, pile], usize::from(flip))
+                    vec![stock, pile]
                 }
             }
             Phase::Discard => {
                 let hand = view.hand();
                 if deadwood(hand) == 0 && view.rules().big_gin_bonus.is_some() {
-                    let (eq, ev) = Self::score(view, &worlds, SimPhase::Shed, |sim| sim.big_gin());
-                    return Self::rank(vec![("big gin".to_string(), eq, ev)], 0);
+                    return vec![shed("big gin".to_string(), RolloutAction::BigGin)];
                 }
                 // The same greedy candidate ranking `play_turn` evaluates.
                 let mut candidates: Vec<(Card, u8)> = hand
@@ -257,76 +429,86 @@ impl<R: Rng> MonteCarloBot<R> {
                 candidates.truncate(self.max_candidates.max(1));
 
                 let limit = view.knock_limit();
-                let mut actions: Vec<(String, Vec<f64>, f64)> = Vec::new();
-                // The knock shed is not a real choice: dropping the card that
-                // leaves the least deadwood is always the best knock, and the
-                // candidates are sorted so that is the first one.  Report that
-                // single knock — leading, as the greedy incumbent — not one
-                // per shed.  If even it exceeds the limit, no shed can knock.
+                let mut out = Vec::new();
+                // The best knock leads, as the greedy incumbent; if even it
+                // exceeds the limit, no shed can knock.
                 if let Some(&(card, rest)) = candidates.first()
                     && rest <= limit
                 {
                     let melds = best_melds(hand - card.into());
-                    let (eq, ev) =
-                        Self::score(view, &worlds, SimPhase::Shed, |sim| sim.knock(card, melds));
-                    actions.push((format!("knock, drop {card}"), eq, ev));
+                    out.push(shed(
+                        format!("knock, drop {card}"),
+                        RolloutAction::Knock {
+                            discard: card,
+                            melds,
+                        },
+                    ));
                 }
                 for &(card, _) in &candidates {
-                    let (eq, ev) = Self::score(view, &worlds, SimPhase::Shed, |mut sim| {
-                        sim.discard(card).unwrap_or_else(|| sim.rollout())
-                    });
-                    actions.push((format!("discard {card}"), eq, ev));
+                    out.push(shed(
+                        format!("discard {card}"),
+                        RolloutAction::Discard(card),
+                    ));
                 }
-
-                // The incumbent is the first candidate's action; the pick
-                // deviates only on a gain the gate trusts, taking the largest,
-                // exactly as `play_turn` selects.
-                let mean = |e: &[f64]| e.iter().sum::<f64>() / e.len() as f64;
-                let means: Vec<f64> = actions.iter().map(|(_, eq, _)| mean(eq)).collect();
-                let defend = &actions[0].1;
-                let recommended = (1..actions.len())
-                    .filter(|&i| beats(&actions[i].1, defend))
-                    .max_by(|&a, &b| means[a].total_cmp(&means[b]))
-                    .unwrap_or(0);
-                Self::rank(actions, recommended)
+                out
             }
             _ => Vec::new(),
         }
     }
 
-    /// Per-world equities and mean expected round points of `rollout` (common
-    /// random numbers, as [`Self::equities`]), folding one rollout pass into
-    /// both statistics a solver view shows
-    fn score(
+    /// Roll every candidate through the same `worlds` (common random numbers),
+    /// returning per candidate its per-world equities and summed round points
+    ///
+    /// The sum, not the mean, is returned so [`hint_refine`](Self::hint_refine)
+    /// can accumulate it across batches.
+    fn score_worlds(
         view: &View<'_>,
         worlds: &[World],
-        phase: SimPhase,
-        rollout: impl Fn(Sim) -> RoundResult,
-    ) -> (Vec<f64>, f64) {
+        candidates: &[Candidate],
+    ) -> Vec<(Vec<f64>, f64)> {
         let me = view.seat();
         let rules = view.rules();
         let standing = view.game_scores();
-        let mut equities = Vec::with_capacity(worlds.len());
-        let mut ev_sum = 0.0;
-        for world in worlds {
-            let result = rollout(Self::sim(view, world, phase));
-            equities.push(equity(result, me, standing, rules));
-            ev_sum += round_points(result, me, rules);
-        }
-        (equities, ev_sum / worlds.len() as f64)
+        candidates
+            .iter()
+            .map(|candidate| {
+                let mut equities = Vec::with_capacity(worlds.len());
+                let mut ev_sum = 0.0;
+                for world in worlds {
+                    let result = candidate
+                        .action
+                        .roll(Self::sim(view, world, candidate.phase));
+                    equities.push(equity(result, me, standing, rules));
+                    ev_sum += round_points(result, me, rules);
+                }
+                (equities, ev_sum)
+            })
+            .collect()
     }
 
-    /// Reduce scored options — each `(label, per-world equities, mean EV)`,
-    /// with `recommended` the index of the bot's pick — to assessments ranked
-    /// by mean equity
-    fn rank(options: Vec<(String, Vec<f64>, f64)>, recommended: usize) -> Vec<Assessment> {
-        let mut out: Vec<Assessment> = options
-            .into_iter()
+    /// Reduce an accumulator to assessments ranked by mean equity, flagging
+    /// the bot's pick
+    ///
+    /// The pick is the greedy incumbent (`scored[0]`) unless a challenger's
+    /// paired advantage clears the [`beats`] gate, in which case it is the
+    /// largest such gain — exactly the deviation the [`Strategy`] methods make.
+    fn rank_state(state: &HintState) -> Vec<Assessment> {
+        let mean = |e: &[f64]| e.iter().sum::<f64>() / e.len() as f64;
+        let defend = &state.scored[0].0;
+        let recommended = (1..state.scored.len())
+            .filter(|&i| beats(&state.scored[i].0, defend))
+            .max_by(|&a, &b| mean(&state.scored[a].0).total_cmp(&mean(&state.scored[b].0)))
+            .unwrap_or(0);
+        let n = f64::from(state.samples);
+        let mut out: Vec<Assessment> = state
+            .candidates
+            .iter()
+            .zip(&state.scored)
             .enumerate()
-            .map(|(i, (action, equities, ev))| Assessment {
-                action,
-                equity: equities.iter().sum::<f64>() / equities.len() as f64,
-                ev,
+            .map(|(i, (candidate, (equities, ev_sum)))| Assessment {
+                action: candidate.label.clone(),
+                equity: equities.iter().sum::<f64>() / n,
+                ev: ev_sum / n,
                 recommended: i == recommended,
             })
             .collect();
@@ -463,7 +645,7 @@ impl<R: Rng> Strategy for MonteCarloBot<R> {
             UpcardAction::Pass
         };
 
-        let worlds = self.sample_worlds(view);
+        let worlds = self.sample_worlds(view, self.samples);
         let take = Self::equities(view, &worlds, SimPhase::Upcard, |mut sim| {
             sim.take_discard();
             sim.rollout()
@@ -492,7 +674,7 @@ impl<R: Rng> Strategy for MonteCarloBot<R> {
             DrawAction::Stock
         };
 
-        let worlds = self.sample_worlds(view);
+        let worlds = self.sample_worlds(view, self.samples);
         let stock = Self::equities(view, &worlds, SimPhase::Draw, |mut sim| {
             sim.draw_stock();
             sim.rollout()
@@ -530,7 +712,7 @@ impl<R: Rng> Strategy for MonteCarloBot<R> {
         candidates.sort_by_key(|&(card, rest)| (rest, u8::MAX - card.rank.deadwood()));
         candidates.truncate(self.max_candidates.max(1));
 
-        let worlds = self.sample_worlds(view);
+        let worlds = self.sample_worlds(view, self.samples);
         let limit = view.knock_limit();
         let actions: Vec<(TurnAction, Vec<f64>)> = candidates
             .iter()
@@ -611,7 +793,7 @@ mod tests {
         let view = table.view(Player::Two);
         let mut bot = MonteCarloBot::new(StdRng::seed_from_u64(1)).samples(32);
 
-        for world in bot.sample_worlds(&view) {
+        for world in bot.sample_worlds(&view, 32) {
             // Right sizes: a full opponent hand and the whole stock.
             assert_eq!(world.opponent.len(), view.opponent_hand_len());
             assert_eq!(world.stock.len(), view.stock_len());
@@ -789,6 +971,50 @@ mod tests {
             UpcardAction::Pass => "pass",
         };
         assert_eq!(picked.action, expected);
+    }
+
+    #[test]
+    fn refining_a_session_matches_one_larger_batch() {
+        let table = fixed_table();
+        let seat = table.turn().expect("a fresh deal has a mover");
+        let view = table.view(seat);
+
+        // Deepening in two batches draws the same worlds in the same order as
+        // one batch of the total, and the rollout is deterministic, so an
+        // open-then-refine to 128 worlds must reproduce a fresh 128-world
+        // assess: same rows, ranking, equities, and flagged pick.
+        let one_shot = {
+            let mut bot = MonteCarloBot::new(StdRng::seed_from_u64(9)).samples(128);
+            bot.assess(&view)
+        };
+        let refined = {
+            let mut bot = MonteCarloBot::new(StdRng::seed_from_u64(9));
+            let _ = bot.hint_open(&view, 32);
+            bot.hint_refine(&view, 96)
+        };
+
+        assert_eq!(refined.len(), one_shot.len());
+        for (a, b) in refined.iter().zip(&one_shot) {
+            assert_eq!(a.action, b.action);
+            assert_eq!(a.recommended, b.recommended);
+            // Equities sum the same contiguous world sequence, so they match
+            // to the bit; EV sums the same worlds in two partial sums, so it
+            // matches to floating-point rounding.
+            assert_eq!(a.equity, b.equity);
+            assert!((a.ev - b.ev).abs() < 1e-9);
+        }
+    }
+
+    #[test]
+    fn hint_refine_without_an_open_session_is_empty() {
+        let table = fixed_table();
+        let seat = table.turn().expect("a fresh deal has a mover");
+        let view = table.view(seat);
+        let mut bot = MonteCarloBot::new(StdRng::seed_from_u64(4)).samples(16);
+        // No session open (or a bare `assess` left none behind).
+        assert!(bot.hint_refine(&view, 16).is_empty());
+        assert!(!bot.assess(&view).is_empty());
+        assert!(bot.hint_refine(&view, 16).is_empty());
     }
 
     #[test]
