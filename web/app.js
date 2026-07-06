@@ -189,7 +189,7 @@ function render(s) {
 
   const opp = id('opp');
   opp.innerHTML = '';
-  opp.append(text(`Bot — ${s.bot_score}`, 'seat'));
+  opp.append(text('Bot', 'seat'));
   if (s.bot_melds.length || s.bot_loose.length) {
     renderReveal(opp, s); // showdown: the bot's hand, face up
   } else {
