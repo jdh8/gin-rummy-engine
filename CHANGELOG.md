@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-07-07
+
 ### Added
 
 - A solver/hint view surfaces the Monte Carlo bot's read on a decision.  The
@@ -45,7 +47,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   longer stops there.
 - The browser front end remembers your difficulty choice across visits
   instead of resetting to Medium on every reload.
-
 - The browser front end now hides the move log by default, so a long game
   no longer grows a wall of text down the right edge; the table takes the
   full width instead.  A `Show log`/`Hide log` button in the header (or the
@@ -179,7 +180,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Examples: `play` (human vs bot in the terminal) and `arena` (bot-vs-bot
   tournaments with win rates and result tallies).
 
-[Unreleased]: https://github.com/jdh8/gin-rummy-engine/compare/0.1.2...HEAD
+[Unreleased]: https://github.com/jdh8/gin-rummy-engine/compare/0.1.3...HEAD
+[0.1.3]: https://github.com/jdh8/gin-rummy-engine/compare/0.1.2...0.1.3
 [0.1.2]: https://github.com/jdh8/gin-rummy-engine/compare/0.1.1...0.1.2
 [0.1.1]: https://github.com/jdh8/gin-rummy-engine/compare/0.1.0...0.1.1
 [0.1.0]: https://github.com/jdh8/gin-rummy-engine/releases/tag/0.1.0
