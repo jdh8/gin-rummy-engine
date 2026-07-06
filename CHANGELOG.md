@@ -21,6 +21,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `MonteCarloBot`'s assumed opponent hand now keeps improving for the
+  whole round instead of leveling off about a third of the way in.  Its
+  rollouts model the hidden hand as the best of several drawn hands, more
+  of them the deeper the pile has grown; that scaling no longer stops
+  increasing partway through, so late-round equity and EV reads no longer
+  assume an opponent who stopped getting better early.
+
 - The browser front end now hides the move log by default, so a long game
   no longer grows a wall of text down the right edge; the table takes the
   full width instead.  A `Show log`/`Hide log` button in the header (or the

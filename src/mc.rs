@@ -101,14 +101,15 @@ impl<R: Rng> MonteCarloBot<R> {
     /// opponent has been collecting melds since the deal, so a uniform
     /// hand would be far too weak and the rollouts would recommend
     /// hunting gin against an opponent who never knocks.  Each world
-    /// instead keeps the lowest-deadwood of several uniform draws, more
-    /// of them the longer the round has run.
+    /// instead keeps the lowest-deadwood of several uniform draws, more of
+    /// them the deeper the pile — see [`opponent_strength`] — so the bias
+    /// keeps intensifying for the whole round instead of leveling off
+    /// partway through it.
     fn sample_worlds(&mut self, view: &View<'_>) -> Vec<World> {
         let unseen = view.unseen();
         let known = view.opponent_known();
         let missing = view.opponent_hand_len() - known.len();
-        // The pile grows by one card per turn played.
-        let strength = (view.discard_pile().len() / 2).clamp(1, 6);
+        let strength = opponent_strength(view.discard_pile().len());
 
         (0..self.samples)
             .map(|_| {
@@ -332,6 +333,18 @@ impl<R: Rng> MonteCarloBot<R> {
         out.sort_by(|a, b| b.equity.total_cmp(&a.equity));
         out
     }
+}
+
+/// How many uniform hands [`MonteCarloBot::sample_worlds`] draws before
+/// keeping the lowest-deadwood one, given the discard pile's current
+/// length
+///
+/// Scales with the pile and never plateaus early — the 52-card deck
+/// already bounds it below 16 by the last legal stock draw — so the
+/// assumed opponent keeps improving for the whole round instead of
+/// leveling off a third of the way through it.
+const fn opponent_strength(pile_len: usize) -> usize {
+    if pile_len < 2 { 1 } else { pile_len / 2 }
 }
 
 /// Whether the challenger's paired advantage over the incumbent is large
@@ -619,6 +632,16 @@ mod tests {
                 view.opponent_known()
             );
         }
+    }
+
+    #[test]
+    fn opponent_strength_keeps_growing_past_the_old_cap() {
+        // The old formula flattened at 6 once the pile reached 12 cards;
+        // a real opponent keeps improving long after that point, so the
+        // replacement must keep climbing well past it.
+        assert_eq!(opponent_strength(0), 1);
+        assert_eq!(opponent_strength(12), 6);
+        assert!(opponent_strength(24) > 6);
     }
 
     #[test]
