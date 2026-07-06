@@ -209,6 +209,14 @@ button:hover { background: #ffd83a; }
 .log h2 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.7; }
 .log div { padding: 0.1rem 0; opacity: 0.9; }
 
+/* Hidden by default: drop the panel and reclaim its grid column so `main`
+   spans the full width instead of leaving a gutter. */
+body.log-hidden {
+  grid-template-columns: 1fr;
+  grid-template-areas: "header" "main";
+}
+body.log-hidden .log { display: none; }
+
 @media (max-width: 40rem) {
   body {
     grid-template-columns: 1fr;

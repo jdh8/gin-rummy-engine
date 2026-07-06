@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- The browser front end now hides the move log by default, so a long game
+  no longer grows a wall of text down the right edge; the table takes the
+  full width instead.  A `Show log`/`Hide log` button in the header (or the
+  `l` key) reveals it on demand.  The preference is not remembered — every
+  load starts hidden, matching the fresh game each reload deals.
+
 ## [0.1.2] - 2026-07-05
 
 ### Changed

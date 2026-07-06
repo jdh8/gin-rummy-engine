@@ -31,10 +31,20 @@ async function main() {
     if (state) render(state);
   };
   id('sort').onclick = toggleSort;
+  // The log is hidden by default (grows into a mildly disturbing wall); this
+  // reveals it, mirroring the sort toggle.
+  const toggleLog = () => {
+    document.body.classList.toggle('log-hidden');
+    updateLogButton();
+  };
+  id('logtoggle').onclick = toggleLog;
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'v' && !e.metaKey && !e.ctrlKey) toggleSort();
+    if (e.metaKey || e.ctrlKey) return;
+    if (e.key === 'v') toggleSort();
+    if (e.key === 'l') toggleLog();
   });
   updateSortButton();
+  updateLogButton();
   // Difficulty picks the bot spec (`greedy` or `mc:samples`); changing it
   // mid-game just starts a fresh one, the simplest way to apply it.
   id('difficulty').onchange = newGame;
@@ -43,6 +53,11 @@ async function main() {
 
 function updateSortButton() {
   id('sort').textContent = bySuit ? 'Sort: suit' : 'Sort: rank';
+}
+
+function updateLogButton() {
+  id('logtoggle').textContent =
+    document.body.classList.contains('log-hidden') ? 'Show log' : 'Hide log';
 }
 
 async function newGame() {
