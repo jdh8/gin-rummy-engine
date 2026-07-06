@@ -28,6 +28,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The hint's draw-phase labels now name the card on offer — `take 4♠`
+  rather than a bare `take` or `take pile` — so a newcomer to the game or
+  to English can tell which card the move takes.  The hidden stock draw
+  stays a generic `draw stock`, since its card is not shown.
 - `MonteCarloBot`'s assumed opponent hand now keeps improving for the
   whole round instead of leveling off about a third of the way in.  Its
   rollouts model the hidden hand as the best of several drawn hands, more

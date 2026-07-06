@@ -143,7 +143,7 @@ pub struct MonteCarloBot<R: Rng> {
 #[non_exhaustive]
 pub struct Assessment {
     /// A rendered label for the action, e.g. `"discard 4♠"`, `"knock, drop
-    /// 4♠"`, `"take"`, `"pass"`, `"draw stock"`, `"take pile"`, `"big gin"`.
+    /// 4♠"`, `"take 4♠"`, `"pass"`, `"draw stock"`, `"big gin"`.
     pub action: String,
     /// Mean game-winning equity in `[0, 1]` — the quantity the bot
     /// maximizes, so candidates rank by it.
@@ -372,8 +372,9 @@ impl<R: Rng> MonteCarloBot<R> {
         };
         match view.phase() {
             Phase::Upcard => {
+                let top = view.upcard().expect("the upcard offer has an upcard");
                 let take = Candidate {
-                    label: "take".to_string(),
+                    label: format!("take {top}"),
                     phase: SimPhase::Upcard,
                     action: RolloutAction::TakeDiscard,
                 };
@@ -382,7 +383,6 @@ impl<R: Rng> MonteCarloBot<R> {
                     phase: SimPhase::Upcard,
                     action: RolloutAction::Pass,
                 };
-                let top = view.upcard().expect("the upcard offer has an upcard");
                 // Incumbent first, so the gate compares the challenger against
                 // it exactly as `offer_upcard` does.
                 if crate::heuristic::improves(view.hand(), top) {
@@ -396,17 +396,17 @@ impl<R: Rng> MonteCarloBot<R> {
                     // A forced stock draw is not a choice.
                     return Vec::new();
                 }
+                let top = view.upcard().expect("the pile is never empty on a draw");
                 let stock = Candidate {
                     label: "draw stock".to_string(),
                     phase: SimPhase::Draw,
                     action: RolloutAction::DrawStock,
                 };
                 let pile = Candidate {
-                    label: "take pile".to_string(),
+                    label: format!("take {top}"),
                     phase: SimPhase::Draw,
                     action: RolloutAction::TakeDiscard,
                 };
-                let top = view.upcard().expect("the pile is never empty on a draw");
                 // Incumbent first, mirroring `choose_draw`.
                 if crate::heuristic::improves(view.hand(), top) {
                     vec![pile, stock]

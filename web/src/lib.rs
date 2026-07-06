@@ -538,7 +538,7 @@ struct Move {
 /// One candidate move's solver assessment, for the Hint panel.
 #[derive(Serialize)]
 struct HintJson {
-    /// The move label, e.g. `"discard 4♠"`, `"knock, drop 4♠"`, `"take pile"`.
+    /// The move label, e.g. `"discard 4♠"`, `"knock, drop 4♠"`, `"take 4♠"`.
     action: String,
     /// Chance to win the game if this move is played, in `[0, 1]`.
     equity: f64,
