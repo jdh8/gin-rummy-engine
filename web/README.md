@@ -43,7 +43,7 @@ python3 -m http.server
 # open http://localhost:8000/
 ```
 
-Pick the bot's difficulty (Easy/Medium/Hard) from the dropdown in the header;
+Pick the bot's difficulty (Easy/Medium/Hard/Expert) from the dropdown in the header;
 it takes effect on the next new game.  Edit `RULES` at the top of `app.js` to
 change ruleset (`modern`/`classic`/`palace`).
 
