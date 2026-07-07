@@ -142,8 +142,8 @@ pub struct MonteCarloBot<R: Rng> {
 #[derive(Debug, Clone)]
 #[non_exhaustive]
 pub struct Assessment {
-    /// A rendered label for the action, e.g. `"discard 4♠"`, `"knock, drop
-    /// 4♠"`, `"take 4♠"`, `"pass"`, `"draw stock"`, `"big gin"`.
+    /// A rendered label for the action, e.g. `"discard 4♠"`, `"knock"`,
+    /// `"take 4♠"`, `"pass"`, `"draw stock"`, `"big gin"`.
     pub action: String,
     /// Mean game-winning equity in `[0, 1]` — the quantity the bot
     /// maximizes, so candidates rank by it.
@@ -437,7 +437,7 @@ impl<R: Rng> MonteCarloBot<R> {
                 {
                     let melds = best_melds(hand - card.into());
                     out.push(shed(
-                        format!("knock, drop {card}"),
+                        "knock".to_string(),
                         RolloutAction::Knock {
                             discard: card,
                             melds,
@@ -1071,6 +1071,6 @@ mod tests {
             .filter(|r| r.action.starts_with("knock"))
             .collect();
         assert_eq!(knocks.len(), 1, "one knock row, not one per shed");
-        assert_eq!(knocks[0].action, "knock, drop K♠");
+        assert_eq!(knocks[0].action, "knock");
     }
 }

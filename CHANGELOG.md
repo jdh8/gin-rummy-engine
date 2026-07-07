@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- The solver/hint panel's knock candidate is now labeled plainly `"knock"`
+  instead of naming the discard (e.g. `"knock, drop 7♣"`).  Knocking always
+  sheds the largest deadwood card, and the panel already lists only one
+  knock row, so naming the card added nothing a player could act on.
+
 ## [0.1.3] - 2026-07-07
 
 ### Added
