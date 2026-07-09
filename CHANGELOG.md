@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `MonteCarloBot` samples each decision's worlds from one shuffled pool
+  instead of rebuilding a fresh deck for every biased opponent draw.  The
+  sampled distribution, measured strength, and per-decision latency are
+  unchanged (whole-game throughput improves a few percent late in rounds,
+  where the old rebuilds were largest), but the generator is consumed in a
+  different order, so a seeded bot plays different — equally strong — games
+  than it did in 0.1.3.
+
 - The solver/hint panel's knock candidate is now labeled plainly `"knock"`
   instead of naming the discard (e.g. `"knock, drop 7♣"`).  Knocking always
   sheds the largest deadwood card, and the panel already lists only one

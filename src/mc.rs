@@ -3,9 +3,8 @@
 use crate::heuristic::greedy_layoff;
 use crate::sim::{Sim, SimPhase};
 use crate::{DrawAction, Layoff, Strategy, TurnAction, UpcardAction, View};
-use gin_rummy::deck::Deck;
 use gin_rummy::{Card, Hand, Phase, Player, RoundResult, Rules, best_melds, deadwood};
-use rand::Rng;
+use rand::{Rng, RngExt as _};
 
 /// How many candidate discards `play_turn` and `assess` weigh at a discard:
 /// the few lowest-deadwood sheds, the rest never worth a rollout.
@@ -157,27 +156,32 @@ impl<R: Rng> MonteCarloBot<R> {
         let known = view.opponent_known();
         let missing = view.opponent_hand_len() - known.len();
         let strength = opponent_strength(view.discard_pile().len());
+        // One scratch pool for the whole decision.  Each hidden-hand draw is
+        // a partial Fisher-Yates prefix, which is uniform from any starting
+        // permutation, so the pool never needs rebuilding between draws.
+        let mut pool: Vec<Card> = unseen.iter().collect();
 
         (0..count)
             .map(|_| {
                 let hidden = (0..strength)
                     .map(|_| {
-                        let mut pool = Deck::EMPTY;
-                        for card in unseen {
-                            pool.insert(card);
+                        for i in 0..missing {
+                            let j = self.rng.random_range(i..pool.len());
+                            pool.swap(i, j);
                         }
-                        pool.draw(&mut self.rng, missing)
+                        pool[..missing].iter().copied().collect::<Hand>()
                     })
                     .min_by_key(|&hidden| deadwood(known | hidden))
                     .expect("at least one draw is always sampled");
 
-                let mut pool = Deck::EMPTY;
-                for card in unseen - hidden {
-                    pool.insert(card);
-                }
-                let mut stock = Vec::with_capacity(pool.len());
-                while let Some(card) = pool.pop(&mut self.rng) {
-                    stock.push(card);
+                let mut stock: Vec<Card> = pool
+                    .iter()
+                    .copied()
+                    .filter(|&card| !hidden.contains(card))
+                    .collect();
+                for i in (1..stock.len()).rev() {
+                    let j = self.rng.random_range(0..=i);
+                    stock.swap(i, j);
                 }
                 World {
                     opponent: known | hidden,
