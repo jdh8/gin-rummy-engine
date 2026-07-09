@@ -49,7 +49,9 @@ change ruleset (`modern`/`classic`/`palace`).
 
 Click `Hint` (or press `h`) on your turn for the Monte Carlo solver's read on
 the decision: every candidate move with its equity (your chance to win the
-game) and expected points, the bot's own pick highlighted.
+game) and expected points, the bot's own pick highlighted.  The solver's depth
+adapts to your device — it starts light for a fast first read and samples more
+only if your device stays quick enough to keep the read snappy.
 
 ## Deploy
 

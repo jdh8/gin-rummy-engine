@@ -96,9 +96,11 @@ struct Core {
     game: Game,
     table: Table,
     bot: Box<dyn Strategy>,
-    /// A private Monte Carlo bot behind the Hint button, seeded apart from the
-    /// deal so asking for a hint never disturbs the game's own randomness.
-    hinter: MonteCarloBot<StdRng>,
+    /// A seed stream for the Hint button, apart from the deal so asking for a
+    /// hint never disturbs the game's own randomness.  Each hint draws a fresh
+    /// seed and builds a bot at the sample count the caller asks for, so the JS
+    /// side can adapt depth to the device's measured speed.
+    hint_rng: StdRng,
     pending: Pending,
     rng: StdRng,
     round_no: u32,
@@ -130,7 +132,7 @@ impl Core {
             table,
             bot,
             // A separate seed stream, independent of the deal `rng` above.
-            hinter: MonteCarloBot::new(StdRng::seed_from_u64(seed)),
+            hint_rng: StdRng::seed_from_u64(seed),
             pending: Pending::default(),
             rng,
             round_no: 1,
@@ -259,15 +261,19 @@ impl Core {
             && matches!(self.human_step(), HumanStep::WaitInput)
     }
 
-    /// A solver read on the human's current decision: each candidate move with
-    /// its equity and expected points.  Empty unless the human has a genuine
-    /// choice pending.
-    fn hint(&mut self) -> Vec<Assessment> {
+    /// A solver read on the human's current decision at `samples` worlds: each
+    /// candidate move with its equity and expected points.  Empty unless the
+    /// human has a genuine choice pending.  A fresh seed per call keeps repeated
+    /// hints on one position independent without ever touching the deal RNG.
+    fn hint(&mut self, samples: u32) -> Vec<Assessment> {
         if !self.awaiting_human_input() {
             return Vec::new();
         }
         let view = self.table.view(HUMAN);
-        self.hinter.assess(&view)
+        let seed = self.hint_rng.random();
+        MonteCarloBot::new(StdRng::seed_from_u64(seed))
+            .samples(samples)
+            .assess(&view)
     }
 
     /// The move just applied, described from legally-visible information, for the
@@ -674,9 +680,12 @@ impl WebGame {
     /// A solver read on the current decision as JSON: a list of candidate
     /// moves, each with its equity (chance to win the game) and expected round
     /// points, the bot's own pick flagged; empty when the move is forced.
+    ///
+    /// `samples` is the Monte Carlo world count; the JS side starts small and
+    /// adapts it to the device's measured hint latency.
     #[must_use]
-    pub fn hint(&mut self) -> String {
-        json(&hint_json(self.core.hint()))
+    pub fn hint(&mut self, samples: u32) -> String {
+        json(&hint_json(self.core.hint(samples)))
     }
 }
 
@@ -871,7 +880,7 @@ mod tests {
             assert!(guard < 100_000, "the first decision must arrive");
             core.step_once();
         }
-        let hints = core.hint();
+        let hints = core.hint(128);
         assert!(!hints.is_empty(), "a real decision has candidates to weigh");
         assert!(hints.iter().all(|h| (0.0..=1.0).contains(&h.equity)));
         assert!(hints.windows(2).all(|w| w[0].equity >= w[1].equity));

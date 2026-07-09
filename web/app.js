@@ -9,6 +9,21 @@ const RULES = 'modern';
 const PACE_MS = 650; // pause between the bot's steps, so they can be followed
 const FLY_MS = 350; // card glide duration — keep in sync with `.ghost` in style.css
 
+// Adaptive hint depth: everyone starts at a cheap 128 worlds for a fast first
+// read, then N drifts toward whatever fits HINT_BUDGET_MS on this device — up
+// on fast phones, down on slow ones.  Only decisions that did real work (took a
+// meaningful slice of the budget) move N, so easy near-instant reads don't
+// inflate it and hard ones back it off fast.
+const HINT_BUDGET_MS = 250;
+const HINT_MIN = 128;
+// The budget, not this ceiling, caps hint time — N only reaches HINT_MAX on
+// hardware fast enough to still fit the budget there.  Past ~1024 the pick
+// almost never changes; the extra samples just steady the displayed equities on
+// a quick device (desktop browsers, mostly).  4096 is another √2 less jitter,
+// below the point you'd notice.
+const HINT_MAX = 2048;
+let hintSamples = 128;
+
 // Four-colour deck, poker convention: clubs green, diamonds blue.
 const SUITS = { C: ['♣', 'green'], D: ['♦', 'blue'], H: ['♥', 'red'], S: ['♠', 'black'] };
 const SUIT_ORDER = { C: 0, D: 1, H: 2, S: 3 }; // clubs first, as the engine iterates
@@ -306,9 +321,22 @@ function renderActions(s) {
 // its read for the current decision.
 function showHint() {
   if (busy || !state || !state.your_turn) return;
-  const rows = JSON.parse(game.hint());
+  const t = performance.now();
+  const rows = JSON.parse(game.hint(hintSamples));
+  adaptHintSamples(performance.now() - t);
   if (!rows.length) return hideHint();
   renderHint(rows);
+}
+
+// Nudge the world count toward HINT_BUDGET_MS: back off proportionally when a
+// read overruns, climb gently when one had room to spare.  Reads that finished
+// in under half the budget are too easy to be a useful speed signal, so leave N
+// alone rather than let them ratchet it up.
+function adaptHintSamples(ms) {
+  if (ms > HINT_BUDGET_MS) hintSamples *= HINT_BUDGET_MS / ms;
+  else if (ms > HINT_BUDGET_MS / 2) hintSamples *= 1.3;
+  else return;
+  hintSamples = Math.round(Math.min(HINT_MAX, Math.max(HINT_MIN, hintSamples)));
 }
 
 function hideHint() {
