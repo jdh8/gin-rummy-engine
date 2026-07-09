@@ -46,8 +46,8 @@ impl Table {
     ///
     /// The game score defaults to level (both seats at zero), so a
     /// standalone round reports [`game_scores`](View::game_scores) of
-    /// `[0, 0]` and a [`game_margin`](View::game_margin) of zero.  Set it
-    /// with [`Table::scores`] when driving a round within a game.
+    /// `[0, 0]`.  Set it with [`Table::scores`] when driving a round
+    /// within a game.
     #[must_use]
     pub fn new(round: Round) -> Self {
         debug_assert_eq!(round.phase(), Phase::Upcard);
@@ -61,8 +61,7 @@ impl Table {
     /// Set the running game totals, indexed by [`Player`]
     ///
     /// Each seat's [`View`] then reports the seat-relative
-    /// [`game_scores`](View::game_scores) and
-    /// [`game_margin`](View::game_margin), letting score-aware strategies
+    /// [`game_scores`](View::game_scores), letting score-aware strategies
     /// bank a lead or gamble from behind.
     #[must_use]
     pub const fn scores(mut self, scores: [u16; 2]) -> Self {

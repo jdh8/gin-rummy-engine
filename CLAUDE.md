@@ -14,7 +14,7 @@ belongs in this crate.
 | ---- | -------- |
 | `src/strategy.rs` | The `Strategy` trait: four decision methods against a `View`, object-safe. |
 | `src/action.rs` | Per-phase action types, so a structurally illegal action cannot be expressed. |
-| `src/view.rs` | `View` (public, includes the public game score via `game_scores`/`game_margin`) plus the crate-private `Knowledge` the driver accumulates. |
+| `src/view.rs` | `View` (public, includes the public game score via `game_scores`) plus the crate-private `Knowledge` the driver accumulates. |
 | `src/driver.rs` | `Table`, `play_round`, `play_game`, `EngineError`: validates and applies decisions, keeps both seats' `Knowledge` current. |
 | `src/heuristic.rs` | `HeuristicBot`, `HeuristicConfig`, and the shared greedy primitives `best_shed`, `improves`, `greedy_layoff`. |
 | `src/mc.rs` | `MonteCarloBot` (feature `rand`): plausibility-biased world sampling, common random numbers, a game-winning equity objective, significance-gated deviation from the greedy baseline. |

@@ -65,19 +65,6 @@ impl<'a> View<'a> {
         self.seat
     }
 
-    /// This seat's lead in the game score: its running total minus the
-    /// opponent's, in points
-    ///
-    /// Positive when ahead in the game, negative when behind.  Always zero
-    /// for a standalone round played outside a [`Game`](gin_rummy::Game),
-    /// which has no scoreboard.  The game score is public — both players
-    /// see it — so it is part of the legal whitelist.  The target to win
-    /// is [`rules().game_target`](gin_rummy::Rules::game_target).
-    #[must_use]
-    pub const fn game_margin(&self) -> i32 {
-        self.scores[0] as i32 - self.scores[1] as i32
-    }
-
     /// The running game totals, this seat's first: `[mine, theirs]`
     ///
     /// Note the order: seat-relative, unlike [`Table::scores`], which is

@@ -36,6 +36,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with the sample count they want.
 - `MonteCarloBot::max_candidates`.  The number of candidate discards a turn
   evaluates is now fixed at 4; no caller ever set it.
+- `View::game_margin`.  Its value is `game_scores()[0] − game_scores()[1]`;
+  no shipped strategy read it, and `game_scores` already exposes both totals
+  (and the distance to `game_target` a lone margin cannot recover).  A caller
+  that wants the lead can subtract the two totals.
 
 ## [0.1.3] - 2026-07-07
 

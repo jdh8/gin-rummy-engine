@@ -76,9 +76,10 @@ pub struct HeuristicConfig {
     pub safety_weight: u8,
     /// How strongly the game score shifts the knock threshold
     ///
-    /// Points of threshold shift per unit of `game_margin / (game_target −
-    /// leader_score)`, where `leader_score` is the higher of the two
-    /// running totals.  Ahead the effective threshold rises toward the
+    /// Points of threshold shift per unit of `margin / (game_target −
+    /// leader_score)`, where `margin` is this seat's game-score lead and
+    /// `leader_score` the higher of the two running totals.  Ahead the
+    /// effective threshold rises toward the
     /// legal limit (bank the lead by knocking early); behind it falls
     /// toward zero (hold out for a gin that swings the deficit).  The
     /// denominator is the leader's distance to the winning line, not the
@@ -167,7 +168,7 @@ impl HeuristicBot {
     /// The knock threshold in effect, shifted by the game score
     ///
     /// The neutral base is `knock_threshold`; `score_awareness` scales the
-    /// shift by `game_margin / (game_target − leader_score)`.  Ahead the
+    /// shift by `(mine − theirs) / (game_target − leader_score)`.  Ahead the
     /// threshold rises (knock sooner), behind it falls toward zero (hold
     /// out for gin); dividing by the leader's distance to the line, not
     /// the full target, makes the same lead matter more late in the game.
