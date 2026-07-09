@@ -73,12 +73,22 @@ fn decisions(c: &mut Criterion) {
         });
     });
 
-    for samples in [16, 64] {
+    for samples in [16, 64, 128] {
         c.bench_function(&format!("monte carlo turn, {samples} samples"), |b| {
             let mut bot = MonteCarloBot::new(StdRng::seed_from_u64(1)).samples(samples);
             b.iter(|| black_box(bot.play_turn(&table.view(Player::Two))));
         });
     }
+
+    // An Expert-sized decision is slow enough that criterion's default 100
+    // measurements would take minutes; 10 keeps the arm honest and quick.
+    let mut group = c.benchmark_group("expert");
+    group.sample_size(10);
+    group.bench_function("monte carlo turn, 1024 samples", |b| {
+        let mut bot = MonteCarloBot::new(StdRng::seed_from_u64(1)).samples(1024);
+        b.iter(|| black_box(bot.play_turn(&table.view(Player::Two))));
+    });
+    group.finish();
 }
 
 criterion_group!(benches, decisions);

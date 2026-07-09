@@ -13,8 +13,10 @@ timing you observe in them is meaningless.
 ## Baselines (default configs, `Rules::default()`)
 
 - `mc:128` beats the default `greedy` in ≈65% of decisive rounds, at ~10 ms
-  per turn.  The default heuristic is tuned for whole-game play and so
-  concedes single rounds; this round figure is not a game-strength number.
+  per average serial turn (a hard first discard runs the full budget for
+  ~25 ms; the `parallel` feature divides either by most of the cores).  The
+  default heuristic is tuned for whole-game play and so concedes single
+  rounds; this round figure is not a game-strength number.
 - The tripwire (`tests/strength.rs`) demands >52.5% over 1000 rounds: a
   true 65% bot passes with near certainty, an even bot sneaks through
   less than 6% of the time.
@@ -88,11 +90,16 @@ stronger.  Search on one seed, re-confirm the single best arm on another.
 
 ```console
 cargo bench
+cargo bench --features parallel
 ```
 
 Criterion benches per-decision latency for the heuristic and for
-`mc:16`/`mc:64`.  A strength win that triples decision time is a loss for
-interactive use; report both.
+`mc:16`/`64`/`128` plus an Expert-sized `mc:1024` arm; the second line
+gives the multi-core numbers.  The bench position is a deliberately hard
+first discard — every shed stays plausible, so candidate elimination
+saves little there and whole-game throughput (the arena's rounds/s) is
+the fairer average-cost read.  A strength win that triples decision time
+is a loss for interactive use; report both.
 
 ## The statistics inside MonteCarloBot
 
