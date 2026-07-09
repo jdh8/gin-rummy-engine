@@ -163,7 +163,11 @@ impl<R: Rng> MonteCarloBot<R> {
     /// instead keeps the lowest-deadwood of several uniform draws, more of
     /// them the deeper the pile — see [`opponent_strength`] — so the bias
     /// keeps intensifying for the whole round instead of leveling off
-    /// partway through it.
+    /// partway through it.  Charging the pick a cold-card penalty as well —
+    /// extra deadwood per hidden card adjoining one the opponent shed or
+    /// passed, the heuristic's disinterest signal pointed the other way —
+    /// measured flat (+0.2/−0.2 points on two 10 000-round seeds at mc:64),
+    /// so the deadwood bias stands alone.
     fn sample_worlds(&mut self, view: &View<'_>, count: u32) -> Vec<World> {
         let unseen = view.unseen();
         let known = view.opponent_known();
