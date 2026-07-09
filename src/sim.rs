@@ -162,6 +162,14 @@ impl Sim {
 
     /// Play the round out with the knowledge-free greedy policy on both
     /// seats
+    ///
+    /// Both seats knock at the first legal chance.  Raising the model's
+    /// fidelity instead — holding to the shipped heuristic's tuned knock
+    /// threshold of 4 — measured clearly *weaker* (−6 and −8 points of
+    /// decisive win rate on two 10 000-round seeds and −11 points over 300
+    /// games, mc:64 head to head): the urgent knocker is the threat model
+    /// that prices deadwood risk correctly, and a patient forward model
+    /// plays complacent.
     pub(crate) fn rollout(mut self) -> RoundResult {
         loop {
             let hand = self.hands[self.turn as usize];
