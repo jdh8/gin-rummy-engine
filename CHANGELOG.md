@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- A `parallel` cargo feature (off by default): Monte Carlo scoring batches
+  spread their rollouts across the CPU cores via rayon.  Decisions are
+  bit-identical to the serial build — batch results are collected in world
+  order and reduced sequentially — so a seeded bot plays the same games,
+  just sooner: on a 16-core machine a 64-sample decision runs about 3×
+  faster.  The default build and the wasm front end are unaffected.
+
 ### Changed
 
 - `MonteCarloBot` now rolls its sampled worlds in growing batches and drops

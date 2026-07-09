@@ -98,8 +98,13 @@ cargo fmt
 cargo clippy --all-targets --all-features -- -D warnings
 RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --all-features
 cargo test --all-features
+cargo test
 cargo check --no-default-features
 ```
+
+The plain `cargo test` leg matters: `--all-features` turns on `parallel`,
+so only the default-features run exercises the serial Monte Carlo scoring
+path (CI runs both).
 
 - MSRV is 1.93 (edition 2024) and CI tests it explicitly; avoid newer
   language or standard-library features.

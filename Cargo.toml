@@ -22,10 +22,15 @@ all-features = true
 # randomness; the trait, view, driver, and heuristic bot work without it.
 default = ["rand"]
 rand = ["dep:rand", "gin-rummy/rand"]
+# Monte Carlo rollouts across the CPU cores.  Decisions are bit-identical
+# to the serial build: batch results are collected in world order and
+# reduced sequentially.  Off by default; the wasm front end never sees it.
+parallel = ["dep:rayon", "rand"]
 
 [dependencies]
 gin-rummy = "0.1.2"
 rand = { version = "0.10", optional = true }
+rayon = { version = "1.10", optional = true }
 thiserror = "2"
 
 [dev-dependencies]

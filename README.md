@@ -78,6 +78,9 @@ Writing your own bot is implementing [`Strategy`]'s four decisions against a
 
 - `rand` (default): the Monte Carlo bot, `Table::deal`, `play_game`, and the
   examples.  Disable it for a dependency-free heuristic-only build.
+- `parallel`: Monte Carlo rollouts across the CPU cores via rayon.
+  Decisions are bit-identical to the serial build, each just arrives
+  faster; worthwhile at high sample counts.  Off by default.
 
 ## Examples
 

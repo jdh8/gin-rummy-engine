@@ -373,9 +373,22 @@ impl<R: Rng> MonteCarloBot<R> {
         while done < worlds.len() {
             let batch = &worlds[done..worlds.len().min(done + done.max(BATCH))];
             for &i in std::iter::once(&0).chain(&alive) {
+                let candidate = &candidates[i];
+                #[cfg(feature = "parallel")]
+                let results: Vec<(f64, f64)> = {
+                    use rayon::prelude::*;
+                    batch
+                        .par_iter()
+                        .map(|world| eval(candidate, world))
+                        .collect()
+                };
+                #[cfg(not(feature = "parallel"))]
+                let results = batch.iter().map(|world| eval(candidate, world));
+
+                // Reduced sequentially in world order in both builds, so a
+                // parallel bot makes bit-identical decisions to a serial one.
                 let (equities, ev_sum) = &mut scored[i];
-                for world in batch {
-                    let (equity, points) = eval(&candidates[i], world);
+                for (equity, points) in results {
                     equities.push(equity);
                     *ev_sum += points;
                 }
@@ -875,6 +888,22 @@ mod tests {
             .collect();
         assert_eq!(knocks.len(), 1, "one knock row, not one per shed");
         assert_eq!(knocks[0].action, "knock");
+    }
+
+    #[test]
+    fn seeded_pick_is_identical_across_serial_and_parallel_builds() {
+        // The `parallel` feature must not change a single decision: batch
+        // results are collected in world order and reduced sequentially in
+        // both builds, so this exact pick is the answer in either one.  CI
+        // runs the suite with and without the feature; a failure in only
+        // one build means the parallel reduce stopped being order-exact.
+        // Re-pin the expected action whenever sampling logic changes.
+        let table = knock_position();
+        let seat = table.turn().expect("the drawer is mid-turn");
+        let mut bot = MonteCarloBot::new(StdRng::seed_from_u64(11)).samples(64);
+        let rows = bot.assess(&table.view(seat));
+        let pick = rows.iter().find(|r| r.recommended).expect("a flagged pick");
+        assert_eq!(pick.action, "knock");
     }
 
     #[test]

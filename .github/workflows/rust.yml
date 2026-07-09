@@ -62,3 +62,7 @@ jobs:
       run: rustup toolchain install ${{ matrix.rust }} --profile minimal && rustup default ${{ matrix.rust }}
     - name: Test (all features)
       run: cargo test --all-features --verbose
+    # --all-features turns on `parallel`, so this leg is what still
+    # exercises the serial Monte Carlo scoring path.
+    - name: Test (default features)
+      run: cargo test --verbose
