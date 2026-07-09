@@ -4,7 +4,7 @@ use crate::heuristic::greedy_layoff;
 use crate::sim::{Sim, SimPhase};
 use crate::{DrawAction, Layoff, Strategy, TurnAction, UpcardAction, View};
 use gin_rummy::deck::Deck;
-use gin_rummy::{Card, Hand, Melds, Phase, Player, RoundResult, Rules, best_melds, deadwood};
+use gin_rummy::{Card, Hand, Phase, Player, RoundResult, Rules, best_melds, deadwood};
 use rand::Rng;
 
 /// How many candidate discards `play_turn` and `assess` weigh at a discard:
@@ -19,56 +19,58 @@ struct World {
     stock: Vec<Card>,
 }
 
-/// One candidate action to score, as owned data `assess` rolls through the
-/// sampled worlds
+/// One candidate action to score: the typed move a [`Strategy`] method would
+/// return, paired with its rendered [`Assessment::action`] label
 struct Candidate {
     /// The rendered [`Assessment::action`] label.
     label: String,
-    /// The rollout's starting phase, passed to [`MonteCarloBot::sim`].
-    phase: SimPhase,
-    /// The move to apply before the greedy playout.
-    action: RolloutAction,
+    /// The move itself — returned verbatim when this candidate is the pick,
+    /// so the chooser and the solver read agree by construction.
+    choice: Choice,
 }
 
-/// The move a [`Candidate`] applies to a [`Sim`] before rolling it out
-///
-/// Owned data, so `assess` can hold a list of candidates and roll each one
-/// through every sampled world.
+/// A typed candidate move, tagged by phase so the same value both drives a
+/// rollout and is returned from the matching [`Strategy`] method
 #[derive(Clone, Copy)]
-enum RolloutAction {
-    /// Take the pile — the upcard offer or a draw — then play on.
-    TakeDiscard,
-    /// Pass the upcard offer, then play on.
-    Pass,
-    /// Draw the hidden stock, then play on.
-    DrawStock,
-    /// Declare big gin: all eleven cards meld.
-    BigGin,
-    /// Knock, dropping `discard` with the rest laid as `melds`.
-    Knock { discard: Card, melds: Melds },
-    /// Shed `discard`, then play on (or settle if it ends the round).
-    Discard(Card),
+enum Choice {
+    /// Take or pass the initial upcard.
+    Upcard(UpcardAction),
+    /// Draw the stock or take the pile top.
+    Draw(DrawAction),
+    /// Discard, knock, or declare big gin.
+    Turn(TurnAction),
 }
 
-impl RolloutAction {
+impl Choice {
+    /// The rollout phase this move acts at, passed to [`MonteCarloBot::sim`].
+    fn phase(self) -> SimPhase {
+        match self {
+            Self::Upcard(_) => SimPhase::Upcard,
+            Self::Draw(_) => SimPhase::Draw,
+            Self::Turn(_) => SimPhase::Shed,
+        }
+    }
+
     /// Apply the move to a fresh rollout state and play it to a result.
     fn roll(self, mut sim: Sim) -> RoundResult {
         match self {
-            Self::TakeDiscard => {
+            Self::Upcard(UpcardAction::Take) | Self::Draw(DrawAction::TakeDiscard) => {
                 sim.take_discard();
                 sim.rollout()
             }
-            Self::Pass => {
+            Self::Upcard(UpcardAction::Pass) => {
                 sim.pass();
                 sim.rollout()
             }
-            Self::DrawStock => {
+            Self::Draw(DrawAction::Stock) => {
                 sim.draw_stock();
                 sim.rollout()
             }
-            Self::BigGin => sim.big_gin(),
-            Self::Knock { discard, melds } => sim.knock(discard, melds),
-            Self::Discard(card) => sim.discard(card).unwrap_or_else(|| sim.rollout()),
+            Self::Turn(TurnAction::BigGin(_)) => sim.big_gin(),
+            Self::Turn(TurnAction::Knock { discard, melds }) => sim.knock(discard, melds),
+            Self::Turn(TurnAction::Discard(card)) => {
+                sim.discard(card).unwrap_or_else(|| sim.rollout())
+            }
         }
     }
 }
@@ -185,24 +187,6 @@ impl<R: Rng> MonteCarloBot<R> {
             .collect()
     }
 
-    /// Per-world game-winning equities of `rollout` (common random numbers:
-    /// every candidate sees the same worlds, so paired comparisons cancel
-    /// most of the rollout noise)
-    fn equities(
-        view: &View<'_>,
-        worlds: &[World],
-        phase: SimPhase,
-        rollout: impl Fn(Sim) -> RoundResult,
-    ) -> Vec<f64> {
-        let me = view.seat();
-        let rules = view.rules();
-        let standing = view.game_scores();
-        worlds
-            .iter()
-            .map(|world| equity(rollout(Self::sim(view, world, phase)), me, standing, rules))
-            .collect()
-    }
-
     /// Instantiate one world as a rollout state, to act at `phase`
     fn sim(view: &View<'_>, world: &World, phase: SimPhase) -> Sim {
         let seat = view.seat();
@@ -246,33 +230,32 @@ impl<R: Rng> MonteCarloBot<R> {
         Self::rank(&candidates, &scored, self.samples)
     }
 
-    /// The ordered candidate actions for the current decision, the greedy
+    /// Score every candidate on freshly sampled worlds and return the move to
+    /// play: the greedy incumbent (`candidates[0]`) unless a challenger clears
+    /// the significance gate.  The shared core of the [`Strategy`] methods, so
+    /// each is a thin wrapper over the same read [`assess`](Self::assess)
+    /// surfaces; `candidates` must be non-empty.
+    fn choose(&mut self, view: &View<'_>, candidates: &[Candidate]) -> Choice {
+        let worlds = self.sample_worlds(view, self.samples);
+        let scored = Self::score_worlds(view, &worlds, candidates);
+        candidates[recommended(&scored)].choice
+    }
+
+    /// The ordered candidate moves for the current decision, the greedy
     /// incumbent first
     ///
-    /// Mirrors the matching [`Strategy`] method's candidate set on this view,
-    /// with one deliberate contraction: a knock's shed is not a real choice
-    /// (dropping the largest deadwood is always the best knock), so the
-    /// discard phase lists a single leading knock rather than one per shed.
-    /// Empty when the seat has no real choice.
+    /// The single source of candidates for both the [`Strategy`] methods and
+    /// the solver read, with one deliberate contraction: a knock's shed is not
+    /// a real choice (dropping the largest deadwood is always the best knock),
+    /// so the discard phase lists a single leading knock rather than one per
+    /// shed.  Empty when the seat has no real choice.
     fn hint_candidates(&self, view: &View<'_>) -> Vec<Candidate> {
-        let shed = |label, action| Candidate {
-            label,
-            phase: SimPhase::Shed,
-            action,
-        };
+        let candidate = |label: String, choice: Choice| Candidate { label, choice };
         match view.phase() {
             Phase::Upcard => {
                 let top = view.upcard().expect("the upcard offer has an upcard");
-                let take = Candidate {
-                    label: format!("take {top}"),
-                    phase: SimPhase::Upcard,
-                    action: RolloutAction::TakeDiscard,
-                };
-                let pass = Candidate {
-                    label: "pass".to_string(),
-                    phase: SimPhase::Upcard,
-                    action: RolloutAction::Pass,
-                };
+                let take = candidate(format!("take {top}"), Choice::Upcard(UpcardAction::Take));
+                let pass = candidate("pass".to_string(), Choice::Upcard(UpcardAction::Pass));
                 // Incumbent first, so the gate compares the challenger against
                 // it exactly as `offer_upcard` does.
                 if crate::heuristic::improves(view.hand(), top) {
@@ -287,16 +270,8 @@ impl<R: Rng> MonteCarloBot<R> {
                     return Vec::new();
                 }
                 let top = view.upcard().expect("the pile is never empty on a draw");
-                let stock = Candidate {
-                    label: "draw stock".to_string(),
-                    phase: SimPhase::Draw,
-                    action: RolloutAction::DrawStock,
-                };
-                let pile = Candidate {
-                    label: format!("take {top}"),
-                    phase: SimPhase::Draw,
-                    action: RolloutAction::TakeDiscard,
-                };
+                let stock = candidate("draw stock".to_string(), Choice::Draw(DrawAction::Stock));
+                let pile = candidate(format!("take {top}"), Choice::Draw(DrawAction::TakeDiscard));
                 // Incumbent first, mirroring `choose_draw`.
                 if crate::heuristic::improves(view.hand(), top) {
                     vec![pile, stock]
@@ -307,38 +282,35 @@ impl<R: Rng> MonteCarloBot<R> {
             Phase::Discard => {
                 let hand = view.hand();
                 if deadwood(hand) == 0 && view.rules().big_gin_bonus.is_some() {
-                    return vec![shed("big gin".to_string(), RolloutAction::BigGin)];
+                    let choice = Choice::Turn(TurnAction::BigGin(best_melds(hand)));
+                    return vec![candidate("big gin".to_string(), choice)];
                 }
-                // The same greedy candidate ranking `play_turn` evaluates.
-                let mut candidates: Vec<(Card, u8)> = hand
+                // The same greedy shed ranking `play_turn` evaluates.
+                let mut sheds: Vec<(Card, u8)> = hand
                     .iter()
                     .filter(|&card| Some(card) != view.taken_discard())
                     .map(|card| (card, deadwood(hand - card.into())))
                     .collect();
-                candidates.sort_by_key(|&(card, rest)| (rest, u8::MAX - card.rank.deadwood()));
-                candidates.truncate(MAX_CANDIDATES);
+                sheds.sort_by_key(|&(card, rest)| (rest, u8::MAX - card.rank.deadwood()));
+                sheds.truncate(MAX_CANDIDATES);
 
                 let limit = view.knock_limit();
                 let mut out = Vec::new();
                 // The best knock leads, as the greedy incumbent; if even it
                 // exceeds the limit, no shed can knock.
-                if let Some(&(card, rest)) = candidates.first()
+                if let Some(&(card, rest)) = sheds.first()
                     && rest <= limit
                 {
                     let melds = best_melds(hand - card.into());
-                    out.push(shed(
-                        "knock".to_string(),
-                        RolloutAction::Knock {
-                            discard: card,
-                            melds,
-                        },
-                    ));
+                    let knock = Choice::Turn(TurnAction::Knock {
+                        discard: card,
+                        melds,
+                    });
+                    out.push(candidate("knock".to_string(), knock));
                 }
-                for &(card, _) in &candidates {
-                    out.push(shed(
-                        format!("discard {card}"),
-                        RolloutAction::Discard(card),
-                    ));
+                for &(card, _) in &sheds {
+                    let discard = Choice::Turn(TurnAction::Discard(card));
+                    out.push(candidate(format!("discard {card}"), discard));
                 }
                 out
             }
@@ -365,9 +337,8 @@ impl<R: Rng> MonteCarloBot<R> {
                 let mut equities = Vec::with_capacity(worlds.len());
                 let mut ev_sum = 0.0;
                 for world in worlds {
-                    let result = candidate
-                        .action
-                        .roll(Self::sim(view, world, candidate.phase));
+                    let phase = candidate.choice.phase();
+                    let result = candidate.choice.roll(Self::sim(view, world, phase));
                     equities.push(equity(result, me, standing, rules));
                     ev_sum += round_points(result, me, rules);
                 }
@@ -377,18 +348,10 @@ impl<R: Rng> MonteCarloBot<R> {
     }
 
     /// Reduce the scored candidates to assessments ranked by mean equity,
-    /// flagging the bot's pick
-    ///
-    /// The pick is the greedy incumbent (`scored[0]`) unless a challenger's
-    /// paired advantage clears the [`beats`] gate, in which case it is the
-    /// largest such gain — exactly the deviation the [`Strategy`] methods make.
+    /// flagging the bot's pick — the same index [`choose`](Self::choose)
+    /// returns, so the solver read matches the move played
     fn rank(candidates: &[Candidate], scored: &[(Vec<f64>, f64)], samples: u32) -> Vec<Assessment> {
-        let mean = |e: &[f64]| e.iter().sum::<f64>() / e.len() as f64;
-        let defend = &scored[0].0;
-        let recommended = (1..scored.len())
-            .filter(|&i| beats(&scored[i].0, defend))
-            .max_by(|&a, &b| mean(&scored[a].0).total_cmp(&mean(&scored[b].0)))
-            .unwrap_or(0);
+        let best = recommended(scored);
         let n = f64::from(samples);
         let mut out: Vec<Assessment> = candidates
             .iter()
@@ -398,12 +361,27 @@ impl<R: Rng> MonteCarloBot<R> {
                 action: candidate.label.clone(),
                 equity: equities.iter().sum::<f64>() / n,
                 ev: ev_sum / n,
-                recommended: i == recommended,
+                recommended: i == best,
             })
             .collect();
         out.sort_by(|a, b| b.equity.total_cmp(&a.equity));
         out
     }
+}
+
+/// The index of the recommended candidate: the greedy incumbent (`scored[0]`)
+/// unless a challenger's paired advantage clears the [`beats`] gate, in which
+/// case the largest such gain
+///
+/// Shared by [`MonteCarloBot::choose`] and [`MonteCarloBot::rank`], so the
+/// move the bot plays and the pick the solver flags never diverge.
+fn recommended(scored: &[(Vec<f64>, f64)]) -> usize {
+    let mean = |e: &[f64]| e.iter().sum::<f64>() / e.len() as f64;
+    let defend = &scored[0].0;
+    (1..scored.len())
+        .filter(|&i| beats(&scored[i].0, defend))
+        .max_by(|&a, &b| mean(&scored[a].0).total_cmp(&mean(&scored[b].0)))
+        .unwrap_or(0)
 }
 
 /// How many uniform hands [`MonteCarloBot::sample_worlds`] draws before
@@ -527,117 +505,39 @@ fn round_points(result: RoundResult, me: Player, rules: &Rules) -> f64 {
 
 impl<R: Rng> Strategy for MonteCarloBot<R> {
     fn offer_upcard(&mut self, view: &View<'_>) -> UpcardAction {
-        let top = view.upcard().expect("the upcard offer has an upcard");
-        let incumbent = if crate::heuristic::improves(view.hand(), top) {
-            UpcardAction::Take
-        } else {
-            UpcardAction::Pass
-        };
-
-        let worlds = self.sample_worlds(view, self.samples);
-        let take = Self::equities(view, &worlds, SimPhase::Upcard, |mut sim| {
-            sim.take_discard();
-            sim.rollout()
-        });
-        let pass = Self::equities(view, &worlds, SimPhase::Upcard, |mut sim| {
-            sim.pass();
-            sim.rollout()
-        });
-
-        let (defend, challenge, challenger) = match incumbent {
-            UpcardAction::Take => (take, pass, UpcardAction::Pass),
-            UpcardAction::Pass => (pass, take, UpcardAction::Take),
-        };
-        if beats(&challenge, &defend) {
-            challenger
-        } else {
-            incumbent
+        let candidates = self.hint_candidates(view);
+        match self.choose(view, &candidates) {
+            Choice::Upcard(action) => action,
+            _ => unreachable!("the upcard offer yields upcard choices"),
         }
     }
 
     fn choose_draw(&mut self, view: &View<'_>) -> DrawAction {
-        let top = view.upcard().expect("the pile is never empty on a draw");
-        let incumbent = if crate::heuristic::improves(view.hand(), top) {
-            DrawAction::TakeDiscard
-        } else {
-            DrawAction::Stock
-        };
-
-        let worlds = self.sample_worlds(view, self.samples);
-        let stock = Self::equities(view, &worlds, SimPhase::Draw, |mut sim| {
-            sim.draw_stock();
-            sim.rollout()
-        });
-        let pile = Self::equities(view, &worlds, SimPhase::Draw, |mut sim| {
-            sim.take_discard();
-            sim.rollout()
-        });
-
-        let (defend, challenge, challenger) = match incumbent {
-            DrawAction::TakeDiscard => (pile, stock, DrawAction::Stock),
-            DrawAction::Stock => (stock, pile, DrawAction::TakeDiscard),
-        };
-        if beats(&challenge, &defend) {
-            challenger
-        } else {
-            incumbent
+        let candidates = self.hint_candidates(view);
+        // The driver never consults a strategy on the forced stock draw, but
+        // guard so a direct call cannot roll an empty candidate set.
+        if candidates.is_empty() {
+            return DrawAction::Stock;
+        }
+        match self.choose(view, &candidates) {
+            Choice::Draw(action) => action,
+            _ => unreachable!("the draw phase yields draw choices"),
         }
     }
 
     fn play_turn(&mut self, view: &View<'_>) -> TurnAction {
         let hand = view.hand();
         if deadwood(hand) == 0 && view.rules().big_gin_bonus.is_some() {
-            // Big gin scores at least as much as gin under every ruleset.
+            // Big gin scores at least as much as gin under every ruleset, and
+            // is forced, so take it without a rollout (and without drawing
+            // from the rng, keeping seeded play reproducible).
             return TurnAction::BigGin(best_melds(hand));
         }
-
-        // Rank legal sheds greedily and keep the most promising few; the
-        // first candidate's knock-if-legal action is the greedy incumbent.
-        let mut candidates: Vec<(Card, u8)> = hand
-            .iter()
-            .filter(|&card| Some(card) != view.taken_discard())
-            .map(|card| (card, deadwood(hand - card.into())))
-            .collect();
-        candidates.sort_by_key(|&(card, rest)| (rest, u8::MAX - card.rank.deadwood()));
-        candidates.truncate(MAX_CANDIDATES);
-
-        let worlds = self.sample_worlds(view, self.samples);
-        let limit = view.knock_limit();
-        let actions: Vec<(TurnAction, Vec<f64>)> = candidates
-            .iter()
-            .flat_map(|&(card, rest)| {
-                let melds = best_melds(hand - card.into());
-                let knock = (rest <= limit).then(|| {
-                    let scores =
-                        Self::equities(view, &worlds, SimPhase::Shed, |sim| sim.knock(card, melds));
-                    (
-                        TurnAction::Knock {
-                            discard: card,
-                            melds,
-                        },
-                        scores,
-                    )
-                });
-                let discard = Self::equities(view, &worlds, SimPhase::Shed, |mut sim| {
-                    sim.discard(card).unwrap_or_else(|| sim.rollout())
-                });
-                knock
-                    .into_iter()
-                    .chain(std::iter::once((TurnAction::Discard(card), discard)))
-            })
-            .collect();
-
-        // Deviate from the incumbent only on statistically clear gains,
-        // taking the largest such gain.
-        let (incumbent, defend) = &actions[0];
-        actions[1..]
-            .iter()
-            .filter(|(_, challenge)| beats(challenge, defend))
-            .max_by(|(_, a), (_, b)| {
-                let mean = |s: &[f64]| s.iter().sum::<f64>() / s.len() as f64;
-                mean(a).total_cmp(&mean(b))
-            })
-            .map_or(*incumbent, |(action, _)| *action)
+        let candidates = self.hint_candidates(view);
+        match self.choose(view, &candidates) {
+            Choice::Turn(action) => action,
+            _ => unreachable!("the discard phase yields turn choices"),
+        }
     }
 
     fn choose_layoff(&mut self, view: &View<'_>) -> Option<Layoff> {

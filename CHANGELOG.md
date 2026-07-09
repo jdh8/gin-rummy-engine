@@ -18,6 +18,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   straight from `MonteCarloBot::assess` at the bot's own sample count, which is
   plenty to rank the candidates; the live "worlds" counter and the deepening
   loop are gone.
+- `MonteCarloBot` now weighs a single best-shed knock at a discard rather than
+  one knock per candidate shed, so the move it plays comes from exactly the
+  candidate set the solver read (`assess`) shows.  Knocking always sheds the
+  largest deadwood, so the dropped knocks were dominated and never chosen;
+  measured strength is unchanged (mc:64 still wins ≈63% of decisive rounds
+  against the default greedy over 4000 seeded rounds), but seeded play can
+  differ in the rare position where the old code would have knocked on a worse
+  shed.
 
 ### Removed
 
