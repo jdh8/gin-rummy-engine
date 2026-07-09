@@ -10,6 +10,12 @@ use rand::{Rng, RngExt as _};
 /// the few lowest-deadwood sheds, the rest never worth a rollout.
 const MAX_CANDIDATES: usize = 4;
 
+/// The world count of the first scoring batch; each later batch doubles the
+/// evaluated total, so elimination checkpoints fall after 32, 64, 128, ...
+/// worlds.  A decision of 32 samples or fewer is a single batch, identical
+/// to an unbatched run.
+const BATCH: usize = 32;
+
 /// One determinized world: a concrete opponent hand and stock order
 /// consistent with a [`View`]
 struct World {
@@ -87,7 +93,11 @@ impl Choice {
 /// win or loss of the game it is, and anything short of one counts its
 /// round points.  The same worlds are reused across candidate actions
 /// (common random numbers), and the bot deviates from the greedy baseline
-/// only when the paired samples show a statistically clear gain.
+/// only when the paired samples show a statistically clear gain.  Worlds
+/// are rolled in growing batches, and a challenger the incumbent already
+/// statistically dominates is dropped at a batch boundary — once none
+/// remain, the remaining worlds are never rolled at all — so an easy
+/// decision costs a fraction of the full sample count.
 ///
 /// The bot owns its random number generator, so a seeded generator makes
 /// its play reproducible.
@@ -108,10 +118,13 @@ pub struct Assessment {
     /// `"take 4♠"`, `"pass"`, `"draw stock"`, `"big gin"`.
     pub action: String,
     /// Mean game-winning equity in `[0, 1]` — the quantity the bot
-    /// maximizes, so candidates rank by it.
+    /// maximizes, so candidates rank by it.  A candidate the bot eliminated
+    /// early averages over the worlds it saw before elimination rather than
+    /// the full sample count.
     pub equity: f64,
     /// Mean signed round points the action wins the deciding seat: positive
-    /// for a net gain, negative for a net loss.
+    /// for a net gain, negative for a net loss.  Averaged over the same
+    /// worlds as [`equity`](Self::equity).
     pub ev: f64,
     /// Whether this is the bot's own pick — the move a [`Strategy`] method
     /// would return on this view.  Because the bot deviates from the greedy
@@ -231,7 +244,7 @@ impl<R: Rng> MonteCarloBot<R> {
         }
         let worlds = self.sample_worlds(view, self.samples);
         let scored = Self::score_worlds(view, &worlds, &candidates);
-        Self::rank(&candidates, &scored, self.samples)
+        Self::rank(&candidates, &scored)
     }
 
     /// Score every candidate on freshly sampled worlds and return the move to
@@ -322,11 +335,21 @@ impl<R: Rng> MonteCarloBot<R> {
         }
     }
 
-    /// Roll every candidate through the same `worlds` (common random numbers),
-    /// returning per candidate its per-world equities and summed round points
+    /// Roll candidates through the same `worlds` (common random numbers) in
+    /// growing batches, eliminating challengers the incumbent already
+    /// dominates, and return per candidate its per-world equities and summed
+    /// round points
     ///
-    /// [`rank`](Self::rank) averages both the equities and the summed round
-    /// points over the world count.
+    /// A challenger is eliminated at a batch boundary when the incumbent's
+    /// paired advantage over it clears the same [`beats`] gate a challenger
+    /// must clear to be preferred; once every challenger is gone the
+    /// incumbent wins by default and the remaining worlds are never rolled.
+    /// Survivors always reach the full world count, so the final
+    /// [`recommended`] read over them is exactly the unbatched one.  An
+    /// eliminated candidate keeps the equities it accumulated: its paired
+    /// mean against the incumbent is negative on that prefix, and [`beats`]
+    /// zips to the shorter slice, so [`recommended`] rejects it with no
+    /// special casing.
     fn score_worlds(
         view: &View<'_>,
         worlds: &[World],
@@ -335,37 +358,60 @@ impl<R: Rng> MonteCarloBot<R> {
         let me = view.seat();
         let rules = view.rules();
         let standing = view.game_scores();
-        candidates
-            .iter()
-            .map(|candidate| {
-                let mut equities = Vec::with_capacity(worlds.len());
-                let mut ev_sum = 0.0;
-                for world in worlds {
-                    let phase = candidate.choice.phase();
-                    let result = candidate.choice.roll(Self::sim(view, world, phase));
-                    equities.push(equity(result, me, standing, rules));
-                    ev_sum += round_points(result, me, rules);
+        let eval = |candidate: &Candidate, world: &World| {
+            let sim = Self::sim(view, world, candidate.choice.phase());
+            let result = candidate.choice.roll(sim);
+            (
+                equity(result, me, standing, rules),
+                round_points(result, me, rules),
+            )
+        };
+
+        let mut scored: Vec<(Vec<f64>, f64)> = vec![(Vec::new(), 0.0); candidates.len()];
+        let mut alive: Vec<usize> = (1..candidates.len()).collect();
+        let mut done = 0;
+        while done < worlds.len() {
+            let batch = &worlds[done..worlds.len().min(done + done.max(BATCH))];
+            for &i in std::iter::once(&0).chain(&alive) {
+                let (equities, ev_sum) = &mut scored[i];
+                for world in batch {
+                    let (equity, points) = eval(&candidates[i], world);
+                    equities.push(equity);
+                    *ev_sum += points;
                 }
-                (equities, ev_sum)
-            })
-            .collect()
+            }
+            done += batch.len();
+            if done < worlds.len() {
+                alive.retain(|&i| !beats(&scored[0].0, &scored[i].0));
+                if alive.is_empty() {
+                    break;
+                }
+            }
+        }
+        scored
     }
 
     /// Reduce the scored candidates to assessments ranked by mean equity,
     /// flagging the bot's pick — the same index [`choose`](Self::choose)
     /// returns, so the solver read matches the move played
-    fn rank(candidates: &[Candidate], scored: &[(Vec<f64>, f64)], samples: u32) -> Vec<Assessment> {
+    ///
+    /// Each candidate averages over the worlds it was actually rolled
+    /// through, which is fewer than the sample count for a challenger
+    /// [`score_worlds`](Self::score_worlds) eliminated early.
+    fn rank(candidates: &[Candidate], scored: &[(Vec<f64>, f64)]) -> Vec<Assessment> {
         let best = recommended(scored);
-        let n = f64::from(samples);
         let mut out: Vec<Assessment> = candidates
             .iter()
             .zip(scored)
             .enumerate()
-            .map(|(i, (candidate, (equities, ev_sum)))| Assessment {
-                action: candidate.label.clone(),
-                equity: equities.iter().sum::<f64>() / n,
-                ev: ev_sum / n,
-                recommended: i == best,
+            .map(|(i, (candidate, (equities, ev_sum)))| {
+                let n = equities.len() as f64;
+                Assessment {
+                    action: candidate.label.clone(),
+                    equity: equities.iter().sum::<f64>() / n,
+                    ev: ev_sum / n,
+                    recommended: i == best,
+                }
             })
             .collect();
         out.sort_by(|a, b| b.equity.total_cmp(&a.equity));
@@ -766,11 +812,11 @@ mod tests {
         assert_eq!(picked.action, expected);
     }
 
-    #[test]
-    fn assess_reports_a_single_knock_at_a_discard() {
-        // A knock's shed is forced — dropping the largest deadwood is always
-        // the best knock — so the solver lists one knock row, not one per
-        // shed, and it sheds that largest card.
+    /// A table paused on a discard where the mover can knock: the non-dealer
+    /// drew K♠ onto A♣2♣3♣ 4♦5♦6♦ 7♥8♥9♥ 2♠ after both seats passed the
+    /// upcard, so shedding the king knocks at 2 deadwood with nothing locked
+    /// by a take.
+    fn knock_position() -> Table {
         let two: Hand = "A23.456.789.2".parse().expect("a legal hand");
         let one: Hand = "TJ.TJ.TJ.3456".parse().expect("a legal hand");
         let upcard: Card = "QS".parse().expect("a card");
@@ -810,7 +856,15 @@ mod tests {
                 .step(&mut Passer)
                 .expect("a legal pass or forced draw");
         }
+        table
+    }
 
+    #[test]
+    fn assess_reports_a_single_knock_at_a_discard() {
+        // A knock's shed is forced — dropping the largest deadwood is always
+        // the best knock — so the solver lists one knock row, not one per
+        // shed, and it sheds that largest card.
+        let table = knock_position();
         let seat = table.turn().expect("the drawer is mid-turn");
         let mut solver = MonteCarloBot::new(StdRng::seed_from_u64(1)).samples(32);
         let rows = solver.assess(&table.view(seat));
@@ -821,5 +875,56 @@ mod tests {
             .collect();
         assert_eq!(knocks.len(), 1, "one knock row, not one per shed");
         assert_eq!(knocks[0].action, "knock");
+    }
+
+    #[test]
+    fn elimination_matches_the_full_read() {
+        // Batched scoring must pick what an unbatched run over the same
+        // worlds picks, spend strictly fewer rollouts doing it (the knock
+        // dominates every plain shed here), and leave survivors' equities
+        // bit-identical to the unbatched ones.
+        let table = knock_position();
+        let seat = table.turn().expect("the drawer is mid-turn");
+        let view = table.view(seat);
+        let mut bot = MonteCarloBot::new(StdRng::seed_from_u64(9)).samples(256);
+        let candidates = bot.hint_candidates(&view);
+        let worlds = bot.sample_worlds(&view, 256);
+        let batched = MonteCarloBot::<StdRng>::score_worlds(&view, &worlds, &candidates);
+
+        let me = view.seat();
+        let rules = view.rules();
+        let standing = view.game_scores();
+        let full: Vec<(Vec<f64>, f64)> = candidates
+            .iter()
+            .map(|candidate| {
+                let mut equities = Vec::new();
+                let mut ev_sum = 0.0;
+                for world in &worlds {
+                    let sim = MonteCarloBot::<StdRng>::sim(&view, world, candidate.choice.phase());
+                    let result = candidate.choice.roll(sim);
+                    equities.push(equity(result, me, standing, rules));
+                    ev_sum += round_points(result, me, rules);
+                }
+                (equities, ev_sum)
+            })
+            .collect();
+
+        assert_eq!(recommended(&batched), recommended(&full));
+
+        let rolled: usize = batched.iter().map(|(e, _)| e.len()).sum();
+        let all: usize = full.iter().map(|(e, _)| e.len()).sum();
+        assert!(
+            rolled < all,
+            "no challenger was eliminated: {rolled} of {all} rollouts"
+        );
+
+        for (b, f) in batched.iter().zip(&full) {
+            if b.0.len() == worlds.len() {
+                assert_eq!(
+                    b.0, f.0,
+                    "a survivor's equities must be unbatched-identical"
+                );
+            }
+        }
     }
 }

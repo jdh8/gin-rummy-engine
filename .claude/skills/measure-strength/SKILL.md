@@ -98,7 +98,11 @@ interactive use; report both.
 
 The bot deviates from the greedy incumbent only when the paired advantage
 clears two standard errors (`beats` in `src/mc.rs`); common random numbers
-(the same sampled worlds for every candidate) make the pairing work.  If
-you touch the sampling or `beats`, re-run this whole procedure — loosening
-the gate usually *weakens* the bot, because deviating on noise plays worse
-than the baseline.
+(the same sampled worlds for every candidate) make the pairing work.
+Worlds are rolled in growing batches, and a challenger the incumbent beats
+by that same bar is dropped at a batch boundary — the decision stops when
+none remain — so easy decisions cost a fraction of the sample budget while
+survivors keep unbatched-identical statistics.  If you touch the sampling,
+`beats`, or the batching, re-run this whole procedure — loosening the gate
+usually *weakens* the bot, because deviating on noise plays worse than the
+baseline.

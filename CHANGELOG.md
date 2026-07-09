@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `MonteCarloBot` now rolls its sampled worlds in growing batches and drops
+  a challenger action at a batch boundary once the greedy incumbent's paired
+  advantage over it is statistically clear — the same two-standard-error bar
+  a challenger must clear to be preferred — stopping the decision outright
+  when no challenger remains.  Easy decisions cost a fraction of the sample
+  budget while close ones still use every world, and a survivor's statistics
+  are bit-identical to an unbatched run: over 4000 seeded arena rounds
+  against the default greedy the decisions were literally identical, while
+  whole rounds ran ~8% faster at mc:64 and ~25% faster at mc:128, the saving
+  growing with the sample count.  A hint row the bot eliminated early
+  reports its equity from the worlds it saw rather than the full sample
+  count.
+
 - `MonteCarloBot` samples each decision's worlds from one shuffled pool
   instead of rebuilding a fresh deck for every biased opponent draw.  The
   sampled distribution, measured strength, and per-decision latency are
