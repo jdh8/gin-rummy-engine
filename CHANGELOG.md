@@ -13,6 +13,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   instead of naming the discard (e.g. `"knock, drop 7♣"`).  Knocking always
   sheds the largest deadwood card, and the panel already lists only one
   knock row, so naming the card added nothing a player could act on.
+- The browser `Hint` now shows a single instant read rather than sampling in
+  the background and re-rendering as the equities sharpen.  The read comes
+  straight from `MonteCarloBot::assess` at the bot's own sample count, which is
+  plenty to rank the candidates; the live "worlds" counter and the deepening
+  loop are gone.
+
+### Removed
+
+- `MonteCarloBot::hint_open` and `hint_refine`.  They computed the same read as
+  `assess` incrementally, so a caller could deepen it batch by batch; nothing
+  outside the crate needed that, and `assess` alone covers both the terminal
+  and browser hint.  Callers that were deepening a read should call `assess`
+  with the sample count they want.
+- `MonteCarloBot::max_candidates`.  The number of candidate discards a turn
+  evaluates is now fixed at 4; no caller ever set it.
 
 ## [0.1.3] - 2026-07-07
 

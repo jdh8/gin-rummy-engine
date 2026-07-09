@@ -259,27 +259,15 @@ impl Core {
             && matches!(self.human_step(), HumanStep::WaitInput)
     }
 
-    /// Open an incremental solver read on the human's current decision: each
-    /// candidate move with its equity and expected points, from an initial
-    /// `batch` of sampled worlds.  Empty unless the human has a genuine choice
-    /// pending, in which case no session opens.
-    fn hint_open(&mut self, batch: u32) -> Vec<Assessment> {
+    /// A solver read on the human's current decision: each candidate move with
+    /// its equity and expected points.  Empty unless the human has a genuine
+    /// choice pending.
+    fn hint(&mut self) -> Vec<Assessment> {
         if !self.awaiting_human_input() {
             return Vec::new();
         }
         let view = self.table.view(HUMAN);
-        self.hinter.hint_open(&view, batch)
-    }
-
-    /// Deepen the open solver read with `extra` more sampled worlds, returning
-    /// the sharpened table.  Empty (and the session drops) once the human has
-    /// moved on, so a late refine is a no-op.
-    fn hint_refine(&mut self, extra: u32) -> Vec<Assessment> {
-        if !self.awaiting_human_input() {
-            return Vec::new();
-        }
-        let view = self.table.view(HUMAN);
-        self.hinter.hint_refine(&view, extra)
+        self.hinter.assess(&view)
     }
 
     /// The move just applied, described from legally-visible information, for the
@@ -683,24 +671,12 @@ impl WebGame {
         self.snapshot()
     }
 
-    /// Open a solver read on the current decision as JSON: a list of candidate
+    /// A solver read on the current decision as JSON: a list of candidate
     /// moves, each with its equity (chance to win the game) and expected round
     /// points, the bot's own pick flagged; empty when the move is forced.
-    /// Samples an initial `batch` of worlds, cheap enough for an instant first
-    /// paint, and keeps them so [`hint_refine`](Self::hint_refine) can deepen
-    /// the read without repeating them — the page shows this at once, then
-    /// refines in the background like an analysis engine.
     #[must_use]
-    pub fn hint_open(&mut self, batch: u32) -> String {
-        json(&hint_json(self.core.hint_open(batch)))
-    }
-
-    /// Deepen the open solver read with `extra` more sampled worlds, returning
-    /// the sharpened table as JSON.  Empty once the player has moved on, so the
-    /// page's refine loop stops on its own.
-    #[must_use]
-    pub fn hint_refine(&mut self, extra: u32) -> String {
-        json(&hint_json(self.core.hint_refine(extra)))
+    pub fn hint(&mut self) -> String {
+        json(&hint_json(self.core.hint()))
     }
 }
 
@@ -885,8 +861,7 @@ mod tests {
     }
 
     /// The Hint button's data path: at a real human decision the solver rates
-    /// every candidate move, ranks them by equity, and flags exactly one pick,
-    /// and a background refine deepens the same read.
+    /// every candidate move, ranks them by equity, and flags exactly one pick.
     #[test]
     fn hint_rates_the_candidates_at_a_human_decision() {
         let mut core = Core::new("greedy", Rules::new(), 42);
@@ -896,15 +871,11 @@ mod tests {
             assert!(guard < 100_000, "the first decision must arrive");
             core.step_once();
         }
-        let check = |hints: &[Assessment]| {
-            assert!(!hints.is_empty(), "a real decision has candidates to weigh");
-            assert!(hints.iter().all(|h| (0.0..=1.0).contains(&h.equity)));
-            assert!(hints.windows(2).all(|w| w[0].equity >= w[1].equity));
-            assert_eq!(hints.iter().filter(|h| h.recommended).count(), 1);
-        };
-        check(&core.hint_open(64));
-        // Refining the open session keeps a well-formed, deeper read.
-        check(&core.hint_refine(64));
+        let hints = core.hint();
+        assert!(!hints.is_empty(), "a real decision has candidates to weigh");
+        assert!(hints.iter().all(|h| (0.0..=1.0).contains(&h.equity)));
+        assert!(hints.windows(2).all(|w| w[0].equity >= w[1].equity));
+        assert_eq!(hints.iter().filter(|h| h.recommended).count(), 1);
     }
 
     /// Drive a whole game to completion through the public decision methods,

@@ -7,6 +7,10 @@ use gin_rummy::deck::Deck;
 use gin_rummy::{Card, Hand, Melds, Phase, Player, RoundResult, Rules, best_melds, deadwood};
 use rand::Rng;
 
+/// How many candidate discards `play_turn` and `assess` weigh at a discard:
+/// the few lowest-deadwood sheds, the rest never worth a rollout.
+const MAX_CANDIDATES: usize = 4;
+
 /// One determinized world: a concrete opponent hand and stock order
 /// consistent with a [`View`]
 struct World {
@@ -15,8 +19,8 @@ struct World {
     stock: Vec<Card>,
 }
 
-/// One candidate action to score, as owned data an incremental hint session
-/// can keep and re-roll through fresh worlds across calls
+/// One candidate action to score, as owned data `assess` rolls through the
+/// sampled worlds
 struct Candidate {
     /// The rendered [`Assessment::action`] label.
     label: String,
@@ -28,8 +32,8 @@ struct Candidate {
 
 /// The move a [`Candidate`] applies to a [`Sim`] before rolling it out
 ///
-/// Owned (unlike the closures `assess` once built inline) so a session can
-/// replay the same candidates through later batches of worlds.
+/// Owned data, so `assess` can hold a list of candidates and roll each one
+/// through every sampled world.
 #[derive(Clone, Copy)]
 enum RolloutAction {
     /// Take the pile — the upcard offer or a draw — then play on.
@@ -69,46 +73,6 @@ impl RolloutAction {
     }
 }
 
-/// A running incremental assessment of one decision, deepened batch by batch
-///
-/// Holds the ordered candidates (the greedy incumbent first) and, per
-/// candidate, the accumulated per-world equities and the running sum of
-/// signed round points.  Worlds are the pairing unit [`beats`] compares on,
-/// so appending later batches preserves the common-random-numbers structure.
-struct HintState {
-    candidates: Vec<Candidate>,
-    /// Per candidate: accumulated per-world equities and summed round points.
-    scored: Vec<(Vec<f64>, f64)>,
-    /// Total worlds sampled so far, the length of each equity vector.
-    samples: u32,
-    /// The decision this session belongs to, so a stale refine is a no-op.
-    fingerprint: Fingerprint,
-}
-
-/// A cheap identity for the decision a [`HintState`] was opened on, so a
-/// refine after the player has moved on drops the session instead of folding
-/// worlds from one decision into another
-#[derive(PartialEq)]
-struct Fingerprint {
-    phase: Phase,
-    hand: Hand,
-    upcard: Option<Card>,
-    pile_len: usize,
-    taken: Option<Card>,
-}
-
-impl Fingerprint {
-    fn of(view: &View<'_>) -> Self {
-        Self {
-            phase: view.phase(),
-            hand: view.hand(),
-            upcard: view.upcard(),
-            pile_len: view.discard_pile().len(),
-            taken: view.taken_discard(),
-        }
-    }
-}
-
 /// A determinized Monte Carlo player
 ///
 /// At every decision the bot samples hidden worlds consistent with its
@@ -129,9 +93,6 @@ impl Fingerprint {
 pub struct MonteCarloBot<R: Rng> {
     rng: R,
     samples: u32,
-    max_candidates: usize,
-    /// The open incremental hint session, if any (see [`Self::hint_open`]).
-    hint_state: Option<HintState>,
 }
 
 /// One candidate action's Monte Carlo assessment, for a solver or hint view
@@ -159,15 +120,9 @@ pub struct Assessment {
 }
 
 impl<R: Rng> MonteCarloBot<R> {
-    /// A bot with default strength: 128 worlds per decision, 4 candidate
-    /// discards
+    /// A bot with default strength: 128 worlds per decision
     pub const fn new(rng: R) -> Self {
-        Self {
-            rng,
-            samples: 128,
-            max_candidates: 4,
-            hint_state: None,
-        }
+        Self { rng, samples: 128 }
     }
 
     /// Set how many worlds each decision samples
@@ -182,13 +137,6 @@ impl<R: Rng> MonteCarloBot<R> {
     #[must_use]
     pub const fn samples(mut self, samples: u32) -> Self {
         self.samples = samples;
-        self
-    }
-
-    /// Set how many candidate discards `play_turn` evaluates
-    #[must_use]
-    pub const fn max_candidates(mut self, max_candidates: usize) -> Self {
-        self.max_candidates = max_candidates;
         self
     }
 
@@ -289,71 +237,13 @@ impl<R: Rng> MonteCarloBot<R> {
     /// draw, the layoff phase, or a finished round.
     #[must_use]
     pub fn assess(&mut self, view: &View<'_>) -> Vec<Assessment> {
-        let out = self.hint_open(view, self.samples);
-        // A one-shot read: leave no session for `hint_refine` to extend.
-        self.hint_state = None;
-        out
-    }
-
-    /// Open an incremental assessment of the current decision, sampling an
-    /// initial `batch` of worlds
-    ///
-    /// Returns the same ranked read as [`assess`](Self::assess) would at
-    /// `batch` samples, and keeps the batch's rollouts so that
-    /// [`hint_refine`](Self::hint_refine) can deepen the estimate without
-    /// repeating them — an analysis view that sharpens as it thinks, rather
-    /// than one blocking evaluation.  Empty when the seat has no real choice
-    /// (a forced stock draw, the layoff phase, or a finished round), in which
-    /// case no session opens.
-    #[must_use]
-    pub fn hint_open(&mut self, view: &View<'_>, batch: u32) -> Vec<Assessment> {
         let candidates = self.hint_candidates(view);
         if candidates.is_empty() {
-            self.hint_state = None;
             return Vec::new();
         }
-        let worlds = self.sample_worlds(view, batch);
+        let worlds = self.sample_worlds(view, self.samples);
         let scored = Self::score_worlds(view, &worlds, &candidates);
-        let state = HintState {
-            candidates,
-            scored,
-            samples: batch,
-            fingerprint: Fingerprint::of(view),
-        };
-        let out = Self::rank_state(&state);
-        self.hint_state = Some(state);
-        out
-    }
-
-    /// Deepen the open assessment with `extra` more sampled worlds
-    ///
-    /// Draws `extra` fresh worlds, rolls the same candidates through them, and
-    /// folds their equities into the running estimate — the tighter read a
-    /// solver shows as it keeps thinking.  Because the rollout draws no
-    /// randomness and worlds are the pairing unit, appending later batches is
-    /// exact, not an approximation: the accumulated read matches one
-    /// [`assess`](Self::assess) over all the worlds combined.  Returns empty
-    /// (and drops the session) when no session is open or the view no longer
-    /// matches the one [`hint_open`](Self::hint_open) started on, so a stale
-    /// refine after the player has moved is a harmless no-op.
-    #[must_use]
-    pub fn hint_refine(&mut self, view: &View<'_>, extra: u32) -> Vec<Assessment> {
-        let Some(mut state) = self.hint_state.take() else {
-            return Vec::new();
-        };
-        if state.fingerprint != Fingerprint::of(view) {
-            return Vec::new();
-        }
-        let worlds = self.sample_worlds(view, extra);
-        let batch = Self::score_worlds(view, &worlds, &state.candidates);
-        for (acc, add) in state.scored.iter_mut().zip(batch) {
-            acc.0.extend(add.0);
-            acc.1 += add.1;
-        }
-        state.samples += extra;
-        let out = Self::rank_state(&state);
-        self.hint_state = Some(state);
-        out
+        Self::rank(&candidates, &scored, self.samples)
     }
 
     /// The ordered candidate actions for the current decision, the greedy
@@ -426,7 +316,7 @@ impl<R: Rng> MonteCarloBot<R> {
                     .map(|card| (card, deadwood(hand - card.into())))
                     .collect();
                 candidates.sort_by_key(|&(card, rest)| (rest, u8::MAX - card.rank.deadwood()));
-                candidates.truncate(self.max_candidates.max(1));
+                candidates.truncate(MAX_CANDIDATES);
 
                 let limit = view.knock_limit();
                 let mut out = Vec::new();
@@ -459,8 +349,8 @@ impl<R: Rng> MonteCarloBot<R> {
     /// Roll every candidate through the same `worlds` (common random numbers),
     /// returning per candidate its per-world equities and summed round points
     ///
-    /// The sum, not the mean, is returned so [`hint_refine`](Self::hint_refine)
-    /// can accumulate it across batches.
+    /// [`rank`](Self::rank) averages both the equities and the summed round
+    /// points over the world count.
     fn score_worlds(
         view: &View<'_>,
         worlds: &[World],
@@ -486,24 +376,23 @@ impl<R: Rng> MonteCarloBot<R> {
             .collect()
     }
 
-    /// Reduce an accumulator to assessments ranked by mean equity, flagging
-    /// the bot's pick
+    /// Reduce the scored candidates to assessments ranked by mean equity,
+    /// flagging the bot's pick
     ///
     /// The pick is the greedy incumbent (`scored[0]`) unless a challenger's
     /// paired advantage clears the [`beats`] gate, in which case it is the
     /// largest such gain — exactly the deviation the [`Strategy`] methods make.
-    fn rank_state(state: &HintState) -> Vec<Assessment> {
+    fn rank(candidates: &[Candidate], scored: &[(Vec<f64>, f64)], samples: u32) -> Vec<Assessment> {
         let mean = |e: &[f64]| e.iter().sum::<f64>() / e.len() as f64;
-        let defend = &state.scored[0].0;
-        let recommended = (1..state.scored.len())
-            .filter(|&i| beats(&state.scored[i].0, defend))
-            .max_by(|&a, &b| mean(&state.scored[a].0).total_cmp(&mean(&state.scored[b].0)))
+        let defend = &scored[0].0;
+        let recommended = (1..scored.len())
+            .filter(|&i| beats(&scored[i].0, defend))
+            .max_by(|&a, &b| mean(&scored[a].0).total_cmp(&mean(&scored[b].0)))
             .unwrap_or(0);
-        let n = f64::from(state.samples);
-        let mut out: Vec<Assessment> = state
-            .candidates
+        let n = f64::from(samples);
+        let mut out: Vec<Assessment> = candidates
             .iter()
-            .zip(&state.scored)
+            .zip(scored)
             .enumerate()
             .map(|(i, (candidate, (equities, ev_sum)))| Assessment {
                 action: candidate.label.clone(),
@@ -710,7 +599,7 @@ impl<R: Rng> Strategy for MonteCarloBot<R> {
             .map(|card| (card, deadwood(hand - card.into())))
             .collect();
         candidates.sort_by_key(|&(card, rest)| (rest, u8::MAX - card.rank.deadwood()));
-        candidates.truncate(self.max_candidates.max(1));
+        candidates.truncate(MAX_CANDIDATES);
 
         let worlds = self.sample_worlds(view, self.samples);
         let limit = view.knock_limit();
@@ -971,50 +860,6 @@ mod tests {
             UpcardAction::Pass => "pass".to_string(),
         };
         assert_eq!(picked.action, expected);
-    }
-
-    #[test]
-    fn refining_a_session_matches_one_larger_batch() {
-        let table = fixed_table();
-        let seat = table.turn().expect("a fresh deal has a mover");
-        let view = table.view(seat);
-
-        // Deepening in two batches draws the same worlds in the same order as
-        // one batch of the total, and the rollout is deterministic, so an
-        // open-then-refine to 128 worlds must reproduce a fresh 128-world
-        // assess: same rows, ranking, equities, and flagged pick.
-        let one_shot = {
-            let mut bot = MonteCarloBot::new(StdRng::seed_from_u64(9)).samples(128);
-            bot.assess(&view)
-        };
-        let refined = {
-            let mut bot = MonteCarloBot::new(StdRng::seed_from_u64(9));
-            let _ = bot.hint_open(&view, 32);
-            bot.hint_refine(&view, 96)
-        };
-
-        assert_eq!(refined.len(), one_shot.len());
-        for (a, b) in refined.iter().zip(&one_shot) {
-            assert_eq!(a.action, b.action);
-            assert_eq!(a.recommended, b.recommended);
-            // Equities sum the same contiguous world sequence, so they match
-            // to the bit; EV sums the same worlds in two partial sums, so it
-            // matches to floating-point rounding.
-            assert_eq!(a.equity, b.equity);
-            assert!((a.ev - b.ev).abs() < 1e-9);
-        }
-    }
-
-    #[test]
-    fn hint_refine_without_an_open_session_is_empty() {
-        let table = fixed_table();
-        let seat = table.turn().expect("a fresh deal has a mover");
-        let view = table.view(seat);
-        let mut bot = MonteCarloBot::new(StdRng::seed_from_u64(4)).samples(16);
-        // No session open (or a bare `assess` left none behind).
-        assert!(bot.hint_refine(&view, 16).is_empty());
-        assert!(!bot.assess(&view).is_empty());
-        assert!(bot.hint_refine(&view, 16).is_empty());
     }
 
     #[test]

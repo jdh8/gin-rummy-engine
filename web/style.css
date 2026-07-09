@@ -224,8 +224,6 @@ button:hover { background: #ffd83a; }
   opacity: 0.7;
   margin: 0 0 0.3rem;
 }
-/* The refining depth, so the solver's "thinking" is legible. */
-.hint-depth { font-weight: 400; text-transform: none; letter-spacing: 0; font-variant-numeric: tabular-nums; }
 .hint-note { opacity: 0.7; font-size: 0.78rem; margin: 0 0 0.4rem; }
 .hint-row {
   display: grid;
