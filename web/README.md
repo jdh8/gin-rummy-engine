@@ -44,8 +44,11 @@ python3 -m http.server
 ```
 
 Pick the bot's difficulty (Easy/Medium/Hard/Expert) from the dropdown in the header;
-it takes effect on the next new game.  Edit `RULES` at the top of `app.js` to
-change ruleset (`modern`/`classic`/`palace`).
+it takes effect on the next new game.  The `⚙ Rules` button (or press `s`) opens
+a panel to pick a scoring preset (`modern`/`classic`/`palace`) and adjust any
+individual knob — knock limit, the bonuses, game target, big gin, and the
+shutout rule.  Your choices persist across visits and apply on the next game
+(when you close the panel).
 
 Click `Hint` (or press `h`) on your turn for the Monte Carlo solver's read on
 the decision: every candidate move with its equity (your chance to win the

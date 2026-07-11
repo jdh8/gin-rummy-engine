@@ -18,7 +18,31 @@
     </select>
     <button id="sort" class="sort" title="Reorder loose cards (v)"></button>
     <button id="logtoggle" class="sort" title="Show/hide the log (l)"></button>
+    <button id="settings-toggle" class="sort" title="Rules — applied on the next game (s)">⚙ Rules</button>
   </header>
+  <div id="settings" class="settings" hidden>
+    <h2>Rules</h2>
+    <p class="settings-note">Changes start a fresh game when you close this.</p>
+    <label class="rule">Preset
+      <select id="r-preset">
+        <option value="modern">Modern</option>
+        <option value="classic">Classic</option>
+        <option value="palace">Palace</option>
+        <option value="custom">Custom</option>
+      </select>
+    </label>
+    <label class="rule">Knock limit<input id="r-knock_limit" type="number" min="0" max="10"></label>
+    <label class="rule">Game target<input id="r-game_target" type="number" min="1" max="1000"></label>
+    <label class="rule">Game bonus<input id="r-game_bonus" type="number" min="0" max="1000"></label>
+    <label class="rule">Gin bonus<input id="r-gin_bonus" type="number" min="0" max="1000"></label>
+    <label class="rule">Undercut bonus<input id="r-undercut_bonus" type="number" min="0" max="1000"></label>
+    <label class="rule">Box bonus<input id="r-box_bonus" type="number" min="0" max="1000"></label>
+    <label class="rule"><span>Big gin<input id="r-big_gin_on" type="checkbox"></span><input id="r-big_gin_bonus" type="number" min="0" max="1000"></label>
+    <label class="rule">Undercut on tie<input id="r-undercut_on_tie" type="checkbox"></label>
+    <label class="rule">Immediate boxes<input id="r-immediate_boxes" type="checkbox"></label>
+    <label class="rule"><span>Shutout doubles<input id="r-shutout_double" type="checkbox"></span><input id="r-shutout_flat" type="number" min="0" max="1000" title="Flat shutout bonus when not doubling"></label>
+    <button id="settings-close" class="settings-close">Close</button>
+  </div>
   <main>
     <section id="opp" class="opp"></section>
     <section class="table">

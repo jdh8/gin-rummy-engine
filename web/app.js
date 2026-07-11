@@ -5,7 +5,26 @@
 // opponent's fan.
 import init, { WebGame } from './pkg/gin_rummy_web.js';
 
-const RULES = 'modern';
+// The three scoring schools, in the shape `parse_rules` reads on the Rust
+// side: `big_gin_bonus` is null when the variant is not played, and `shutout`
+// is split into a `Double` flag plus the `Flat` value used when it is off.
+const PRESETS = {
+  modern:  { knock_limit: 10, gin_bonus: 25, big_gin_bonus: 31, undercut_bonus: 25, undercut_on_tie: true,  box_bonus: 25, immediate_boxes: false, game_bonus: 100, game_target: 100, shutout_double: true,  shutout_flat: 0 },
+  classic: { knock_limit: 10, gin_bonus: 20, big_gin_bonus: null, undercut_bonus: 10, undercut_on_tie: true, box_bonus: 20, immediate_boxes: false, game_bonus: 100, game_target: 100, shutout_double: false, shutout_flat: 100 },
+  palace:  { knock_limit: 10, gin_bonus: 25, big_gin_bonus: null, undercut_bonus: 20, undercut_on_tie: true, box_bonus: 10, immediate_boxes: true,  game_bonus: 0,   game_target: 100, shutout_double: false, shutout_flat: 0 },
+};
+// The number knobs shown in the settings panel; booleans/optionals are wired
+// by hand below.  Order matches the panel markup.
+const RULE_NUMS = ['knock_limit', 'gin_bonus', 'undercut_bonus', 'box_bonus', 'game_bonus', 'game_target'];
+
+// Start from the modern preset so a stale or partial stored object still has
+// every key, then let the saved edits win.
+function loadRules() {
+  return { ...PRESETS.modern, ...JSON.parse(localStorage.getItem('rules') || '{}') };
+}
+
+let rules = loadRules();
+
 const PACE_MS = 650; // pause between the bot's steps, so they can be followed
 const FLY_MS = 350; // card glide duration — keep in sync with `.ghost` in style.css
 
@@ -53,12 +72,29 @@ async function main() {
     updateLogButton();
   };
   id('logtoggle').onclick = toggleLog;
+  // Opening the panel just shows it; closing it deals a fresh game with the
+  // edited rules (Rules are fixed for a Game, so they apply on the next deal —
+  // the same way difficulty does).  Batching on close avoids restarting the
+  // game on every keystroke.
+  const toggleSettings = () => {
+    const panel = id('settings');
+    if (panel.hidden) {
+      panel.hidden = false;
+    } else {
+      panel.hidden = true;
+      newGame();
+    }
+  };
+  id('settings-toggle').onclick = toggleSettings;
+  id('settings-close').onclick = toggleSettings;
   document.addEventListener('keydown', (e) => {
     if (e.metaKey || e.ctrlKey) return;
     if (e.key === 'v') toggleSort();
     if (e.key === 'l') toggleLog();
     if (e.key === 'h') showHint();
+    if (e.key === 's') toggleSettings();
   });
+  wireSettings();
   updateSortButton();
   updateLogButton();
   // Difficulty picks the bot spec (`greedy` or `mc:samples`); changing it
@@ -82,11 +118,77 @@ function updateLogButton() {
     document.body.classList.contains('log-hidden') ? 'Show log' : 'Hide log';
 }
 
+// --- settings panel --------------------------------------------------------
+
+function persistRules() {
+  localStorage.setItem('rules', JSON.stringify(rules));
+}
+
+// The preset name whose values `rules` currently equals, else 'custom'.
+function matchPreset() {
+  for (const [name, p] of Object.entries(PRESETS)) {
+    if (Object.keys(p).every((k) => p[k] === rules[k])) return name;
+  }
+  return 'custom';
+}
+
+// A field's value clamped to its input's min/max, rounded to an integer.
+function numVal(el) {
+  const min = el.min === '' ? -Infinity : Number(el.min);
+  const max = el.max === '' ? Infinity : Number(el.max);
+  return Math.min(max, Math.max(min, Math.round(Number(el.value) || 0)));
+}
+
+// Reflect `rules` into the inputs; the big-gin and shutout numbers grey out
+// when their toggle turns them off.
+function paintSettings() {
+  for (const k of RULE_NUMS) id('r-' + k).value = rules[k];
+  id('r-undercut_on_tie').checked = rules.undercut_on_tie;
+  id('r-immediate_boxes').checked = rules.immediate_boxes;
+  const bigOn = rules.big_gin_bonus != null;
+  id('r-big_gin_on').checked = bigOn;
+  id('r-big_gin_bonus').value = bigOn ? rules.big_gin_bonus : 31;
+  id('r-big_gin_bonus').disabled = !bigOn;
+  id('r-shutout_double').checked = rules.shutout_double;
+  id('r-shutout_flat').value = rules.shutout_flat;
+  id('r-shutout_flat').disabled = rules.shutout_double;
+  id('r-preset').value = matchPreset();
+}
+
+// Read every input back into `rules` (null big gin when its box is unchecked).
+function readSettings() {
+  for (const k of RULE_NUMS) rules[k] = numVal(id('r-' + k));
+  rules.undercut_on_tie = id('r-undercut_on_tie').checked;
+  rules.immediate_boxes = id('r-immediate_boxes').checked;
+  rules.big_gin_bonus = id('r-big_gin_on').checked ? numVal(id('r-big_gin_bonus')) : null;
+  rules.shutout_double = id('r-shutout_double').checked;
+  rules.shutout_flat = numVal(id('r-shutout_flat'));
+}
+
+function wireSettings() {
+  id('r-preset').onchange = () => {
+    const v = id('r-preset').value;
+    if (v === 'custom') return; // reselecting Custom keeps the current edits
+    rules = { ...PRESETS[v] };
+    persistRules();
+    paintSettings();
+  };
+  // Any knob edit rewrites `rules`, re-derives the preset label, and persists.
+  for (const el of id('settings').querySelectorAll('input')) {
+    el.onchange = () => {
+      readSettings();
+      persistRules();
+      paintSettings();
+    };
+  }
+  paintSettings();
+}
+
 async function newGame() {
   // A JS Number seed keeps each game deterministic; passed as a decimal string
   // so the engine reads it as an exact u64 (matching the terminal example).
   const seed = String(Math.floor(Math.random() * 2 ** 53));
-  game = new WebGame(id('difficulty').value, RULES, seed);
+  game = new WebGame(id('difficulty').value, JSON.stringify(rules), seed);
   state = JSON.parse(game.snapshot());
   render(state);
   busy = true;

@@ -11,7 +11,9 @@
 //! is lifted almost verbatim from `examples/play.rs`; only the output target
 //! changed from `println!` to a `Snapshot` and a running log.
 
-use gin_rummy::{Card, Game, Hand, Melds, Phase, Player, RoundResult, Rules, best_melds, deadwood};
+use gin_rummy::{
+    Card, Game, Hand, Melds, Phase, Player, RoundResult, Rules, Shutout, best_melds, deadwood,
+};
 use gin_rummy_engine::{
     Assessment, DrawAction, HeuristicBot, HeuristicConfig, Layoff, MonteCarloBot, Strategy, Table,
     TurnAction, UpcardAction, View,
@@ -608,9 +610,10 @@ pub struct WebGame {
 
 #[wasm_bindgen]
 impl WebGame {
-    /// Start a game.  `bot` is `newbie`, `greedy`, or `mc[:samples]`, `rules` is
-    /// `modern`/`classic`/`palace`, and `seed` is a decimal string (a shared
-    /// seed reproduces the terminal `play` example exactly).
+    /// Start a game.  `bot` is `newbie`, `greedy`, or `mc[:samples]`; `rules`
+    /// is a preset name (`modern`/`classic`/`palace`) or a JSON object of the
+    /// ten rule knobs (see `parse_rules`); and `seed` is a decimal string (a
+    /// shared seed reproduces the terminal `play` example exactly).
     #[wasm_bindgen(constructor)]
     #[must_use]
     pub fn new(bot: &str, rules: &str, seed: &str) -> Self {
@@ -718,8 +721,47 @@ fn make_bot(spec: &str, rng: &mut StdRng) -> Box<dyn Strategy> {
     }
 }
 
-fn parse_rules(name: &str) -> Rules {
-    match name {
+/// The rule knobs the settings panel edits, flattened for the form: an
+/// optional `big_gin_bonus` (`null` disables big gin) and a `Shutout` split
+/// into a `Double` flag plus the `Flat` value it uses when the flag is off.
+#[derive(serde::Deserialize)]
+struct RulesJson {
+    knock_limit: u8,
+    gin_bonus: u16,
+    big_gin_bonus: Option<u16>,
+    undercut_bonus: u16,
+    undercut_on_tie: bool,
+    box_bonus: u16,
+    immediate_boxes: bool,
+    game_bonus: u16,
+    game_target: u16,
+    shutout_double: bool,
+    shutout_flat: u16,
+}
+
+/// A JSON rules object built by the settings panel, or one of the preset
+/// names.  `Rules` is `#[non_exhaustive]`, so a custom set is built by
+/// mutating fields on a preset rather than a struct literal.
+fn parse_rules(spec: &str) -> Rules {
+    if let Ok(j) = serde_json::from_str::<RulesJson>(spec) {
+        let mut r = Rules::new();
+        r.knock_limit = j.knock_limit;
+        r.gin_bonus = j.gin_bonus;
+        r.big_gin_bonus = j.big_gin_bonus;
+        r.undercut_bonus = j.undercut_bonus;
+        r.undercut_on_tie = j.undercut_on_tie;
+        r.box_bonus = j.box_bonus;
+        r.immediate_boxes = j.immediate_boxes;
+        r.game_bonus = j.game_bonus;
+        r.game_target = j.game_target;
+        r.shutout = if j.shutout_double {
+            Shutout::Double
+        } else {
+            Shutout::Flat(j.shutout_flat)
+        };
+        return r;
+    }
+    match spec {
         "classic" => Rules::classic(),
         "palace" => Rules::palace(),
         _ => Rules::new(),
@@ -867,6 +909,47 @@ mod tests {
         assert_eq!(deadwood(hand), 12, "the hand still holding the shed card");
         assert_eq!(knock_deadwood(hand, None), 7, "after shedding the ♣5");
         assert!(knock_deadwood(hand, None) <= Rules::new().knock_limit);
+    }
+
+    /// The settings panel sends a JSON rules object; `parse_rules` must map
+    /// every knob, split the shutout on its `Double` flag, and read a null
+    /// `big_gin_bonus` as the variant being off.  A bare preset name still
+    /// resolves, and garbage falls back to the modern default.
+    #[test]
+    fn parse_rules_reads_the_settings_panel_json() {
+        let json = r#"{
+            "knock_limit": 5, "gin_bonus": 30, "big_gin_bonus": null,
+            "undercut_bonus": 15, "undercut_on_tie": false, "box_bonus": 12,
+            "immediate_boxes": true, "game_bonus": 200, "game_target": 250,
+            "shutout_double": false, "shutout_flat": 100
+        }"#;
+        let r = parse_rules(json);
+        assert_eq!(r.knock_limit, 5);
+        assert_eq!(r.gin_bonus, 30);
+        assert_eq!(r.big_gin_bonus, None);
+        assert_eq!(r.undercut_bonus, 15);
+        assert!(!r.undercut_on_tie);
+        assert_eq!(r.box_bonus, 12);
+        assert!(r.immediate_boxes);
+        assert_eq!(r.game_bonus, 200);
+        assert_eq!(r.game_target, 250);
+        assert_eq!(r.shutout, Shutout::Flat(100));
+
+        assert_eq!(
+            parse_rules(r#"{"shutout_double": true}"#),
+            Rules::new(),
+            "partial JSON is ignored"
+        );
+        assert_eq!(
+            parse_rules("classic"),
+            Rules::classic(),
+            "preset names still work"
+        );
+        assert_eq!(
+            parse_rules("nonsense"),
+            Rules::new(),
+            "garbage falls back to modern"
+        );
     }
 
     /// The Hint button's data path: at a real human decision the solver rates
