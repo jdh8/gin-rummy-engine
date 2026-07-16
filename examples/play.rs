@@ -20,8 +20,8 @@
 use anyhow::{Context as _, Result, bail};
 use gin_rummy::{Card, Hand, Phase, Player, Rank, RoundResult, Rules, Suit, best_melds, deadwood};
 use gin_rummy_engine::{
-    Assessment, DrawAction, EngineError, HeuristicBot, HeuristicConfig, Layoff, MonteCarloBot,
-    Strategy, Table, TurnAction, UpcardAction, View,
+    Assessment, DrawAction, EaaiSimpleBot, EngineError, HeuristicBot, HeuristicConfig, Layoff,
+    MonteCarloBot, Strategy, Table, TurnAction, UpcardAction, View,
 };
 use rand::rngs::StdRng;
 use rand::{RngExt as _, SeedableRng};
@@ -69,10 +69,14 @@ fn make_bot(spec: &str, rng: &mut StdRng) -> Result<Box<dyn Strategy>> {
             Ok(Box::new(HeuristicBot::with_config(config)))
         }
         "greedy" => Ok(Box::new(HeuristicBot::new())),
+        // The EAAI-2021 challenge baseline, the cross-engine yardstick.
+        "eaai" => Ok(Box::new(EaaiSimpleBot::new(StdRng::seed_from_u64(
+            rng.random(),
+        )))),
         "mc" => Ok(Box::new(
             MonteCarloBot::new(StdRng::seed_from_u64(rng.random())).samples(samples.unwrap_or(64)),
         )),
-        other => bail!("unknown bot {other:?} (newbie | greedy | mc[:samples])"),
+        other => bail!("unknown bot {other:?} (newbie | greedy | eaai | mc[:samples])"),
     }
 }
 

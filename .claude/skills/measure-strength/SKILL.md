@@ -20,6 +20,13 @@ timing you observe in them is meaningless.
 - The tripwire (`tests/strength.rs`) demands >52.5% over 1000 rounds: a
   true 65% bot passes with near certainty, an even bot sneaks through
   less than 6% of the time.
+- Against the `eaai` challenge baseline (`--rules eaai`, seed 7):
+  `greedy` wins 39.9% of 4000 rounds yet 57.4% of 500 games — gin-hunting
+  concedes rounds and banks matches, so quote both; `mc:64` wins 52.4% of
+  rounds and 53.3% of 600 games; `mc:128` wins 54.0% of rounds.
+  Published EAAI-21 entries report ≈55–68% against the same baseline
+  (metrics vary by paper), the cross-engine calibration these numbers
+  exist for.
 
 If a change moves these baselines, update them here, in `tests/strength.rs`,
 and in the doc comment on `MonteCarloBot::samples`.

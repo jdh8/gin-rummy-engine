@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `EaaiSimpleBot` (feature `rand`): a port of `SimpleGinRummyPlayer`, the
+  reference baseline of the EAAI-2021 Gin Rummy AI challenge — take the
+  face-up card only into an immediate meld, shed a uniformly random card
+  among the minimal-deadwood choices (never repeating a draw/discard pair
+  within a round), knock at the first legal opportunity.  It is a fixed
+  measuring stick: win rates against it are comparable with the agents in
+  the EAAI-21 literature.  The `arena` and `play` examples accept it as
+  bot spec `eaai`, and `arena` gains a `--rules eaai` preset (modern
+  bonuses, no big gin) matching the challenge's round conditions.
+  Measured at seed 7 under those rules: the default heuristic wins 57.4%
+  of games against the baseline (95% CI 53.0–61.7%, 500 games) while
+  conceding single rounds at 39.9% by gin-hunting design; `mc:64` takes
+  52.4% of 4000 rounds and 53.3% of 600 games; `mc:128` takes 54.0% of
+  4000 rounds.  Published EAAI-21 entries sit around 55–68% against the
+  same baseline, metrics varying by paper.
 - A `parallel` cargo feature (off by default): Monte Carlo scoring batches
   spread their rollouts across the CPU cores via rayon.  Decisions are
   bit-identical to the serial build — batch results are collected in world

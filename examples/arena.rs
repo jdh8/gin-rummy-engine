@@ -11,7 +11,7 @@
 
 use anyhow::{Context as _, Result, bail};
 use gin_rummy::{Game, Player, RoundResult, Rules};
-use gin_rummy_engine::{HeuristicBot, MonteCarloBot, Strategy, Table, play_game};
+use gin_rummy_engine::{EaaiSimpleBot, HeuristicBot, MonteCarloBot, Strategy, Table, play_game};
 use rand::rngs::StdRng;
 use rand::{RngExt as _, SeedableRng};
 use std::time::Instant;
@@ -54,6 +54,12 @@ fn parse_args() -> Result<Config> {
                     "modern" => Rules::new(),
                     "classic" => Rules::classic(),
                     "palace" => Rules::palace(),
+                    // The EAAI-2021 challenge: modern bonuses, no big gin.
+                    "eaai" => {
+                        let mut rules = Rules::new();
+                        rules.big_gin_bonus = None;
+                        rules
+                    }
                     other => bail!("unknown rules preset {other:?}"),
                 }
             }
@@ -70,10 +76,14 @@ fn make_bot(spec: &str, rng: &mut StdRng) -> Result<Box<dyn Strategy>> {
     };
     match kind {
         "greedy" => Ok(Box::new(HeuristicBot::new())),
+        // The EAAI-2021 challenge baseline, the cross-engine yardstick.
+        "eaai" => Ok(Box::new(EaaiSimpleBot::new(StdRng::seed_from_u64(
+            rng.random(),
+        )))),
         "mc" => Ok(Box::new(
             MonteCarloBot::new(StdRng::seed_from_u64(rng.random())).samples(samples.unwrap_or(32)),
         )),
-        other => bail!("unknown bot {other:?} (greedy | mc[:samples])"),
+        other => bail!("unknown bot {other:?} (greedy | eaai | mc[:samples])"),
     }
 }
 

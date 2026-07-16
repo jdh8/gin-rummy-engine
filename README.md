@@ -32,6 +32,33 @@ The design triangle:
   hands containing every known card, random stock orders over the unseen
   cards — rolls each out with the greedy policy, and picks the action with
   the best expected score.
+- [`EaaiSimpleBot`] (feature `rand`): a port of `SimpleGinRummyPlayer`, the
+  baseline every entry of the EAAI-2021 Gin Rummy AI challenge was measured
+  against.  Deliberately weak and knob-free — it exists so that win rates
+  against it are comparable across engines and papers.
+
+## Benchmarks
+
+[`EaaiSimpleBot`] is the yardstick: arena runs under `--rules eaai` (the
+challenge's round conditions), seats and the dealer alternating, seed 7.
+Parenthesized ranges are 95% Wilson intervals, in percent, over 4000
+rounds and over 500 (`greedy`) or 600 (`mc:64`) whole games.
+
+| Bot vs baseline | Rounds won        | Points/round  | Games won         |
+|-----------------|-------------------|---------------|-------------------|
+| `greedy`        | 39.9% (38.4–41.4) | 9.17 vs 8.17  | 57.4% (53.0–61.7) |
+| `mc:64`         | 52.4% (50.8–53.9) | 9.51 vs 8.54  | 53.3% (49.3–57.3) |
+| `mc:128`        | 54.0% (52.4–55.5) | 10.19 vs 8.20 | —                 |
+
+The default heuristic concedes rounds by design — it hunts gin while the
+baseline knocks at the first opportunity — yet outscores it per round and
+wins the matches, which is what its knobs are tuned for.  For calibration,
+EAAI-21 entries reported roughly 55–68% against this same baseline
+(metrics vary by paper); comparisons stay approximate because this crate's
+match play rotates the deal to each round's winner where the challenge
+alternated dealers.  Throughput in those same runs, single-threaded:
+~8500 rounds/s for `greedy` vs the baseline, 5.8 rounds/s at `mc:64`, 3.4
+at `mc:128`.
 
 ## Quick start
 
@@ -89,7 +116,20 @@ Writing your own bot is implementing [`Strategy`]'s four decisions against a
 - `arena`: bot-vs-bot tournaments with win-rate statistics —
   `cargo run --release --example arena -- --rounds 1000 --p1 greedy --p2 mc:64`
 
+## Alternatives
+
+No other open-source project ships gin rummy bots as a reusable library.
+[OpenSpiel] and [RLCard] embed gin rummy environments for generic search
+and reinforcement-learning algorithms (bring your own agent), and
+[gin-rummy-eaai] is the EAAI-2021 challenge framework whose reference
+baseline this crate ports as [`EaaiSimpleBot`] — precisely so the numbers
+above stay comparable with the challenge literature.
+
 [gin rummy]: https://www.pagat.com/rummy/ginrummy.html
+[OpenSpiel]: https://github.com/google-deepmind/open_spiel
+[RLCard]: https://github.com/datamllab/rlcard
+[gin-rummy-eaai]: https://github.com/tneller/gin-rummy-eaai
+[`EaaiSimpleBot`]: https://docs.rs/gin-rummy-engine/latest/gin_rummy_engine/struct.EaaiSimpleBot.html
 [gin-rummy]: https://crates.io/crates/gin-rummy
 [`Strategy`]: https://docs.rs/gin-rummy-engine/latest/gin_rummy_engine/trait.Strategy.html
 [`View`]: https://docs.rs/gin-rummy-engine/latest/gin_rummy_engine/struct.View.html
