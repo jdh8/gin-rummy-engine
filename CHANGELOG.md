@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-07-17
+
 ### Added
 
 - Oklahoma gin flows through the engine: gin-rummy 0.1.3's
@@ -266,7 +268,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Examples: `play` (human vs bot in the terminal) and `arena` (bot-vs-bot
   tournaments with win rates and result tallies).
 
-[Unreleased]: https://github.com/jdh8/gin-rummy-engine/compare/0.1.3...HEAD
+[Unreleased]: https://github.com/jdh8/gin-rummy-engine/compare/0.1.4...HEAD
+[0.1.4]: https://github.com/jdh8/gin-rummy-engine/compare/0.1.3...0.1.4
 [0.1.3]: https://github.com/jdh8/gin-rummy-engine/compare/0.1.2...0.1.3
 [0.1.2]: https://github.com/jdh8/gin-rummy-engine/compare/0.1.1...0.1.2
 [0.1.1]: https://github.com/jdh8/gin-rummy-engine/compare/0.1.0...0.1.1
