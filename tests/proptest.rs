@@ -1,7 +1,7 @@
 //! Property tests: driven rounds terminate, partition the deck, and stay
 //! hygienic under every ruleset
 
-use gin_rummy::{Hand, Player, Round, Rules};
+use gin_rummy::{Hand, OklahomaAce, Player, Round, Rules};
 use gin_rummy_engine::{HeuristicBot, HeuristicConfig, Table};
 use proptest::prelude::*;
 
@@ -60,12 +60,22 @@ proptest! {
     #[test]
     fn greedy_rounds_terminate_partitioned(
         deck in Just(full_deck()).prop_shuffle(),
-        preset in 0..3usize,
+        preset in 0..5usize,
         seat in 0..2usize,
         threshold in 0..=10u8,
         weight in 0..3u8,
     ) {
-        let rules = [Rules::new(), Rules::classic(), Rules::palace()][preset];
+        let mut oklahoma_one = Rules::new();
+        oklahoma_one.oklahoma = Some(OklahomaAce::One);
+        let mut oklahoma_gin = Rules::new();
+        oklahoma_gin.oklahoma = Some(OklahomaAce::GinOnly);
+        let rules = [
+            Rules::new(),
+            Rules::classic(),
+            Rules::palace(),
+            oklahoma_one,
+            oklahoma_gin,
+        ][preset];
         let mut config = HeuristicConfig::default();
         config.knock_threshold = threshold;
         config.safety_weight = weight;

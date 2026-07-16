@@ -147,7 +147,8 @@ impl Sim {
         stock: Vec<Card>,
     ) -> Self {
         Self {
-            knock_limit: rules.knock_limit,
+            // Oklahoma reads the limit off the opening upcard.
+            knock_limit: rules.knock_limit_for(upcard),
             rules,
             hands,
             stock,
@@ -211,7 +212,7 @@ impl Sim {
 mod tests {
     use super::{Sim, SimPhase};
     use crate::{HeuristicBot, HeuristicConfig, play_round};
-    use gin_rummy::{Card, Hand, Player, Rank, Round, Rules, Suit};
+    use gin_rummy::{Card, Hand, OklahomaAce, Player, Rank, Round, Rules, Suit};
     use proptest::prelude::*;
 
     /// All 52 cards in a fixed order
@@ -250,8 +251,18 @@ mod tests {
             assert_eq!(sim.rollout(), result);
         }
 
-        proptest!(|(deck in Just(full_deck()).prop_shuffle(), preset in 0..3, seat in 0..2)| {
-            let rules = [Rules::new(), Rules::classic(), Rules::palace()][preset as usize];
+        proptest!(|(deck in Just(full_deck()).prop_shuffle(), preset in 0..5, seat in 0..2)| {
+            let mut oklahoma_one = Rules::new();
+            oklahoma_one.oklahoma = Some(OklahomaAce::One);
+            let mut oklahoma_gin = Rules::new();
+            oklahoma_gin.oklahoma = Some(OklahomaAce::GinOnly);
+            let rules = [
+                Rules::new(),
+                Rules::classic(),
+                Rules::palace(),
+                oklahoma_one,
+                oklahoma_gin,
+            ][preset as usize];
             let dealer = Player::ALL[seat as usize];
             check(&deck, rules, dealer);
         });

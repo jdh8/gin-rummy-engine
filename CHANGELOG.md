@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Oklahoma gin flows through the engine: gin-rummy 0.1.3's
+  `Rules::oklahoma` caps the knock limit at the opening upcard's value,
+  and `View::knock_limit()` has always been the resolved per-round limit,
+  so every shipped bot knocks legally under the variant with no change to
+  its decision logic.  The Monte Carlo forward model resolves the same
+  limit, and the `Sim`/`Round` equivalence and hygiene proptests now
+  exercise both Oklahoma ace schools alongside the three presets.
 - `EaaiSimpleBot` (feature `rand`): a port of `SimpleGinRummyPlayer`, the
   reference baseline of the EAAI-2021 Gin Rummy AI challenge — take the
   face-up card only into an immediate meld, shed a uniformly random card
