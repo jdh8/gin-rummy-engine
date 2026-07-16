@@ -1,6 +1,6 @@
 [package]
 name = "gin-rummy-engine"
-version = "0.1.4"
+version = "0.2.0"
 authors = ["Chen-Pang He (https://jdh8.org)"]
 edition = "2024"
 rust-version = "1.93"
