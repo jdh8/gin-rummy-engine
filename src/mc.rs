@@ -1,20 +1,102 @@
 //! [`MonteCarloBot`]: determinized Monte Carlo move selection
 
 use crate::heuristic::greedy_layoff;
-use crate::sim::{Sim, SimPhase};
+use crate::sim::{SeatPolicy, Sim, SimPhase};
 use crate::{DrawAction, Layoff, Strategy, TurnAction, UpcardAction, View};
 use gin_rummy::{Card, Hand, Phase, Player, RoundResult, Rules, best_melds, deadwood};
 use rand::{Rng, RngExt as _};
-
-/// How many candidate discards `play_turn` and `assess` weigh at a discard:
-/// the few lowest-deadwood sheds, the rest never worth a rollout.
-const MAX_CANDIDATES: usize = 4;
 
 /// The world count of the first scoring batch; each later batch doubles the
 /// evaluated total, so elimination checkpoints fall after 32, 64, 128, ...
 /// worlds.  A decision of 32 samples or fewer is a single batch, identical
 /// to an unbatched run.
 const BATCH: usize = 32;
+
+/// How the Monte Carlo rollouts model the opponent's draw decision
+///
+/// The model only shapes the forward simulation; nothing here reads any
+/// information the [`View`] does not legally expose.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[non_exhaustive]
+pub enum OpponentModel {
+    /// Take the pile card whenever it strictly lowers deadwood after the
+    /// best shed — the greedy core's own rule, and the historical default.
+    Eager,
+    /// Take the pile card only when it lands in an immediate meld — the
+    /// EAAI-2021 baseline's more conservative rule, for rollouts that
+    /// model such an opponent faithfully.
+    MeldOnly,
+}
+
+/// Tuning knobs for [`MonteCarloBot`]
+///
+/// Like [`HeuristicConfig`](crate::HeuristicConfig), the struct is
+/// non-exhaustive: start from [`McConfig::default`] and adjust fields.
+/// Every default reproduces the bot's long-standing hardcoded behavior
+/// bit for bit, so [`MonteCarloBot::new`] plays exactly the game it
+/// always has; the knobs expose the search's high-leverage levers so
+/// they can be measured instead of guessed at.
+#[derive(Debug, Clone, Copy, PartialEq)]
+#[non_exhaustive]
+pub struct McConfig {
+    /// How many worlds each decision samples; more play stronger and
+    /// slower.  See [`MonteCarloBot::samples`] for the measured
+    /// strength/latency envelope of the default 128.
+    pub samples: u32,
+    /// The rollout knock threshold for the bot's own future self:
+    /// continuations knock at residual deadwood ≤ `min(knock_limit,
+    /// this)`.  The default `u8::MAX` knocks at the first legal chance,
+    /// which prices deadwood risk correctly but leaves multi-turn
+    /// gin-hunting plans unrepresentable; lowering it makes patient
+    /// continuations expressible.
+    pub rollout_knock_self: u8,
+    /// The rollout knock threshold for the modeled opponent.  Holding
+    /// *both* seats to the shipped heuristic's tuned threshold of 4
+    /// measured clearly weaker (−6 and −8 points of decisive win rate on
+    /// two 10 000-round seeds, −11 points over 300 games); the default
+    /// `u8::MAX` keeps the urgent threat model that finding supports.
+    pub rollout_knock_opponent: u8,
+    /// How the modeled opponent decides to take the pile card.
+    pub opponent_model: OpponentModel,
+    /// The significance gate width in standard errors: the bot deviates
+    /// from the greedy baseline action only when a challenger's paired
+    /// advantage exceeds this many standard errors, and eliminates a
+    /// challenger the baseline leads by the same bar.  Loosening it
+    /// usually *weakens* the bot — deviating on noise plays worse than
+    /// the baseline.
+    pub gate_z: f64,
+    /// How many lowest-deadwood sheds a discard decision weighs; the
+    /// rest are never worth a rollout.
+    pub max_candidates: usize,
+    /// Scales the sampled opponent hands' plausibility bias, in percent
+    /// of the default schedule (the best of `pile_len / 2` uniform draws
+    /// keeps the lowest-deadwood hand).  100 is the measured default; 0
+    /// samples uniformly random opponent hands.
+    pub opponent_strength_percent: u32,
+}
+
+impl McConfig {
+    /// The default configuration, identical to the bot's historical
+    /// hardcoded behavior
+    #[must_use]
+    pub const fn new() -> Self {
+        Self {
+            samples: 128,
+            rollout_knock_self: u8::MAX,
+            rollout_knock_opponent: u8::MAX,
+            opponent_model: OpponentModel::Eager,
+            gate_z: 2.0,
+            max_candidates: 4,
+            opponent_strength_percent: 100,
+        }
+    }
+}
+
+impl Default for McConfig {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 /// One determinized world: a concrete opponent hand and stock order
 /// consistent with a [`View`]
@@ -103,7 +185,7 @@ impl Choice {
 /// its play reproducible.
 pub struct MonteCarloBot<R: Rng> {
     rng: R,
-    samples: u32,
+    config: McConfig,
 }
 
 /// One candidate action's Monte Carlo assessment, for a solver or hint view
@@ -136,7 +218,21 @@ pub struct Assessment {
 impl<R: Rng> MonteCarloBot<R> {
     /// A bot with default strength: 128 worlds per decision
     pub const fn new(rng: R) -> Self {
-        Self { rng, samples: 128 }
+        Self::with_config(rng, McConfig::new())
+    }
+
+    /// A bot with custom tuning
+    ///
+    /// [`McConfig::default`] reproduces [`MonteCarloBot::new`] exactly.
+    #[must_use]
+    pub const fn with_config(rng: R, config: McConfig) -> Self {
+        Self { rng, config }
+    }
+
+    /// The bot's tuning knobs
+    #[must_use]
+    pub const fn config(&self) -> &McConfig {
+        &self.config
     }
 
     /// Set how many worlds each decision samples
@@ -154,8 +250,20 @@ impl<R: Rng> MonteCarloBot<R> {
     /// [`HeuristicBot`]: crate::HeuristicBot
     #[must_use]
     pub const fn samples(mut self, samples: u32) -> Self {
-        self.samples = samples;
+        self.config.samples = samples;
         self
+    }
+
+    /// The per-seat rollout policies the configuration induces, mapped
+    /// onto the viewing seat and its opponent.
+    fn policies(&self, view: &View<'_>) -> [SeatPolicy; 2] {
+        let mut policies = [SeatPolicy::default(); 2];
+        let me = view.seat();
+        policies[me as usize].knock_threshold = self.config.rollout_knock_self;
+        let them = &mut policies[me.opponent() as usize];
+        them.knock_threshold = self.config.rollout_knock_opponent;
+        them.meld_only_draw = matches!(self.config.opponent_model, OpponentModel::MeldOnly);
+        policies
     }
 
     /// Sample determinized worlds consistent with the view
@@ -176,7 +284,10 @@ impl<R: Rng> MonteCarloBot<R> {
         let unseen = view.unseen();
         let known = view.opponent_known();
         let missing = view.opponent_hand_len() - known.len();
-        let strength = opponent_strength(view.discard_pile().len());
+        // At least one draw always happens, so 0 percent degrades to a
+        // uniformly random hidden hand rather than an empty sample.
+        let percent = self.config.opponent_strength_percent as usize;
+        let strength = (opponent_strength(view.discard_pile().len()) * percent / 100).max(1);
         // One scratch pool for the whole decision.  Each hidden-hand draw is
         // a partial Fisher-Yates prefix, which is uniform from any starting
         // permutation, so the pool never needs rebuilding between draws.
@@ -213,7 +324,7 @@ impl<R: Rng> MonteCarloBot<R> {
     }
 
     /// Instantiate one world as a rollout state, to act at `phase`
-    fn sim(view: &View<'_>, world: &World, phase: SimPhase) -> Sim {
+    fn sim(view: &View<'_>, world: &World, phase: SimPhase, policies: [SeatPolicy; 2]) -> Sim {
         let seat = view.seat();
         let mut hands = [Hand::EMPTY; 2];
         hands[seat as usize] = view.hand();
@@ -230,6 +341,7 @@ impl<R: Rng> MonteCarloBot<R> {
             // In the upcard phase, the dealer decides second.
             passes: u8::from(seat == view.dealer()),
             forced_stock: false,
+            policies,
         }
     }
 
@@ -250,9 +362,15 @@ impl<R: Rng> MonteCarloBot<R> {
         if candidates.is_empty() {
             return Vec::new();
         }
-        let worlds = self.sample_worlds(view, self.samples);
-        let scored = Self::score_worlds(view, &worlds, &candidates);
-        Self::rank(&candidates, &scored)
+        let worlds = self.sample_worlds(view, self.config.samples);
+        let scored = Self::score_worlds(
+            view,
+            &worlds,
+            &candidates,
+            self.policies(view),
+            self.config.gate_z,
+        );
+        Self::rank(&candidates, &scored, self.config.gate_z)
     }
 
     /// Score every candidate on freshly sampled worlds and return the move to
@@ -261,9 +379,15 @@ impl<R: Rng> MonteCarloBot<R> {
     /// each is a thin wrapper over the same read [`assess`](Self::assess)
     /// surfaces; `candidates` must be non-empty.
     fn choose(&mut self, view: &View<'_>, candidates: &[Candidate]) -> Choice {
-        let worlds = self.sample_worlds(view, self.samples);
-        let scored = Self::score_worlds(view, &worlds, candidates);
-        candidates[recommended(&scored)].choice
+        let worlds = self.sample_worlds(view, self.config.samples);
+        let scored = Self::score_worlds(
+            view,
+            &worlds,
+            candidates,
+            self.policies(view),
+            self.config.gate_z,
+        );
+        candidates[recommended(&scored, self.config.gate_z)].choice
     }
 
     /// The ordered candidate moves for the current decision, the greedy
@@ -317,7 +441,7 @@ impl<R: Rng> MonteCarloBot<R> {
                     .map(|card| (card, deadwood(hand - card.into())))
                     .collect();
                 sheds.sort_by_key(|&(card, rest)| (rest, u8::MAX - card.rank.deadwood()));
-                sheds.truncate(MAX_CANDIDATES);
+                sheds.truncate(self.config.max_candidates);
 
                 let limit = view.knock_limit();
                 let mut out = Vec::new();
@@ -362,12 +486,14 @@ impl<R: Rng> MonteCarloBot<R> {
         view: &View<'_>,
         worlds: &[World],
         candidates: &[Candidate],
+        policies: [SeatPolicy; 2],
+        gate_z: f64,
     ) -> Vec<(Vec<f64>, f64)> {
         let me = view.seat();
         let rules = view.rules();
         let standing = view.game_scores();
         let eval = |candidate: &Candidate, world: &World| {
-            let sim = Self::sim(view, world, candidate.choice.phase());
+            let sim = Self::sim(view, world, candidate.choice.phase(), policies);
             let result = candidate.choice.roll(sim);
             (
                 equity(result, me, standing, rules),
@@ -403,7 +529,7 @@ impl<R: Rng> MonteCarloBot<R> {
             }
             done += batch.len();
             if done < worlds.len() {
-                alive.retain(|&i| !beats(&scored[0].0, &scored[i].0));
+                alive.retain(|&i| !beats(&scored[0].0, &scored[i].0, gate_z));
                 if alive.is_empty() {
                     break;
                 }
@@ -419,8 +545,8 @@ impl<R: Rng> MonteCarloBot<R> {
     /// Each candidate averages over the worlds it was actually rolled
     /// through, which is fewer than the sample count for a challenger
     /// [`score_worlds`](Self::score_worlds) eliminated early.
-    fn rank(candidates: &[Candidate], scored: &[(Vec<f64>, f64)]) -> Vec<Assessment> {
-        let best = recommended(scored);
+    fn rank(candidates: &[Candidate], scored: &[(Vec<f64>, f64)], gate_z: f64) -> Vec<Assessment> {
+        let best = recommended(scored, gate_z);
         let mut out: Vec<Assessment> = candidates
             .iter()
             .zip(scored)
@@ -446,11 +572,11 @@ impl<R: Rng> MonteCarloBot<R> {
 ///
 /// Shared by [`MonteCarloBot::choose`] and [`MonteCarloBot::rank`], so the
 /// move the bot plays and the pick the solver flags never diverge.
-fn recommended(scored: &[(Vec<f64>, f64)]) -> usize {
+fn recommended(scored: &[(Vec<f64>, f64)], gate_z: f64) -> usize {
     let mean = |e: &[f64]| e.iter().sum::<f64>() / e.len() as f64;
     let defend = &scored[0].0;
     (1..scored.len())
-        .filter(|&i| beats(&scored[i].0, defend))
+        .filter(|&i| beats(&scored[i].0, defend, gate_z))
         .max_by(|&a, &b| mean(&scored[a].0).total_cmp(&mean(&scored[b].0)))
         .unwrap_or(0)
 }
@@ -473,10 +599,10 @@ const fn opponent_strength(pile_len: usize) -> usize {
 /// The true value difference between most candidate actions is well below
 /// the rollout noise floor, and deviating from the solid greedy baseline on
 /// noise alone plays *worse* than the baseline.  A one-sided paired test —
-/// the mean difference at least two standard errors above zero, since
-/// several challengers get tested per decision — keeps only the deviations
-/// the samples actually support.
-fn beats(challenger: &[f64], incumbent: &[f64]) -> bool {
+/// the mean difference at least `gate_z` standard errors above zero
+/// ([`McConfig::gate_z`], default 2 since several challengers get tested
+/// per decision) — keeps only the deviations the samples actually support.
+fn beats(challenger: &[f64], incumbent: &[f64], gate_z: f64) -> bool {
     let n = challenger.len() as f64;
     let mean = challenger
         .iter()
@@ -493,7 +619,7 @@ fn beats(challenger: &[f64], incumbent: &[f64]) -> bool {
         .map(|(c, i)| (c - i - mean).powi(2))
         .sum::<f64>()
         / n;
-    mean > 2.0 * (var / n).sqrt()
+    mean > gate_z * (var / n).sqrt()
 }
 
 /// The value of `result` to `me` in the game standing at the `standing`
@@ -792,14 +918,31 @@ mod tests {
             .enumerate()
             .map(|(i, x)| x + if i % 2 == 0 { 1.05 } else { -0.95 })
             .collect();
-        assert!(!beats(&noisy, &base));
+        assert!(!beats(&noisy, &base, 2.0));
 
         // A consistent advantage is.
         let better: Vec<f64> = base.iter().map(|x| x + 1.0).collect();
-        assert!(beats(&better, &base));
-        assert!(!beats(&base, &better));
+        assert!(beats(&better, &base, 2.0));
+        assert!(!beats(&base, &better, 2.0));
         // Equality never beats.
-        assert!(!beats(&base, &base));
+        assert!(!beats(&base, &base, 2.0));
+    }
+
+    #[test]
+    fn config_default_pins_the_historical_constants() {
+        // Every default must reproduce the pre-knob hardcoded behavior
+        // bit for bit; changing one is a strength change and owes the
+        // measure-strength procedure, not just an edit here.
+        let config = McConfig::default();
+        assert_eq!(config.samples, 128);
+        assert_eq!(config.rollout_knock_self, u8::MAX);
+        assert_eq!(config.rollout_knock_opponent, u8::MAX);
+        assert_eq!(config.opponent_model, OpponentModel::Eager);
+        assert!((config.gate_z - 2.0).abs() < f64::EPSILON);
+        assert_eq!(config.max_candidates, 4);
+        assert_eq!(config.opponent_strength_percent, 100);
+        // The two construction paths agree.
+        assert_eq!(McConfig::new(), config);
     }
 
     #[test]
@@ -926,7 +1069,9 @@ mod tests {
         let mut bot = MonteCarloBot::new(StdRng::seed_from_u64(9)).samples(256);
         let candidates = bot.hint_candidates(&view);
         let worlds = bot.sample_worlds(&view, 256);
-        let batched = MonteCarloBot::<StdRng>::score_worlds(&view, &worlds, &candidates);
+        let policies = bot.policies(&view);
+        let batched =
+            MonteCarloBot::<StdRng>::score_worlds(&view, &worlds, &candidates, policies, 2.0);
 
         let me = view.seat();
         let rules = view.rules();
@@ -937,7 +1082,12 @@ mod tests {
                 let mut equities = Vec::new();
                 let mut ev_sum = 0.0;
                 for world in &worlds {
-                    let sim = MonteCarloBot::<StdRng>::sim(&view, world, candidate.choice.phase());
+                    let sim = MonteCarloBot::<StdRng>::sim(
+                        &view,
+                        world,
+                        candidate.choice.phase(),
+                        policies,
+                    );
                     let result = candidate.choice.roll(sim);
                     equities.push(equity(result, me, standing, rules));
                     ev_sum += round_points(result, me, rules);
@@ -946,7 +1096,7 @@ mod tests {
             })
             .collect();
 
-        assert_eq!(recommended(&batched), recommended(&full));
+        assert_eq!(recommended(&batched, 2.0), recommended(&full, 2.0));
 
         let rolled: usize = batched.iter().map(|(e, _)| e.len()).sum();
         let all: usize = full.iter().map(|(e, _)| e.len()).sum();

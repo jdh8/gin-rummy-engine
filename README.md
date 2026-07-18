@@ -31,7 +31,10 @@ The design triangle:
   decision it samples hidden worlds consistent with the `View` — opponent
   hands containing every known card, random stock orders over the unseen
   cards — rolls each out with the greedy policy, and picks the action with
-  the best expected score.
+  the best expected score.  [`McConfig`] exposes the search's levers (the
+  rollout knock thresholds per seat, the modeled opponent's draw rule, the
+  significance gate, the candidate cap, the sampled opponent's strength);
+  the default reproduces the untuned bot exactly.
 - [`EaaiSimpleBot`] (feature `rand`): a port of `SimpleGinRummyPlayer`, the
   baseline every entry of the EAAI-2021 Gin Rummy AI challenge was measured
   against.  Deliberately weak and knob-free — it exists so that win rates
@@ -40,25 +43,31 @@ The design triangle:
 ## Benchmarks
 
 [`EaaiSimpleBot`] is the yardstick: arena runs under `--rules eaai` (the
-challenge's round conditions), seats and the dealer alternating, seed 7.
-Parenthesized ranges are 95% Wilson intervals, in percent, over 4000
-rounds and over 500 (`greedy`) or 600 (`mc:64`) whole games.
+challenge's round conditions) with `--alternate-dealer` (the challenge's
+dealer protocol), every trial a mirrored pair — both bots play the same
+deals from both seats.  Rounds: 4000 pairs at seed 7.  Games: 3000 pairs
+(`mc:128`: 2000) at each of seeds 7 and 8, pooled to 12 000 (`mc:128`:
+8000) games.  Parenthesized ranges are 95% intervals, in percent.
 
-| Bot vs baseline | Rounds won        | Points/round  | Games won         |
-|-----------------|-------------------|---------------|-------------------|
-| `greedy`        | 39.9% (38.4–41.4) | 9.17 vs 8.17  | 57.4% (53.0–61.7) |
-| `mc:64`         | 52.4% (50.8–53.9) | 9.51 vs 8.54  | 53.3% (49.3–57.3) |
-| `mc:128`        | 54.0% (52.4–55.5) | 10.19 vs 8.20 | —                 |
+| Bot vs baseline | Rounds won        | Points/round | Games won         |
+|-----------------|-------------------|--------------|-------------------|
+| `greedy`        | 39.4% (38.4–40.5) | 8.92 vs 8.29 | 59.7% (58.9–60.6) |
+| `mc:64`         | 51.5% (50.4–52.6) | 9.21 vs 8.43 | 54.0% (53.1–54.9) |
+| `mc:128`        | 52.8% (51.7–53.9) | 9.91 vs 8.37 | 59.4% (58.3–60.4) |
 
 The default heuristic concedes rounds by design — it hunts gin while the
-baseline knocks at the first opportunity — yet outscores it per round and
-wins the matches, which is what its knobs are tuned for.  For calibration,
-EAAI-21 entries reported roughly 55–68% against this same baseline
-(metrics vary by paper); comparisons stay approximate because this crate's
-match play rotates the deal to each round's winner where the challenge
-alternated dealers.  Throughput in those same runs, single-threaded:
-~8500 rounds/s for `greedy` vs the baseline, 5.8 rounds/s at `mc:64`, 3.4
-at `mc:128`.
+baseline knocks at the first opportunity — yet wins the matches on the
+gin and undercut bonuses; the EAAI-21 literature identifies exactly that
+patient, undercutting style as the strongest exploit of this baseline's
+knock-ASAP habit.  The Monte Carlo bots win rounds instead, and the
+comparison is not transitive: `mc:64` beats `greedy` head-to-head over
+whole games (52.9% of 6000 paired games, p < 0.001) yet exploits the
+baseline less than `greedy` does, while doubling the sample count closes
+that gap — `mc:128` matches `greedy` against the baseline.  For
+calibration, EAAI-21 entries reported roughly 55–68% against this same
+baseline under the same dealer protocol (metrics vary by paper).
+Throughput in those runs, trials fanned across 16 cores: ~19 500 games/s
+for `greedy` vs the baseline, 7–8 games/s at `mc:64`, ~4.9 at `mc:128`.
 
 ## Quick start
 
@@ -136,4 +145,5 @@ above stay comparable with the challenge literature.
 [`Table`]: https://docs.rs/gin-rummy-engine/latest/gin_rummy_engine/struct.Table.html
 [`HeuristicBot`]: https://docs.rs/gin-rummy-engine/latest/gin_rummy_engine/struct.HeuristicBot.html
 [`MonteCarloBot`]: https://docs.rs/gin-rummy-engine/latest/gin_rummy_engine/struct.MonteCarloBot.html
+[`McConfig`]: https://docs.rs/gin-rummy-engine/latest/gin_rummy_engine/struct.McConfig.html
 [`Round`]: https://docs.rs/gin-rummy/latest/gin_rummy/round/struct.Round.html

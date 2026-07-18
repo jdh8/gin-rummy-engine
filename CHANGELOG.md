@@ -7,6 +7,78 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `McConfig` and `OpponentModel`: public tuning knobs for
+  `MonteCarloBot`, in the mold of `HeuristicConfig`.  The knobs expose
+  the search's previously hardcoded levers — the per-seat rollout knock
+  thresholds (`rollout_knock_self`, `rollout_knock_opponent`), the
+  modeled opponent's draw rule (`OpponentModel::Eager`, the historical
+  greedy rule, or `OpponentModel::MeldOnly`, the EAAI baseline's
+  take-only-into-a-meld rule, now shared with `EaaiSimpleBot` so model
+  and baseline cannot drift), the significance-gate width `gate_z`, the
+  discard candidate cap `max_candidates`, and the sampled opponent's
+  plausibility bias `opponent_strength_percent`.  `McConfig::default()`
+  reproduces the old hardcoded behavior bit for bit — a seeded
+  `MonteCarloBot::new` plays exactly the games it played before, guarded
+  by a default-pinning test and verified by a seeded arena decision diff
+  — so this changes nothing until a knob is turned.
+  `MonteCarloBot::with_config` and `MonteCarloBot::config` round out the
+  API; `samples(n)` remains as sugar.  First measurements through the
+  knobs — mc:64 against the challenge baseline, 3000 deal-paired games
+  per arm and seed — found that modeling the baseline's own conservative
+  draw rule (`MeldOnly`) is no better than the default eager model
+  (53.9% vs 54.8%), so belief fidelity is not monotone in strength, and
+  that a nearly-gin-hunting own continuation (`rollout_knock_self: 2`)
+  keeps a small repeatable edge over the knock-ASAP default on both
+  seeds tried (55.2%/55.7% vs 54.8%/53.9%) while the middling thresholds
+  4 and 8 are worse than either extreme.  That edge does not survive
+  strong opposition — the same patient continuation scores 47.9% vs
+  48.9% for the default against an unmodified mc:64 — so it is an
+  exploit of the baseline's knock-ASAP habit, available as a knob for
+  anyone targeting that baseline.  No finding clears the bar to change
+  a default.
+- The `arena` example measures like an instrument now.  Trials are
+  seeded by index and fan out across the CPUs (a run takes minutes, not
+  hours, at Monte Carlo sample counts); every trial defaults to a
+  *mirrored pair* — both bots play the same deal(s) from both seats,
+  cancelling deal luck (`--unpaired` restores independent trials) — and
+  each run ends with a significance line (paired z and p-value, or a
+  sign test unpaired) so a comparison states its own confidence instead
+  of leaving two overlapping intervals to the reader.
+  `--alternate-dealer` plays whole games under the EAAI challenge's
+  protocol (the deal alternates every hand) rather than gin rummy's
+  winner-deals-next, which measurably shifts game rates and is required
+  for numbers quoted against the challenge literature.  A run without
+  `--seed` picks one and prints it, so any result can be reproduced.
+- The `tune` example sweeps `MonteCarloBot` knobs: `--mc-samples N`
+  makes the candidate a Monte Carlo bot and `--rollout-knock`,
+  `--opp-knock`, `--opp-model`, `--gate`, `--max-candidates`, and
+  `--opp-strength` sweep `McConfig` fields as comma lists (arms are the
+  cartesian product).  The fixed opponent can now be the challenge
+  baseline (`--opponent eaai`) and the rules preset `eaai` is accepted,
+  so a knob can be tuned against the yardstick it aims at.
+
+### Changed
+
+- `arena`'s trial seeding is per-index (SplitMix-style), so the deal
+  stream depends only on `--seed` and the trial index.  Runs at the same
+  seed reproduce exactly across machines and code revisions — old-vs-new
+  comparisons at one seed are themselves paired — but a seeded 0.2.0
+  arena run is not reproduced by this version.  `--rounds N`/`--games N`
+  now count trials (mirrored pairs by default, so twice as many rounds
+  or games are played).
+- The README benchmarks against `EaaiSimpleBot` are re-settled with the
+  new instrument — mirrored pairs, the challenge's alternate-dealer
+  protocol, and 8000–12 000 games per matchup where the old table had
+  500–600: `greedy` wins 59.7% of games (was 57.4% ± 4.4), `mc:64` 54.0%
+  (was 53.3% ± 4.0, now genuinely below greedy rather than within
+  noise), and `mc:128` — previously unmeasured over games — 59.4%,
+  closing the gap.  `mc:64` still beats `greedy` head-to-head over whole
+  games (52.9% of 6000), so exploiting the weak baseline and winning the
+  head-to-head are established as different skills.  No bot behavior
+  changed; only the measurement did.
+
 ## [0.2.0] - 2026-07-17
 
 ### Added

@@ -9,8 +9,34 @@
 //! models (`sim_matches_round_on_greedy_selfplay` in this module's
 //! tests).  Any rules change upstream must be mirrored here.
 
-use crate::heuristic::{best_shed, greedy_layoff, improves};
+use crate::heuristic::{best_shed, greedy_layoff, improves, joins_a_meld};
 use gin_rummy::{Card, Hand, Meld, Melds, Player, RoundResult, Rules, best_melds, deadwood};
+
+/// How the forward model plays one seat during a rollout
+///
+/// The default — knock at the first legal chance, draw on any strict
+/// improvement — is the knowledge-free greedy policy the rollout has
+/// always played; [`McConfig`](crate::McConfig) maps its rollout knobs
+/// onto per-seat values through [`MonteCarloBot::sim`](crate::MonteCarloBot).
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct SeatPolicy {
+    /// Knock at residual deadwood ≤ `min(knock_limit, knock_threshold)`;
+    /// `u8::MAX` knocks whenever the rules allow
+    pub(crate) knock_threshold: u8,
+    /// Take the pile card only when it lands in an immediate meld
+    /// ([`joins_a_meld`], the EAAI baseline's rule) instead of on any
+    /// strict deadwood improvement ([`improves`])
+    pub(crate) meld_only_draw: bool,
+}
+
+impl Default for SeatPolicy {
+    fn default() -> Self {
+        Self {
+            knock_threshold: u8::MAX,
+            meld_only_draw: false,
+        }
+    }
+}
 
 /// Where a rollout resumes
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -38,6 +64,9 @@ pub(crate) struct Sim {
     pub(crate) taken: Option<Card>,
     pub(crate) passes: u8,
     pub(crate) forced_stock: bool,
+    /// How [`rollout`](Self::rollout) plays each seat; the default plays
+    /// the historical knowledge-free greedy on both
+    pub(crate) policies: [SeatPolicy; 2],
 }
 
 impl Sim {
@@ -158,26 +187,38 @@ impl Sim {
             taken: None,
             passes: 0,
             forced_stock: false,
+            policies: [SeatPolicy::default(); 2],
         }
     }
 
-    /// Play the round out with the knowledge-free greedy policy on both
-    /// seats
+    /// Whether the acting seat's policy takes the pile top.
+    fn takes(&self, hand: Hand, top: Card) -> bool {
+        if self.policies[self.turn as usize].meld_only_draw {
+            joins_a_meld(hand, top)
+        } else {
+            improves(hand, top)
+        }
+    }
+
+    /// Play the round out, each seat following its [`SeatPolicy`] over the
+    /// knowledge-free greedy core
     ///
-    /// Both seats knock at the first legal chance.  Raising the model's
-    /// fidelity instead — holding to the shipped heuristic's tuned knock
-    /// threshold of 4 — measured clearly *weaker* (−6 and −8 points of
-    /// decisive win rate on two 10 000-round seeds and −11 points over 300
-    /// games, mc:64 head to head): the urgent knocker is the threat model
-    /// that prices deadwood risk correctly, and a patient forward model
-    /// plays complacent.
+    /// Under the default policies both seats knock at the first legal
+    /// chance.  Raising the model's fidelity instead — holding *both*
+    /// seats to the shipped heuristic's tuned knock threshold of 4 —
+    /// measured clearly weaker (−6 and −8 points of decisive win rate on
+    /// two 10 000-round seeds and −11 points over 300 games, mc:64 head
+    /// to head): the urgent knocker is the threat model that prices
+    /// deadwood risk correctly, and a patient forward model plays
+    /// complacent.  The per-seat policies exist to test the *asymmetric*
+    /// cases that finding does not cover.
     pub(crate) fn rollout(mut self) -> RoundResult {
         loop {
             let hand = self.hands[self.turn as usize];
             match self.phase {
                 SimPhase::Upcard => {
                     let top = *self.pile.last().expect("the upcard offer has an upcard");
-                    if improves(hand, top) {
+                    if self.takes(hand, top) {
                         self.take_discard();
                     } else {
                         self.pass();
@@ -185,7 +226,7 @@ impl Sim {
                 }
                 SimPhase::Draw => {
                     let top = *self.pile.last().expect("the pile is never empty on a draw");
-                    if !self.forced_stock && improves(hand, top) {
+                    if !self.forced_stock && self.takes(hand, top) {
                         self.take_discard();
                     } else {
                         self.draw_stock();
@@ -196,7 +237,8 @@ impl Sim {
                         return self.big_gin();
                     }
                     let (card, rest) = best_shed(hand, self.taken);
-                    if rest <= self.knock_limit {
+                    let threshold = self.policies[self.turn as usize].knock_threshold;
+                    if rest <= self.knock_limit.min(threshold) {
                         return self.knock(card, best_melds(hand - card.into()));
                     }
                     if let Some(result) = self.discard(card) {
@@ -295,6 +337,7 @@ mod tests {
             taken: None,
             passes: 0,
             forced_stock: false,
+            policies: [super::SeatPolicy::default(); 2],
         };
         let shed = Card {
             suit: Suit::Spades,

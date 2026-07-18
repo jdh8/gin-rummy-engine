@@ -20,13 +20,17 @@ timing you observe in them is meaningless.
 - The tripwire (`tests/strength.rs`) demands >52.5% over 1000 rounds: a
   true 65% bot passes with near certainty, an even bot sneaks through
   less than 6% of the time.
-- Against the `eaai` challenge baseline (`--rules eaai`, seed 7):
-  `greedy` wins 39.9% of 4000 rounds yet 57.4% of 500 games — gin-hunting
-  concedes rounds and banks matches, so quote both; `mc:64` wins 52.4% of
-  rounds and 53.3% of 600 games; `mc:128` wins 54.0% of rounds.
-  Published EAAI-21 entries report ≈55–68% against the same baseline
-  (metrics vary by paper), the cross-engine calibration these numbers
-  exist for.
+- Against the `eaai` challenge baseline (`--rules eaai
+  --alternate-dealer`, mirrored pairs, games pooled over seeds 7 and 8):
+  `greedy` wins 39.4% of rounds yet 59.7% of 12 000 games — gin-hunting
+  concedes rounds and banks matches, so quote both; `mc:64` wins 51.5%
+  of rounds and 54.0% of 12 000 games (genuinely below greedy, z ≈ 6 per
+  seed); `mc:128` wins 52.8% of rounds and 59.4% of 8000 games, closing
+  the gap.  `mc:64` beats `greedy` head-to-head over whole games (52.9%
+  of 6000) — exploitation of the weak baseline is not transitive with
+  head-to-head strength.  Published EAAI-21 entries report ≈55–68%
+  against the same baseline (metrics vary by paper), the cross-engine
+  calibration these numbers exist for.
 
 If a change moves these baselines, update them here, in `tests/strength.rs`,
 and in the doc comment on `MonteCarloBot::samples`.
@@ -39,25 +43,45 @@ and in the doc comment on `MonteCarloBot::samples`.
    cargo test --release --test strength -- --ignored
    ```
 
-2. Head-to-head measurement with the arena (seats and the dealer alternate
-   every trial, so there is no first-move bias to correct for):
+2. Head-to-head measurement with the arena.  Trials are seeded by index
+   and fan out across the CPUs; by default each trial is a *mirrored
+   pair* — both bots play the same deal(s) from both seats — and the
+   run ends with a significance line testing the paired difference
+   (`--unpaired` reverts to independent trials and a sign test):
 
    ```console
    cargo run --release --example arena -- --rounds 4000 --p1 greedy --p2 mc:64 --seed 7
-   cargo run --release --example arena -- --games 200 --p1 mc:16 --p2 mc:64 --seed 7
+   cargo run --release --example arena -- --games 3000 --p1 mc:64 --p2 eaai --rules eaai --alternate-dealer --seed 7
    ```
 
+   Use `--alternate-dealer` for any number quoted against the EAAI
+   literature: the challenge alternated the deal every hand, where
+   gin-rummy's `Game` rotates it to each round's winner.  The two
+   protocols measurably shift game rates (a few points), so never mix
+   them in one comparison.
+
 3. To compare old versus new code, run the *same* command (same `--seed`,
-   same `--rounds`) on both revisions and compare the printed intervals.
+   same count) on both revisions and compare.  The deal stream depends
+   only on `--seed` and the trial index, so the two revisions play the
+   same deals and the comparison is itself paired.
+
+4. Never build the arena or tune with `--features parallel`: in-decision
+   parallelism would fight the trial-level fan-out for the same rayon
+   pool.
 
 ## Reading the numbers
 
-- The arena prints 95% Wilson score intervals.  Rough half-widths near a
-  55% win rate: 1000 rounds → ±3 points, 4000 → ±1.5, 10 000 → ±1.
-- If the two candidates' intervals overlap heavily, the run is
-  inconclusive.  Increase `--rounds`; do **not** re-roll seeds until one
-  looks better — that is p-hacking and the "improvement" will not
-  replicate.
+- The arena prints 95% Wilson score intervals per bot and a paired
+  z/p line for the head-to-head difference.  Trust the p line over
+  eyeballing interval overlap — pairing makes it strictly sharper.
+- Power, unpaired rule of thumb: detecting a 4-point game-rate gap at
+  80% power needs ≈2 400 games per arm; a 2-point gap ≈9 700.  Pairing
+  reduces these; budget 3 000 pairs for headline claims and do not
+  chase sub-2-point differences.
+- If a run is inconclusive, increase the count; do **not** re-roll seeds
+  until one looks better — that is p-hacking and the "improvement" will
+  not replicate.  Confirm any winner on a second seed before believing
+  it.
 - Dead hands are excluded from decisive rounds, so a change that raises
   the dead-hand rate can "improve" the decisive win rate while scoring
   fewer points.  Check the results line (knocks/undercuts/gins/dead) and

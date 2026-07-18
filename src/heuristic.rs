@@ -31,6 +31,41 @@ pub(crate) fn improves(hand: Hand, top: Card) -> bool {
     rest < deadwood(hand)
 }
 
+/// Whether `top` would sit inside some meld of `hand` + `top`
+///
+/// The EAAI-2021 baseline's test for drawing the face-up card, shared by
+/// [`EaaiSimpleBot`](crate::EaaiSimpleBot) and the Monte Carlo rollout's
+/// [`MeldOnly`](crate::OpponentModel::MeldOnly) opponent model, so the
+/// modeled opponent and the actual baseline can never drift apart.
+#[cfg(feature = "rand")]
+pub(crate) fn joins_a_meld(hand: Hand, top: Card) -> bool {
+    let with = hand | top.into();
+    let of_rank = Suit::ASC
+        .into_iter()
+        .filter(|&suit| {
+            with.contains(Card {
+                suit,
+                rank: top.rank,
+            })
+        })
+        .count();
+    if of_rank >= 3 {
+        return true;
+    }
+
+    // Any three consecutive ranks of the card's suit around it; runs
+    // never wrap, so the windows truncate at the ace and the king.
+    let pivot = top.rank.get();
+    (pivot.saturating_sub(2).max(1)..=pivot.min(11)).any(|low| {
+        (low..low + 3).all(|rank| {
+            with.contains(Card {
+                suit: top.suit,
+                rank: Rank::new(rank),
+            })
+        })
+    })
+}
+
 /// The greedy layoff: the highest-pip own deadwood card that extends a
 /// spread meld, with the target meld's index
 ///
@@ -271,6 +306,24 @@ mod tests {
         assert!(improves(hand, card("♣3")));
         // The ♦T helps nothing over drawing blind.
         assert!(!improves(hand, card("♦T")));
+    }
+
+    #[cfg(feature = "rand")]
+    #[test]
+    fn joins_a_meld_draws_the_upcard_only_into_a_meld() {
+        // ♣A♣2♣7 ♦7 ♥3♥4 ♠8♠9.
+        let hand: Hand = "A27.7.34.89".parse().expect("a valid hand");
+        // A third seven completes a set; the ♥5 extends 3-4 into a run.
+        assert!(joins_a_meld(hand, card("♠7")));
+        assert!(joins_a_meld(hand, card("♥5")));
+        assert!(joins_a_meld(hand, card("♥2")));
+        // The ♦3 pairs the ♥3 and neighbors the ♦7's suit but melds with
+        // neither; the ♦K is loose entirely.
+        assert!(!joins_a_meld(hand, card("♦3")));
+        assert!(!joins_a_meld(hand, card("♦K")));
+        // Rank edges truncate rather than wrap.
+        assert!(joins_a_meld("QK...".parse().unwrap(), card("♣J")));
+        assert!(!joins_a_meld("2K...".parse().unwrap(), card("♣A")));
     }
 
     #[test]

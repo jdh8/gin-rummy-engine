@@ -7,40 +7,10 @@
 //! immediately joins a meld, shed a uniformly random card among those
 //! leaving minimal deadwood, and knock as early as possible.
 
-use crate::heuristic::greedy_layoff;
+use crate::heuristic::{greedy_layoff, joins_a_meld};
 use crate::{DrawAction, Layoff, Strategy, TurnAction, UpcardAction, View};
-use gin_rummy::{Card, Hand, Rank, Suit, best_melds, deadwood};
+use gin_rummy::{Card, Hand, best_melds, deadwood};
 use rand::{Rng, RngExt as _};
-
-/// Whether `top` would sit inside some meld of `hand` + `top` — the
-/// baseline's test for drawing the face-up card.
-fn joins_a_meld(hand: Hand, top: Card) -> bool {
-    let with = hand | top.into();
-    let of_rank = Suit::ASC
-        .into_iter()
-        .filter(|&suit| {
-            with.contains(Card {
-                suit,
-                rank: top.rank,
-            })
-        })
-        .count();
-    if of_rank >= 3 {
-        return true;
-    }
-
-    // Any three consecutive ranks of the card's suit around it; runs
-    // never wrap, so the windows truncate at the ace and the king.
-    let pivot = top.rank.get();
-    (pivot.saturating_sub(2).max(1)..=pivot.min(11)).any(|low| {
-        (low..low + 3).all(|rank| {
-            with.contains(Card {
-                suit: top.suit,
-                rank: Rank::new(rank),
-            })
-        })
-    })
-}
 
 /// The reference baseline of the EAAI-2021 Gin Rummy challenge
 ///
@@ -208,23 +178,6 @@ mod tests {
 
     fn card(text: &str) -> Card {
         text.parse().expect("a valid card")
-    }
-
-    #[test]
-    fn draws_the_upcard_only_into_a_meld() {
-        // ♣A♣2♣7 ♦7 ♥3♥4 ♠8♠9.
-        let hand: Hand = "A27.7.34.89".parse().expect("a valid hand");
-        // A third seven completes a set; the ♥5 extends 3-4 into a run.
-        assert!(joins_a_meld(hand, card("♠7")));
-        assert!(joins_a_meld(hand, card("♥5")));
-        assert!(joins_a_meld(hand, card("♥2")));
-        // The ♦3 pairs the ♥3 and neighbors the ♦7's suit but melds with
-        // neither; the ♦K is loose entirely.
-        assert!(!joins_a_meld(hand, card("♦3")));
-        assert!(!joins_a_meld(hand, card("♦K")));
-        // Rank edges truncate rather than wrap.
-        assert!(joins_a_meld("QK...".parse().unwrap(), card("♣J")));
-        assert!(!joins_a_meld("2K...".parse().unwrap(), card("♣A")));
     }
 
     #[test]

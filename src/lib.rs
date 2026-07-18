@@ -23,6 +23,6 @@ pub use driver::{EngineError, Table, play_round};
 pub use eaai::EaaiSimpleBot;
 pub use heuristic::{HeuristicBot, HeuristicConfig};
 #[cfg(feature = "rand")]
-pub use mc::{Assessment, MonteCarloBot};
+pub use mc::{Assessment, McConfig, MonteCarloBot, OpponentModel};
 pub use strategy::Strategy;
 pub use view::View;

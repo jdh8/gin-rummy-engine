@@ -61,11 +61,17 @@ Check these before merging any change; each names its guarding test.
    `src/sim.rs`) replays whole greedy self-play rounds through both models
    and must keep passing *unweakened*.  Follow the `sync-sim` skill.
 5. **The greedy core doubles as the rollout policy.**  `best_shed`,
-   `improves`, and `greedy_layoff` in `src/heuristic.rs` are shared with
-   `Sim::rollout`; the rollout plays exactly `HeuristicBot` with
-   `knock_threshold: u8::MAX, safety_weight: 0`.  Changing these functions
-   changes both bots and shifts every Monte Carlo evaluation — re-measure
-   afterwards (follow the `measure-strength` skill).
+   `improves`, `joins_a_meld`, and `greedy_layoff` in `src/heuristic.rs`
+   are shared with `Sim::rollout` (and `joins_a_meld` with
+   `EaaiSimpleBot`, so the modeled opponent and the real baseline cannot
+   drift).  Under `McConfig::default()` the rollout plays exactly
+   `HeuristicBot` with `knock_threshold: u8::MAX, safety_weight: 0` on
+   both seats; the `McConfig` rollout knobs (`rollout_knock_self`,
+   `rollout_knock_opponent`, `opponent_model`) bend it per seat, and the
+   equivalence proptest pins the *default* policy.  Changing the shared
+   functions changes both bots and shifts every Monte Carlo evaluation,
+   and changing any `McConfig` default is a strength change — either way,
+   re-measure afterwards (follow the `measure-strength` skill).
 6. **Determinism.**  `HeuristicBot` is a pure function of the view;
    `MonteCarloBot` owns its RNG, so a seeded generator replays
    identically.  Tests rely on both.  Never call a global RNG inside a
