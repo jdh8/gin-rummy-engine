@@ -70,6 +70,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `EaaiSimpleBot`'s documentation now states what the bot is and how it
+  differs from the challenge framework's Java player.  It is an
+  implementation of that player's published policy rather than a
+  transliteration of its code, and the four places it departs are now
+  listed with their consequences — including two that were previously
+  unrecorded: the layoff sweep, where this bot's greedy layoff can only
+  do better for the defender than the framework's first-fit pass, so win
+  rates published against this baseline are conservative rather than
+  inflated; and the round's (draw, discard) loop breaker, which keys on
+  an ordered pair where the original keys on an unordered one.  The
+  `--rules eaai` preset carries box, game, and shutout bonuses the
+  framework has none of, which the docs now explain are settled only
+  after a player has reached the game target and therefore never decide
+  a game.  Behavior is unchanged and every published number stands; this
+  audit against the framework's source is what confirms them
+  comparable with the challenge literature.
 - `MonteCarloBot` now values a decision by its probability of winning the
   **game**, not by the round points it banks.  Short of a clinch the old
   equity was affine in round points, so the search had no sense of the

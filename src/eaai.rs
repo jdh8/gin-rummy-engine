@@ -1,11 +1,12 @@
 //! [`EaaiSimpleBot`]: the reference baseline of the EAAI-2021 challenge
 //!
-//! A port of Todd Neller's `SimpleGinRummyPlayer`, the opponent every
-//! entry of the EAAI-2021 Gin Rummy Undergraduate Research Challenge was
-//! measured against, so win rates against it are comparable across
-//! engines and papers.  Its policy: draw the face-up card only if it
-//! immediately joins a meld, shed a uniformly random card among those
-//! leaving minimal deadwood, and knock as early as possible.
+//! An implementation of the published policy of Todd Neller's
+//! `SimpleGinRummyPlayer`, the opponent every entry of the EAAI-2021 Gin
+//! Rummy Undergraduate Research Challenge was measured against, so win
+//! rates against it are comparable across engines and papers.  That
+//! policy: draw the face-up card only if it immediately joins a meld,
+//! shed a uniformly random card among those leaving minimal deadwood,
+//! and knock as early as possible.
 
 use crate::heuristic::{greedy_layoff, joins_a_meld};
 use crate::{DrawAction, Layoff, Strategy, TurnAction, UpcardAction, View};
@@ -14,26 +15,44 @@ use rand::{Rng, RngExt as _};
 
 /// The reference baseline of the EAAI-2021 Gin Rummy challenge
 ///
-/// A port of `SimpleGinRummyPlayer` from Todd Neller's challenge
-/// framework: it ignores everything the opponent does, takes the face-up
-/// card only when it immediately joins a meld, sheds a uniformly random
-/// card among those leaving minimal deadwood — refusing to repeat a
-/// (draw, discard) pair within a round, the original's loop breaker —
-/// and knocks at the first legal opportunity.  It exists as a fixed
+/// The policy of `SimpleGinRummyPlayer` from Todd Neller's challenge
+/// framework, written from its published description: it ignores
+/// everything the opponent does, takes the face-up card only when it
+/// immediately joins a meld, sheds a uniformly random card among those
+/// leaving minimal deadwood — refusing to repeat a (draw, discard) pair
+/// within a round, a loop breaker carried over from the original — and
+/// knocks at the first legal opportunity.  It exists as a fixed
 /// measuring stick for comparisons across engines and papers, not as a
 /// good player, so there are no tuning knobs.
 ///
 /// Departures from the Java original, none of which change its policy
-/// under the challenge rules: the knock spread is [`best_melds`]'s
-/// optimal arrangement rather than a random optimal one (this affects
-/// only which layoffs the defender is offered); layoffs use this crate's
-/// greedy layoff in place of the framework's automatic first-fit sweep;
-/// and the knock threshold follows [`View::knock_limit`] rather than a
-/// hardcoded 10, so the bot stays legal under any ruleset.
+/// under the challenge rules:
+///
+/// - The knock spread is [`best_melds`]'s optimal arrangement rather
+///   than a random optimal one.  Every optimal arrangement carries the
+///   same deadwood, so this decides only which layoffs the defender is
+///   offered.
+/// - Layoffs use this crate's greedy layoff in place of the framework's
+///   automatic sweep, which lays each card on the first meld that
+///   accepts it and repeats until nothing moves.  A better layoff can
+///   only help the defender, so this baseline is if anything marginally
+///   *stronger* than the original — win rates published against it are
+///   conservative, never inflated.
+/// - The loop breaker keys on the ordered pair (drawn, discarded).  The
+///   original keys on a bitstring of the two cards, which erases the
+///   order and so blocks slightly more repeats; either way the memory
+///   only bites in degenerate repeating positions.
+/// - The knock threshold follows [`View::knock_limit`] rather than a
+///   hardcoded 10, so the bot stays legal under any ruleset.
 ///
 /// The EAAI framework has no big gin, so this bot never declares it; run
 /// benchmarks with `big_gin_bonus: None` for exactly the challenge's
-/// round conditions.
+/// round conditions.  The framework awards no box, game, or shutout
+/// bonus either, and those need no adjustment: with
+/// [`immediate_boxes`](gin_rummy::Rules::immediate_boxes) off they are
+/// settled only once a player has already reached
+/// [`game_target`](gin_rummy::Rules::game_target), so they inflate the
+/// final tally without ever deciding who won.
 #[derive(Debug, Clone)]
 pub struct EaaiSimpleBot<R> {
     rng: R,

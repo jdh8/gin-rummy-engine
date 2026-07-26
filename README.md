@@ -38,10 +38,11 @@ The design triangle:
   thresholds per seat, the modeled opponent's draw rule, the significance
   gate, the candidate cap, the sampled opponent's strength, and the value
   function itself).
-- [`EaaiSimpleBot`] (feature `rand`): a port of `SimpleGinRummyPlayer`, the
-  baseline every entry of the EAAI-2021 Gin Rummy AI challenge was measured
-  against.  Deliberately weak and knob-free — it exists so that win rates
-  against it are comparable across engines and papers.
+- [`EaaiSimpleBot`] (feature `rand`): the published policy of
+  `SimpleGinRummyPlayer`, the baseline every entry of the EAAI-2021 Gin Rummy
+  AI challenge was measured against.  Deliberately weak and knob-free — it
+  exists so that win rates against it are comparable across engines and
+  papers.
 
 ## Benchmarks
 
