@@ -41,7 +41,9 @@ timing you observe in them is meaningless.
   calibration these numbers exist for.
 
 If a change moves these baselines, update them here, in `tests/strength.rs`,
-and in the doc comment on `MonteCarloBot::samples`.
+in the doc comment on `MonteCarloBot::samples`, and in README's benchmark
+table — which `scripts/bench-panel.sh` regenerates (see below), so never
+hand-edit a cell of it.
 
 ## Procedure
 
@@ -76,6 +78,19 @@ and in the doc comment on `MonteCarloBot::samples`.
 4. Never build the arena or tune with `--features parallel`: in-decision
    parallelism would fight the trial-level fan-out for the same rayon
    pool.
+
+5. Publish the panel.  Once a change is believed and merged, regenerate
+   README's table rather than editing it:
+
+   ```console
+   scripts/bench-panel.sh > panel.md   # ~1.5 hours, arena log on stderr
+   ```
+
+   The script pins the bots, seeds and counts of the published panel, so
+   at an unchanged commit it reprints the same table — a rerun that
+   differs means the numbers moved, not that the measurement wandered.
+   Shrink it for a dry run: `ROUND_PAIRS=20 GAME_PAIRS=20
+   GAME_PAIRS_128=20 scripts/bench-panel.sh`.
 
 ## Reading the numbers
 

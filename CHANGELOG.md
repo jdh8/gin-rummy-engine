@@ -58,6 +58,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   cartesian product).  The fixed opponent can now be the challenge
   baseline (`--opponent eaai`) and the rules preset `eaai` is accepted,
   so a knob can be tuned against the yardstick it aims at.
+- `scripts/bench-panel.sh` regenerates README's benchmark table.  The
+  published numbers were previously a hand-kept transcript of runs
+  nobody else could repeat; the script pins the bots, the rules, the
+  dealer protocol, the seeds and the counts, prints the table on stdout
+  and the full arena log on stderr, and stamps the commit it ran at.
+  Anyone can now reproduce the crate's claimed strength — the arena is
+  deterministic in its seed, so at a given commit the table comes back
+  identical — and a claim that no longer reproduces is visible instead
+  of quietly rotting.
 
 ### Changed
 
@@ -100,12 +109,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The README benchmarks against `EaaiSimpleBot` are re-settled with the
   new instrument — mirrored pairs, the challenge's alternate-dealer
   protocol, and 8000–12 000 games per matchup where the old table had
-  500–600: `greedy` wins 59.7% of games (was 57.4% ± 4.4), `mc:64` 54.0%
+  500–600: `greedy` wins 59.7% of games (was 57.4% ± 4.4), `mc:64` 54.8%
   (was 53.3% ± 4.0, now genuinely below greedy rather than within
-  noise), and `mc:128` — previously unmeasured over games — 59.4%,
+  noise), and `mc:128` — previously unmeasured over games — 59.6%,
   closing the gap.  `mc:64` still beats `greedy` head-to-head over whole
-  games (52.9% of 6000), so exploiting the weak baseline and winning the
-  head-to-head are established as different skills.  No bot behavior
+  games (53.0% of 12 000), so exploiting the weak baseline and winning
+  the head-to-head are established as different skills.  No bot behavior
   changed; only the measurement did.
 
 ## [0.2.0] - 2026-07-17

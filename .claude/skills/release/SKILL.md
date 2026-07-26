@@ -14,6 +14,10 @@ description: Cut a release of gin-rummy-engine — version bump, changelog rollo
 3. If any bot's decision logic changed since the last release, run the
    strength tripwire in release mode:
    `cargo test --release --test strength -- --ignored`.
+4. If it changed, README's benchmark table is stale: regenerate it with
+   `scripts/bench-panel.sh > panel.md` (~1.5 hours, so start it early)
+   and paste the table in.  The numbers ship in the release, so this
+   lands before the changelog rollover, not after.
 
 ## The publish-order constraint
 

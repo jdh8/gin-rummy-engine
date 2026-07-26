@@ -51,6 +51,9 @@ dealer protocol), every trial a mirrored pair — both bots play the same
 deals from both seats.  Rounds: 4000 pairs at seed 7.  Games: 3000 pairs
 (`mc:128`: 2000) at each of seeds 7 and 8, pooled to 12 000 (`mc:128`:
 8000) games.  Parenthesized ranges are 95% intervals, in percent.
+`scripts/bench-panel.sh` runs exactly that panel and prints the table
+below, so every number here is reproducible from the commit it was taken
+at — the arena is deterministic in its seed.
 
 | Bot vs baseline | Rounds won        | Points/round | Games won         |
 |-----------------|-------------------|--------------|-------------------|

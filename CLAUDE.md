@@ -28,6 +28,7 @@ belongs in this crate.
 | `examples/play.rs` | Human vs bot in the terminal. |
 | `examples/arena.rs` | Bot-vs-bot tournaments with Wilson score intervals. |
 | `examples/tune.rs` | Whole-game A/B self-play sweep for tuning the heuristic's knock knobs against a fixed opponent. |
+| `scripts/bench-panel.sh` | Regenerates README's benchmark table: the pinned panel against the EAAI baseline, ~1.5 hours. |
 
 ## Invariants
 
