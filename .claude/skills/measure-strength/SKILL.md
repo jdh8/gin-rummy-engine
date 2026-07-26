@@ -18,9 +18,16 @@ timing you observe in them is meaningless.
   `parallel` feature divides either by most of the cores).  The default
   heuristic is tuned for whole-game play and so concedes single rounds;
   this round figure is not a game-strength number.
-- The tripwire (`tests/strength.rs`) demands >52.5% over 1000 rounds: a
-  true 65% bot passes with near certainty, an even bot sneaks through
-  less than 6% of the time.
+- The tripwire (`tests/strength.rs`) holds three floors, each ~4σ below
+  the measured rate so that only an accident trips it: >52.5% of 1000
+  rounds against `greedy` (a true 65% bot passes with near certainty, an
+  even bot sneaks through less than 6% of the time), >56% of 4000 games
+  and >53% of 1000 games against the `eaai` baseline for `greedy` and the
+  default `MonteCarloBot` respectively — those two fixtures realize 59.6%
+  and 59.5%, matching the arena measurements below.  The game floors are
+  what guard score-aware play; the round floor cannot see it, since both
+  scores stay level inside a single round.  Whole minutes: budget ~4 for
+  the Monte Carlo game leg even fanned across the cores.
 - Against the `eaai` challenge baseline (`--rules eaai
   --alternate-dealer`, mirrored pairs, games pooled over seeds 7 and 8):
   `greedy` wins 39.4% of rounds yet 59.7% of 12 000 games — gin-hunting
