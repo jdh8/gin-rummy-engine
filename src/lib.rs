@@ -13,6 +13,8 @@ mod mc;
 #[cfg(feature = "rand")]
 mod sim;
 mod strategy;
+#[cfg(feature = "rand")]
+mod value;
 mod view;
 
 pub use action::{DrawAction, Layoff, TurnAction, UpcardAction};
@@ -23,6 +25,6 @@ pub use driver::{EngineError, Table, play_round};
 pub use eaai::EaaiSimpleBot;
 pub use heuristic::{HeuristicBot, HeuristicConfig};
 #[cfg(feature = "rand")]
-pub use mc::{Assessment, McConfig, MonteCarloBot, OpponentModel};
+pub use mc::{Assessment, GameValue, McConfig, MonteCarloBot, OpponentModel};
 pub use strategy::Strategy;
 pub use view::View;

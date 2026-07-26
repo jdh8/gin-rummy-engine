@@ -24,7 +24,9 @@
 
 use anyhow::{Context as _, Result, bail};
 use gin_rummy::{FinalScore, Game, Player, Round, RoundResult, Rules};
-use gin_rummy_engine::{EaaiSimpleBot, HeuristicBot, MonteCarloBot, Strategy, Table, play_game};
+use gin_rummy_engine::{
+    EaaiSimpleBot, GameValue, HeuristicBot, McConfig, MonteCarloBot, Strategy, Table, play_game,
+};
 use rand::rngs::StdRng;
 use rand::{RngExt as _, SeedableRng};
 use rayon::prelude::*;
@@ -115,7 +117,19 @@ fn make_bot(spec: &str, seed: u64) -> Result<Box<dyn Strategy>> {
         "mc" => Ok(Box::new(
             MonteCarloBot::new(StdRng::seed_from_u64(seed)).samples(samples.unwrap_or(32)),
         )),
-        other => bail!("unknown bot {other:?} (greedy | eaai | mc[:samples])"),
+        // Monte Carlo with the historical affine equity in place of the
+        // default game-win value function.  This is the arm that default was
+        // measured against, kept so the comparison stays reproducible.
+        "mca" => {
+            let mut config = McConfig::new();
+            config.samples = samples.unwrap_or(32);
+            config.game_value = GameValue::Affine;
+            Ok(Box::new(MonteCarloBot::with_config(
+                StdRng::seed_from_u64(seed),
+                config,
+            )))
+        }
+        other => bail!("unknown bot {other:?} (greedy | eaai | mc[:samples] | mca[:samples])"),
     }
 }
 

@@ -19,6 +19,7 @@ belongs in this crate.
 | `src/heuristic.rs` | `HeuristicBot`, `HeuristicConfig`, and the shared greedy primitives `best_shed`, `improves`, `greedy_layoff`. |
 | `src/mc.rs` | `MonteCarloBot` (feature `rand`): plausibility-biased world sampling, common random numbers, a game-winning equity objective, significance-gated deviation from the greedy baseline, batched rollouts that eliminate statistically hopeless challengers early. |
 | `src/sim.rs` | Crate-private forward model for rollouts (feature `rand`); must mirror `gin_rummy::round` exactly. |
+| `src/value.rs` | Crate-private game-win value function (feature `rand`): checked-in greedy-self-play outcome models per ruleset, solved by DP into `V(mine, theirs, i_deal_next)`.  Backs the default `GameValue::Table` equity; unbaked rulesets fall back to affine. |
 | `tests/view.rs` | Information-hygiene assertions on driven rounds. |
 | `tests/driver.rs` | End-to-end rounds and games, illegal-action reporting and retry. |
 | `tests/proptest.rs` | Termination, deck partition, and the `unseen` identity under every ruleset. |
@@ -60,6 +61,12 @@ Check these before merging any change; each names its guarding test.
    the equivalence proptest `sim_matches_round_on_greedy_selfplay` (in
    `src/sim.rs`) replays whole greedy self-play rounds through both models
    and must keep passing *unweakened*.  Follow the `sync-sim` skill.
+   `src/value.rs`'s checked-in outcome models are *measured through*
+   `Sim::rollout`, so a mechanics change silently invalidates them too:
+   `baked_matches_fresh_sampling` is the guard, and `regenerate_baked`
+   (`#[ignore]`d) reprints all four constants when the change is
+   deliberate.  Regenerating them changes every Monte Carlo evaluation,
+   so re-measure afterwards.
 5. **The greedy core doubles as the rollout policy.**  `best_shed`,
    `improves`, `joins_a_meld`, and `greedy_layoff` in `src/heuristic.rs`
    are shared with `Sim::rollout` (and `joins_a_meld` with

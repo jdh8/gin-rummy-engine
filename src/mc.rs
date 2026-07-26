@@ -2,6 +2,7 @@
 
 use crate::heuristic::greedy_layoff;
 use crate::sim::{SeatPolicy, Sim, SimPhase};
+use crate::value::WinTable;
 use crate::{DrawAction, Layoff, Strategy, TurnAction, UpcardAction, View};
 use gin_rummy::{Card, Hand, Phase, Player, RoundResult, Rules, best_melds, deadwood};
 use rand::{Rng, RngExt as _};
@@ -26,6 +27,28 @@ pub enum OpponentModel {
     /// EAAI-2021 baseline's more conservative rule, for rollouts that
     /// model such an opponent faithfully.
     MeldOnly,
+}
+
+/// How the Monte Carlo equity values a mid-game round outcome
+///
+/// Short of a clinch a round result lands on the running game score; this
+/// picks what that standing is worth to the bot.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[non_exhaustive]
+pub enum GameValue {
+    /// Value the standing affine in the round's signed points — the historical
+    /// behavior, which prices the round correctly but treats a lead and a
+    /// deficit as worth the same marginal point.
+    Affine,
+    /// Value the standing by the true probability of winning the game from
+    /// it, a dynamic program over an empirical round-outcome model measured
+    /// from greedy self-play.  This is the default, and gives the search
+    /// score awareness — banking a lead, pressing a deficit, weighing the
+    /// dealer rotation — where the affine value is flat.  Solved for the
+    /// view's ruleset on first use and shared for the process; a ruleset
+    /// with no measured model (anything but the built-in presets and the
+    /// EAAI challenge variant) falls back to [`Affine`](Self::Affine).
+    Table,
 }
 
 /// Tuning knobs for [`MonteCarloBot`]
@@ -73,6 +96,11 @@ pub struct McConfig {
     /// keeps the lowest-deadwood hand).  100 is the measured default; 0
     /// samples uniformly random opponent hands.
     pub opponent_strength_percent: u32,
+    /// How a mid-game round outcome is valued: [`GameValue::Table`], the
+    /// default game-win value function that gives the search score
+    /// awareness, or [`GameValue::Affine`], the historical round-point
+    /// value.  See [`GameValue`].
+    pub game_value: GameValue,
 }
 
 impl McConfig {
@@ -88,6 +116,7 @@ impl McConfig {
             gate_z: 2.0,
             max_candidates: 4,
             opponent_strength_percent: 100,
+            game_value: GameValue::Table,
         }
     }
 }
@@ -238,7 +267,7 @@ impl<R: Rng> MonteCarloBot<R> {
     /// Set how many worlds each decision samples
     ///
     /// More samples play stronger and slower.  At the default of 128 the
-    /// bot wins about 65% of decisive rounds against the default
+    /// bot wins about 64% of decisive rounds against the default
     /// [`HeuristicBot`] — which is tuned for whole-game play and so concedes
     /// single rounds — at roughly 10 ms per average turn in release builds
     /// (easy decisions stop at a fraction of the budget; a hard first
@@ -264,6 +293,17 @@ impl<R: Rng> MonteCarloBot<R> {
         them.knock_threshold = self.config.rollout_knock_opponent;
         them.meld_only_draw = matches!(self.config.opponent_model, OpponentModel::MeldOnly);
         policies
+    }
+
+    /// The game-win value table for this ruleset, or `None` under
+    /// [`GameValue::Affine`] and for a ruleset with no measured model
+    ///
+    /// The table is a `'static` reference into a process-wide cache, solved
+    /// once per ruleset, so fetching it borrows nothing from the bot.
+    fn value_table(&self, rules: &Rules) -> Option<&'static WinTable> {
+        matches!(self.config.game_value, GameValue::Table)
+            .then(|| crate::value::table_for(rules))
+            .flatten()
     }
 
     /// Sample determinized worlds consistent with the view
@@ -362,13 +402,16 @@ impl<R: Rng> MonteCarloBot<R> {
         if candidates.is_empty() {
             return Vec::new();
         }
+        let policies = self.policies(view);
+        let value = self.value_table(view.rules());
         let worlds = self.sample_worlds(view, self.config.samples);
         let scored = Self::score_worlds(
             view,
             &worlds,
             &candidates,
-            self.policies(view),
+            policies,
             self.config.gate_z,
+            value,
         );
         Self::rank(&candidates, &scored, self.config.gate_z)
     }
@@ -379,13 +422,16 @@ impl<R: Rng> MonteCarloBot<R> {
     /// each is a thin wrapper over the same read [`assess`](Self::assess)
     /// surfaces; `candidates` must be non-empty.
     fn choose(&mut self, view: &View<'_>, candidates: &[Candidate]) -> Choice {
+        let policies = self.policies(view);
+        let value = self.value_table(view.rules());
         let worlds = self.sample_worlds(view, self.config.samples);
         let scored = Self::score_worlds(
             view,
             &worlds,
             candidates,
-            self.policies(view),
+            policies,
             self.config.gate_z,
+            value,
         );
         candidates[recommended(&scored, self.config.gate_z)].choice
     }
@@ -488,15 +534,18 @@ impl<R: Rng> MonteCarloBot<R> {
         candidates: &[Candidate],
         policies: [SeatPolicy; 2],
         gate_z: f64,
+        value: Option<&WinTable>,
     ) -> Vec<(Vec<f64>, f64)> {
         let me = view.seat();
         let rules = view.rules();
         let standing = view.game_scores();
+        // Who deals next after a dead hand: the current round's dealer.
+        let i_dealt = view.dealer() == me;
         let eval = |candidate: &Candidate, world: &World| {
             let sim = Self::sim(view, world, candidate.choice.phase(), policies);
             let result = candidate.choice.roll(sim);
             (
-                equity(result, me, standing, rules),
+                equity(result, me, standing, rules, value, i_dealt),
                 round_points(result, me, rules),
             )
         };
@@ -646,7 +695,22 @@ fn beats(challenger: &[f64], incumbent: &[f64], gate_z: f64) -> bool {
 /// than the target by definition, so scaling by four targets pins every
 /// mid-game value inside (¼, ¾), a guaranteed gap below a clinch and
 /// above a loss.
-fn equity(result: RoundResult, me: Player, standing: [u16; 2], rules: &Rules) -> f64 {
+///
+/// Under [`GameValue::Table`] a non-clinch standing is instead priced by
+/// the game-win value function `value` — its true probability of winning
+/// the game from the post-round scores, with the next dealer being the
+/// round's winner (or, on a dead hand, whoever dealt it).  That value is
+/// locally affine at level scores with the empirically correct slope, so it
+/// agrees with the affine value there and diverges only where the game
+/// recursion genuinely changes a point's worth.
+fn equity(
+    result: RoundResult,
+    me: Player,
+    standing: [u16; 2],
+    rules: &Rules,
+    value: Option<&WinTable>,
+    i_dealt: bool,
+) -> f64 {
     let mut scores = standing;
     let mut points = 0.0;
     if let Some(winner) = result.winner() {
@@ -670,6 +734,10 @@ fn equity(result: RoundResult, me: Player, standing: [u16; 2], rules: &Rules) ->
         1.0
     } else if scores[1] >= rules.game_target {
         0.0
+    } else if let Some(table) = value {
+        // The round winner deals next; a dead hand keeps its dealer.
+        let i_deal_next = result.winner().map_or(i_dealt, |winner| winner == me);
+        table.get(scores[0], scores[1], i_deal_next)
     } else {
         0.5 + points / (4.0 * f64::from(rules.game_target))
     }
@@ -830,13 +898,13 @@ mod tests {
             winner: me,
             margin: 15,
         };
-        assert_eq!(equity(win, me, [90, 50], &rules), 1.0);
+        assert_eq!(equity(win, me, [90, 50], &rules, None, false), 1.0);
 
         let loss = RoundResult::Knock {
             winner: me.opponent(),
             margin: 15,
         };
-        assert_eq!(equity(loss, me, [50, 90], &rules), 0.0);
+        assert_eq!(equity(loss, me, [50, 90], &rules, None, false), 0.0);
     }
 
     #[test]
@@ -847,9 +915,12 @@ mod tests {
             winner: me,
             margin: 3,
         };
-        assert_eq!(equity(result, me, [95, 95], &Rules::palace()), 1.0);
+        assert_eq!(
+            equity(result, me, [95, 95], &Rules::palace(), None, false),
+            1.0
+        );
 
-        let deferred = equity(result, me, [95, 95], &Rules::default());
+        let deferred = equity(result, me, [95, 95], &Rules::default(), None, false);
         assert!(deferred > 0.5 && deferred < 1.0);
     }
 
@@ -865,6 +936,8 @@ mod tests {
             me,
             [0, 0],
             &rules,
+            None,
+            false,
         );
         let knock = equity(
             RoundResult::Knock {
@@ -874,8 +947,10 @@ mod tests {
             me,
             [0, 0],
             &rules,
+            None,
+            false,
         );
-        let dead = equity(RoundResult::Dead, me, [0, 0], &rules);
+        let dead = equity(RoundResult::Dead, me, [0, 0], &rules, None, false);
         let loss = equity(
             RoundResult::Knock {
                 winner: me.opponent(),
@@ -884,6 +959,8 @@ mod tests {
             me,
             [0, 0],
             &rules,
+            None,
+            false,
         );
         assert!(gin > knock && knock > dead && dead > loss);
         assert_eq!(dead, 0.5);
@@ -901,11 +978,64 @@ mod tests {
             winner: me,
             margin: 10,
         };
-        assert_eq!(equity(RoundResult::Dead, me, [60, 20], &rules), 0.5);
         assert_eq!(
-            equity(win, me, [60, 20], &rules),
-            equity(win, me, [0, 0], &rules),
+            equity(RoundResult::Dead, me, [60, 20], &rules, None, false),
+            0.5
         );
+        assert_eq!(
+            equity(win, me, [60, 20], &rules, None, false),
+            equity(win, me, [0, 0], &rules, None, false),
+        );
+    }
+
+    #[test]
+    fn table_value_is_consulted_and_diverges_from_affine() {
+        // `GameValue::Table` must actually reach the value table and price a
+        // standing differently from the flat affine value — otherwise the
+        // knob would be a silent no-op.
+        let mut rules = Rules::new();
+        rules.big_gin_bonus = None; // the EAAI challenge preset
+        let me = Player::One;
+        let win = RoundResult::Knock {
+            winner: me,
+            margin: 10,
+        };
+        let table = crate::value::table_for(&rules).expect("the EAAI preset is baked");
+
+        // From a commanding lead the affine value is flat while the table
+        // knows the game is nearly clinched, so the two disagree.
+        let affine = equity(win, me, [80, 10], &rules, None, false);
+        let priced = equity(win, me, [80, 10], &rules, Some(table), false);
+        assert_ne!(affine, priced);
+
+        // And the table orders leads above deficits, as a probability must.
+        let ahead = equity(win, me, [80, 10], &rules, Some(table), false);
+        let behind = equity(win, me, [10, 80], &rules, Some(table), false);
+        assert!(ahead > behind);
+    }
+
+    #[test]
+    fn table_bot_plays_and_repeats() {
+        // A Table-configured bot exercises the value table end to end
+        // (build, cache, lookup) without panicking, and stays deterministic.
+        let table = knock_position();
+        let seat = table.turn().expect("the drawer is mid-turn");
+        let view = table.view(seat);
+        let config = McConfig {
+            samples: 32,
+            game_value: GameValue::Table,
+            ..McConfig::new()
+        };
+        let decide = |seed| {
+            let mut bot = MonteCarloBot::with_config(StdRng::seed_from_u64(seed), config);
+            let rows = bot.assess(&view);
+            assert!(rows.iter().all(|r| (0.0..=1.0).contains(&r.equity)));
+            rows.into_iter()
+                .find(|r| r.recommended)
+                .expect("a pick")
+                .action
+        };
+        assert_eq!(decide(4), decide(4));
     }
 
     #[test]
@@ -941,6 +1071,7 @@ mod tests {
         assert!((config.gate_z - 2.0).abs() < f64::EPSILON);
         assert_eq!(config.max_candidates, 4);
         assert_eq!(config.opponent_strength_percent, 100);
+        assert_eq!(config.game_value, GameValue::Table);
         // The two construction paths agree.
         assert_eq!(McConfig::new(), config);
     }
@@ -1071,7 +1202,7 @@ mod tests {
         let worlds = bot.sample_worlds(&view, 256);
         let policies = bot.policies(&view);
         let batched =
-            MonteCarloBot::<StdRng>::score_worlds(&view, &worlds, &candidates, policies, 2.0);
+            MonteCarloBot::<StdRng>::score_worlds(&view, &worlds, &candidates, policies, 2.0, None);
 
         let me = view.seat();
         let rules = view.rules();
@@ -1089,7 +1220,7 @@ mod tests {
                         policies,
                     );
                     let result = candidate.choice.roll(sim);
-                    equities.push(equity(result, me, standing, rules));
+                    equities.push(equity(result, me, standing, rules, None, false));
                     ev_sum += round_points(result, me, rules);
                 }
                 (equities, ev_sum)

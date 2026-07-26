@@ -18,11 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   take-only-into-a-meld rule, now shared with `EaaiSimpleBot` so model
   and baseline cannot drift), the significance-gate width `gate_z`, the
   discard candidate cap `max_candidates`, and the sampled opponent's
-  plausibility bias `opponent_strength_percent`.  `McConfig::default()`
-  reproduces the old hardcoded behavior bit for bit — a seeded
-  `MonteCarloBot::new` plays exactly the games it played before, guarded
-  by a default-pinning test and verified by a seeded arena decision diff
-  — so this changes nothing until a knob is turned.
+  plausibility bias `opponent_strength_percent`.  Every one of these
+  knobs defaults to the constant the search already used, guarded by a
+  default-pinning test and verified by a seeded arena decision diff, so
+  none of them changes play until it is turned.  (`game_value`, listed
+  under Changed, is the one default that did move.)
   `MonteCarloBot::with_config` and `MonteCarloBot::config` round out the
   API; `samples(n)` remains as sugar.  First measurements through the
   knobs — mc:64 against the challenge baseline, 3000 deal-paired games
@@ -60,6 +60,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   so a knob can be tuned against the yardstick it aims at.
 
 ### Changed
+
+- `MonteCarloBot` now values a decision by its probability of winning the
+  **game**, not by the round points it banks.  Short of a clinch the old
+  equity was affine in round points, so the search had no sense of the
+  scoreboard: a point of a commanding lead counted for exactly as much as
+  a point of a hopeless deficit, and the bot neither banked a lead nor
+  pressed a comeback.  It now prices a round outcome through a solved
+  win-probability function of both scores and the dealer rotation, so it
+  plays the lead it has.  Measured against the previous behavior over
+  12 000 deal-paired games per seed under the EAAI challenge protocol,
+  the new default wins 51.1% and 51.4% of games on two seeds (+2.1 and
+  +2.7 points, p = 0.044 and p = 0.009), winning on banked points as well
+  as on games, and it does not regress against other opponents: 54.9% and
+  54.7% of games against `EaaiSimpleBot` where the old equity scored
+  54.8% and 53.9%, and 53.4% and 52.6% against `HeuristicBot` where it
+  scored 52.9%.  `McConfig::game_value` selects the behavior —
+  `GameValue::Table` is the new default, `GameValue::Affine` restores the
+  old one — and the arena's `mca` bot spec plays the affine arm so the
+  comparison stays reproducible.
+
+  The win-probability function is a dynamic program over how greedy
+  self-play actually ends rounds under a given ruleset, and those
+  measurements ship with the crate rather than being taken on first use:
+  sampling them costs about two seconds and solving the program from them
+  about eight milliseconds, and no interactive caller should pay the
+  former on a first decision.  Only the built-in presets and the EAAI
+  challenge variant are covered; any other ruleset — one built by hand,
+  or by the web front end's rules editor — keeps the affine value rather
+  than stalling to measure itself.
 
 - `arena`'s trial seeding is per-index (SplitMix-style), so the deal
   stream depends only on `--seed` and the trial index.  Runs at the same

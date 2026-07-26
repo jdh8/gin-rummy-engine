@@ -167,8 +167,11 @@ impl Sim {
 
     /// A forward model of a fresh deal, mirroring
     /// [`Round::from_deal`](gin_rummy::Round::from_deal)
+    ///
+    /// Test-only, and crate-visible so that [`crate::value`] can resample the
+    /// greedy self-play its baked outcome models are measured from.
     #[cfg(test)]
-    fn from_deal(
+    pub(crate) fn from_deal(
         rules: Rules,
         dealer: Player,
         hands: [Hand; 2],

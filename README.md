@@ -31,10 +31,13 @@ The design triangle:
   decision it samples hidden worlds consistent with the `View` — opponent
   hands containing every known card, random stock orders over the unseen
   cards — rolls each out with the greedy policy, and picks the action with
-  the best expected score.  [`McConfig`] exposes the search's levers (the
-  rollout knock thresholds per seat, the modeled opponent's draw rule, the
-  significance gate, the candidate cap, the sampled opponent's strength);
-  the default reproduces the untuned bot exactly.
+  the best chance of winning the *game*.  A round outcome is priced through
+  a solved win-probability function of both game scores, so the search
+  banks a lead and presses a deficit instead of valuing every round point
+  alike.  [`McConfig`] exposes the search's levers (the rollout knock
+  thresholds per seat, the modeled opponent's draw rule, the significance
+  gate, the candidate cap, the sampled opponent's strength, and the value
+  function itself).
 - [`EaaiSimpleBot`] (feature `rand`): a port of `SimpleGinRummyPlayer`, the
   baseline every entry of the EAAI-2021 Gin Rummy AI challenge was measured
   against.  Deliberately weak and knob-free — it exists so that win rates
@@ -52,8 +55,8 @@ deals from both seats.  Rounds: 4000 pairs at seed 7.  Games: 3000 pairs
 | Bot vs baseline | Rounds won        | Points/round | Games won         |
 |-----------------|-------------------|--------------|-------------------|
 | `greedy`        | 39.4% (38.4–40.5) | 8.92 vs 8.29 | 59.7% (58.9–60.6) |
-| `mc:64`         | 51.5% (50.4–52.6) | 9.21 vs 8.43 | 54.0% (53.1–54.9) |
-| `mc:128`        | 52.8% (51.7–53.9) | 9.91 vs 8.37 | 59.4% (58.3–60.4) |
+| `mc:64`         | 51.5% (50.4–52.6) | 9.22 vs 8.41 | 54.8% (53.9–55.7) |
+| `mc:128`        | 52.7% (51.6–53.8) | 9.90 vs 8.38 | 59.6% (58.5–60.7) |
 
 The default heuristic concedes rounds by design — it hunts gin while the
 baseline knocks at the first opportunity — yet wins the matches on the
@@ -61,7 +64,7 @@ gin and undercut bonuses; the EAAI-21 literature identifies exactly that
 patient, undercutting style as the strongest exploit of this baseline's
 knock-ASAP habit.  The Monte Carlo bots win rounds instead, and the
 comparison is not transitive: `mc:64` beats `greedy` head-to-head over
-whole games (52.9% of 6000 paired games, p < 0.001) yet exploits the
+whole games (53.0% of 12 000 paired games, p < 0.001) yet exploits the
 baseline less than `greedy` does, while doubling the sample count closes
 that gap — `mc:128` matches `greedy` against the baseline.  For
 calibration, EAAI-21 entries reported roughly 55–68% against this same

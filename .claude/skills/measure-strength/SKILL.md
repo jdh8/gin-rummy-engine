@@ -12,11 +12,12 @@ timing you observe in them is meaningless.
 
 ## Baselines (default configs, `Rules::default()`)
 
-- `mc:128` beats the default `greedy` in ≈65% of decisive rounds, at ~10 ms
-  per average serial turn (a hard first discard runs the full budget for
-  ~25 ms; the `parallel` feature divides either by most of the cores).  The
-  default heuristic is tuned for whole-game play and so concedes single
-  rounds; this round figure is not a game-strength number.
+- `mc:128` beats the default `greedy` in ≈64% of decisive rounds (63.9%,
+  62.3–65.3, over 2000 mirrored pairs at seed 1), at ~10 ms per average
+  serial turn (a hard first discard runs the full budget for ~25 ms; the
+  `parallel` feature divides either by most of the cores).  The default
+  heuristic is tuned for whole-game play and so concedes single rounds;
+  this round figure is not a game-strength number.
 - The tripwire (`tests/strength.rs`) demands >52.5% over 1000 rounds: a
   true 65% bot passes with near certainty, an even bot sneaks through
   less than 6% of the time.
@@ -24,10 +25,10 @@ timing you observe in them is meaningless.
   --alternate-dealer`, mirrored pairs, games pooled over seeds 7 and 8):
   `greedy` wins 39.4% of rounds yet 59.7% of 12 000 games — gin-hunting
   concedes rounds and banks matches, so quote both; `mc:64` wins 51.5%
-  of rounds and 54.0% of 12 000 games (genuinely below greedy, z ≈ 6 per
-  seed); `mc:128` wins 52.8% of rounds and 59.4% of 8000 games, closing
-  the gap.  `mc:64` beats `greedy` head-to-head over whole games (52.9%
-  of 6000) — exploitation of the weak baseline is not transitive with
+  of rounds and 54.8% of 12 000 games (still below greedy over games);
+  `mc:128` wins 52.7% of rounds and 59.6% of 8000 games, closing the
+  gap.  `mc:64` beats `greedy` head-to-head over whole games (53.0% of
+  12 000) — exploitation of the weak baseline is not transitive with
   head-to-head strength.  Published EAAI-21 entries report ≈55–68%
   against the same baseline (metrics vary by paper), the cross-engine
   calibration these numbers exist for.
@@ -92,16 +93,35 @@ and in the doc comment on `MonteCarloBot::samples`.
 ## Score-aware changes are game-only
 
 Anything that reads the game score from the `View` — the heuristic's
-`score_awareness` knob and `MonteCarloBot`'s game equity objective — can
+`score_awareness` knob and `MonteCarloBot`'s `game_value` objective — can
 only differentiate itself over **whole games**; a single round carries a
 level scoreboard.  The heuristic's shift is exactly inert at a zero
-margin; the Monte Carlo equity stays affine in round points until a
-rollout can end the game, so it too is inert in standalone rounds (a
-100-point clinch from a level board is the vanishing exception).  A
-shaped equity that also bent mid-game play — a win-probability race over
-the points still needed — measured *weaker* over whole games (−2 points
-over 4000 palace games, nothing gained elsewhere); don't reintroduce one
-without beating that bar.  Measure over games, never rounds:
+margin.  `GameValue::Table`, the Monte Carlo default, is only *nearly*
+inert: its value function is locally linear at level scores with the
+empirically measured slope, so it reproduces round-point play until the
+board goes lopsided.  That is measured, not assumed — `mc:64` wins 51.5%
+of decisive rounds against the baseline under either value function, at
+9.22 against 9.21 points per round, while over whole games the same
+change is worth +2.1 and +2.7 points on two seeds.  The round tripwire
+and `arena --rounds` therefore neither catch a regression here nor credit
+an improvement.
+
+That is also the bar a *new* value function has to clear.  An earlier
+shaped equity — a win-probability race over the points still needed —
+measured weaker over whole games (−2 points over 4000 palace games,
+nothing gained elsewhere) because it bent mid-game play at level scores
+where the round-point objective was already right.  `GameValue::Table`
+beat it by being faithful exactly there and deviating only where the game
+recursion says a point's worth genuinely changes.  Put two value
+functions head to head over paired games; `mca` is the arena's affine
+arm, kept so this comparison stays reproducible:
+
+```console
+cargo run --release --example arena -- --games 3000 \
+  --p1 mc:64 --p2 mca:64 --rules eaai --alternate-dealer --seed 7
+```
+
+Measure over games, never rounds:
 
 ```console
 cargo run --release --example tune -- --games 20000 --seed 1 \

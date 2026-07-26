@@ -28,7 +28,7 @@ Also read the gin-rummy CHANGELOG.md entry if one exists.
 | Dead-hand rule (currently: the round is dead when a discard leaves 2 stock cards) | `Sim::discard` |
 | Knock, gin, undercut settlement, layoffs | `Sim::knock`, `Sim::big_gin` |
 | New or changed `Rules` fields | `Sim` gating (see how `big_gin_bonus` gates `Sim::rollout`), possibly `HeuristicBot` and `MonteCarloBot` decisions |
-| Scoring or `RoundResult` variants | `score` in `src/mc.rs`; the tallies in `examples/arena.rs` and narration in `examples/play.rs` |
+| Scoring or `RoundResult` variants | `score` in `src/mc.rs`; the baked outcome models in `src/value.rs` (see step 4); the tallies in `examples/arena.rs` and narration in `examples/play.rs` |
 | Newly visible information | `Knowledge` and `View` accessors (`src/view.rs`), the bookkeeping ledger in `Table::step` (see the invariants in CLAUDE.md), `tests/view.rs` |
 | A new action or decision point | `src/action.rs`, the `Strategy` trait, `Table::step`, both bots, `Sim` |
 
@@ -50,6 +50,26 @@ Rules of engagement:
   means `Sim` is wrong or you misread the upstream change — there is no
   third possibility worth coding around.
 - Commit any `*.proptest-regressions` file a failure produces.
-- If the change alters strategy-relevant values (scores, knock limits,
-  bonuses), finish with the `measure-strength` skill: a rollout change
-  shifts every Monte Carlo evaluation.
+
+## 4. Refresh the baked value models
+
+`src/value.rs` ships checked-in histograms of how greedy self-play ends
+rounds, measured *through* `Sim::rollout`.  Change the rollout and they
+describe a game nobody plays any more, silently — the Monte Carlo bot
+keeps pricing decisions off the old model.  `baked_matches_fresh_sampling`
+fails when this happens; that failure is the signal to regenerate, never
+to relax the test:
+
+```console
+cargo test --release --all-features regenerate_baked -- --ignored --nocapture
+```
+
+Paste the four printed constants over the ones in `src/value.rs`, then
+re-run `cargo test --all-features` to confirm the guard passes again.
+
+## 5. Re-measure
+
+If the change alters strategy-relevant values (scores, knock limits,
+bonuses), or if step 4 regenerated anything, finish with the
+`measure-strength` skill: a rollout change shifts every Monte Carlo
+evaluation, and a regenerated value model shifts every one of them again.
