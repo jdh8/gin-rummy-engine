@@ -1,0 +1,40 @@
+{
+  "schema": "gin-rummy-strong-conformance/v1",
+  "status": "passed",
+  "checked_on": "2026-08-09",
+  "workflow": "scripts/check-strong-conformance.sh",
+  "network_behavior": "The workflow used user-supplied local source trees and performed no downloads.",
+  "gold": {
+    "commit": "3b2f5b7866d27234647c5833497c12ca1a2afde9",
+    "source_sha256": "88a5ed62638de8c45c0a679c42cd2b05656b93336af9760905d77af04d1e7bca",
+    "runtime": {
+      "python": "3.11",
+      "pettingzoo": "1.24.3",
+      "rlcard": "1.0.5"
+    },
+    "agreement": {
+      "draws": 2,
+      "unique_ordinary_discards": 128,
+      "unique_non_gin_knocks": 32,
+      "gin_category_cases": 1
+    }
+  },
+  "marjj_v5": {
+    "commit": "5d1f00c1dff5380021785c8146d039a11efcabc3",
+    "source_sha256": "df6d4db2476ea35ee193258eec12f4925e1ea4d0fb703283fea3b1d4f82b9a4f",
+    "eaai_commit": "559c712516e3b0fd6b908864acd141e254d94f39",
+    "agreement": {
+      "complete_minimum_meld_sets": 65,
+      "opening_offers": 2,
+      "candidate_component_records": 8,
+      "knock_window_cases": 5,
+      "unique_actions": "100%"
+    }
+  },
+  "classified_exclusions": [
+    "iteration order",
+    "random ties",
+    "floating-point last bits with unchanged minima",
+    "documented host-rule adaptations"
+  ]
+}

@@ -10,6 +10,7 @@ mod eaai;
 mod heuristic;
 #[cfg(feature = "rand")]
 mod mc;
+mod protocol;
 #[cfg(feature = "rand")]
 mod sim;
 mod strategy;
@@ -26,5 +27,6 @@ pub use eaai::EaaiSimpleBot;
 pub use heuristic::{HeuristicBot, HeuristicConfig};
 #[cfg(feature = "rand")]
 pub use mc::{Assessment, GameValue, McConfig, MonteCarloBot, OpponentModel};
+pub use protocol::{DealerRotation, eaai_rules};
 pub use strategy::Strategy;
 pub use view::View;

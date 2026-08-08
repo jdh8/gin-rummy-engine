@@ -264,8 +264,7 @@ mod tests {
     fn survives_whole_games_against_the_heuristic() {
         // The challenge rules have no big gin; whole games exercise the
         // per-round reset of the pair memory and every decision method.
-        let mut rules = Rules::default();
-        rules.big_gin_bonus = None;
+        let rules = crate::eaai_rules();
         for seed in 0..8 {
             let mut rng = StdRng::seed_from_u64(seed);
             let mut bot = EaaiSimpleBot::new(StdRng::seed_from_u64(seed));

@@ -1,16 +1,20 @@
 #!/bin/bash
-# Regenerate the benchmark panel in README.md's "Benchmarks" section.
+# Regenerate the corrected EAAI baseline panel from arena JSON.
 #
-#   scripts/bench-panel.sh > panel.md      # table on stdout, arena log on stderr
+#   scripts/bench-panel.sh > panel.md 2> panel.log
 #
-# Every bot plays the EAAI-2021 challenge baseline under its rules and
-# dealer protocol, in mirrored pairs, at pinned seeds: rounds at seed 7,
-# games pooled over seeds 7 and 8.  Seeds and counts are fixed so the
-# published numbers are reproducible; the arena is deterministic in the
-# seed, so a rerun at the same commit must print the same table.
+# Markdown is written to stdout.  Commands and the raw arena JSON evidence
+# are written to stderr.  Every trial is a mirrored pair under the exact
+# EAAI rules and scored-hand-only dealer rotation.
 #
-# Budget ~1.5 hours (the Monte Carlo game legs dominate).  Shrink it for
-# a smoke test: GAME_PAIRS=20 GAME_PAIRS_128=20 ROUND_PAIRS=20.
+# Full fixed panel:
+#   - greedy/mc:64: 4000 round pairs at seed 7, then 3000 game pairs at
+#     each of seeds 7 and 8;
+#   - mc:128: 4000 round pairs, then 2000 game pairs at each game seed;
+#   - mc:64 vs greedy: 3000 game pairs at each game seed.
+#
+# Shrink it for a smoke test without changing the panel shape:
+#   ROUND_PAIRS=20 GAME_PAIRS=20 GAME_PAIRS_128=20 scripts/bench-panel.sh
 #
 # Never add --features parallel: in-decision parallelism would fight the
 # arena's trial-level fan-out for the same rayon pool.
@@ -19,89 +23,86 @@ cd "$(dirname "$0")/.."
 
 ROUND_PAIRS=${ROUND_PAIRS:-4000}
 GAME_PAIRS=${GAME_PAIRS:-3000}
-GAME_PAIRS_128=${GAME_PAIRS_128:-2000}   # halved: mc:128 costs twice as much
+GAME_PAIRS_128=${GAME_PAIRS_128:-2000}
 ROUND_SEED=${ROUND_SEED:-7}
 SEEDS=${SEEDS:-"7 8"}
 
-# Run the arena, echoing the command and its output to stderr as a log
-# while returning the output for parsing.  Not `tee /dev/stderr`: when
-# stderr is a file, tee reopens and truncates it, erasing the log.
-arena() {
-    local out
-    echo "+ arena $*" >&2
-    out=$(cargo run --quiet --release --example arena -- "$@")
-    printf '%s\n' "$out" >&2
-    printf '%s\n' "$out"
+# Preserve the historical whitespace-separated SEEDS override while also
+# accepting the comma-separated spelling used by the arena CLI.
+seed_text=${SEEDS//,/ }
+read -r -a seed_values <<<"$seed_text"
+if ((${#seed_values[@]} == 0)); then
+    echo "SEEDS must contain at least one seed" >&2
+    exit 2
+fi
+for seed in "${seed_values[@]}"; do
+    if [[ ! $seed =~ ^[0-9]+$ ]]; then
+        echo "invalid seed: $seed" >&2
+        exit 2
+    fi
+done
+printf -v seed_csv '%s,' "${seed_values[@]}"
+seed_csv=${seed_csv%,}
+
+scratch=$(mktemp -d "${TMPDIR:-/tmp}/gin-rummy-baseline.XXXXXXXX")
+trap 'rm -r -- "$scratch"' EXIT
+
+echo "+ cargo build --quiet --release --example arena --example baseline_report" >&2
+cargo build --quiet --release --example arena --example baseline_report
+target_dir=${CARGO_TARGET_DIR:-target}
+arena_bin="$target_dir/release/examples/arena"
+report_bin="$target_dir/release/examples/baseline_report"
+
+# Run one arena leg and retain its machine-readable evidence for the Rust
+# reporter.  Echoing the JSON to stderr preserves the old panel.log audit
+# trail without parsing the text presentation at any point.
+arena_json() {
+    local destination=$1
+    shift
+    echo "+ $arena_bin $* --paired --format json" >&2
+    "$arena_bin" "$@" --paired --format json >"$destination"
+    while IFS= read -r line; do
+        printf '%s\n' "$line" >&2
+    done <"$destination"
 }
 
-# "p1=mc:64: 3583 game wins / 6000 (59.7%, ...)"  -> "3583 6000"
-# "p1=mc:64: 3152 wins / 8000 decisive (39.4%, ...)" -> "3152 8000"
-wins_of() {
-    sed -n "s|^$1=.*: \([0-9][0-9]*\) \(game \)\{0,1\}wins / \([0-9][0-9]*\).*|\1 \3|p"
-}
+inputs=()
+for bot in greedy mc:64 mc:128; do
+    tag=${bot//:/-}
+    rounds_path="$scratch/$tag-rounds.json"
+    games_path="$scratch/$tag-games.json"
+    if [[ $bot == mc:128 ]]; then
+        game_pairs=$GAME_PAIRS_128
+    else
+        game_pairs=$GAME_PAIRS
+    fi
 
-# The trailing "8.92 points/round" of a rounds line
-points_of() {
-    sed -n "s|^$1=.*), \([0-9.][0-9.]*\) points/round|\1|p"
-}
+    arena_json "$rounds_path" \
+        --rounds "$ROUND_PAIRS" --p1 "$bot" --p2 eaai \
+        --rules eaai --alternate-dealer --seed "$ROUND_SEED"
+    arena_json "$games_path" \
+        --games "$game_pairs" --p1 "$bot" --p2 eaai \
+        --rules eaai --alternate-dealer --seeds "$seed_csv"
+    inputs+=("$rounds_path" "$games_path")
+done
 
-# The 95% Wilson score interval, as README prints it.  Mirrors `wilson`
-# in examples/arena.rs, which the pooled game legs cannot reuse: they sum
-# two seeds' counts before the interval is taken.
-wilson() {
-    awk -v k="${1:-0}" -v n="${2:-0}" 'BEGIN {
-        if (n == 0) { print "n/a"; exit }
-        z = 1.96; p = k / n; denom = 1 + z * z / n
-        center = (p + z * z / (2 * n)) / denom
-        half = z * sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / denom
-        printf "%.1f%% (%.1f–%.1f)\n", 100 * p, 100 * (center - half), 100 * (center + half)
-    }'
-}
+head_to_head_path="$scratch/mc-64-vs-greedy-games.json"
+arena_json "$head_to_head_path" \
+    --games "$GAME_PAIRS" --p1 mc:64 --p2 greedy \
+    --rules eaai --alternate-dealer --seeds "$seed_csv"
+inputs+=("$head_to_head_path")
 
 stamp=$(git rev-parse --short HEAD)
-if [ -n "$(git status --porcelain)" ]; then
+if [[ -n $(git status --porcelain) ]]; then
     stamp="$stamp-dirty"
 fi
 
-echo "<!-- scripts/bench-panel.sh at $stamp:" \
-     "ROUND_PAIRS=$ROUND_PAIRS GAME_PAIRS=$GAME_PAIRS" \
-     "GAME_PAIRS_128=$GAME_PAIRS_128 ROUND_SEED=$ROUND_SEED SEEDS=\"$SEEDS\" -->"
-echo
-echo "| Bot vs baseline | Rounds won        | Points/round | Games won         |"
-echo "|-----------------|-------------------|--------------|-------------------|"
-
-for bot in greedy mc:64 mc:128; do
-    if [ "$bot" = mc:128 ]; then pairs=$GAME_PAIRS_128; else pairs=$GAME_PAIRS; fi
-
-    rounds=$(arena --rounds "$ROUND_PAIRS" --p1 "$bot" --p2 eaai --rules eaai \
-                   --seed "$ROUND_SEED")
-    read -r won decisive <<<"$(wins_of p1 <<<"$rounds")"
-    ours=$(points_of p1 <<<"$rounds")
-    theirs=$(points_of p2 <<<"$rounds")
-
-    games_won=0 games_played=0
-    for seed in $SEEDS; do
-        games=$(arena --games "$pairs" --p1 "$bot" --p2 eaai --rules eaai \
-                      --alternate-dealer --seed "$seed")
-        read -r w n <<<"$(wins_of p1 <<<"$games")"
-        games_won=$((games_won + w)) games_played=$((games_played + n))
-    done
-
-    printf '| %-15s | %-17s | %-12s | %-17s |\n' \
-        "\`$bot\`" "$(wilson "$won" "$decisive")" "$ours vs $theirs" \
-        "$(wilson "$games_won" "$games_played")"
-done
-
-# The head-to-head cross-check: exploiting the weak baseline is not
-# transitive with strength, so README quotes this one too.
-won=0 played=0 lines=
-for seed in $SEEDS; do
-    games=$(arena --games "$GAME_PAIRS" --p1 mc:64 --p2 greedy --rules eaai \
-                  --alternate-dealer --seed "$seed")
-    read -r w n <<<"$(wins_of p1 <<<"$games")"
-    won=$((won + w)) played=$((played + n))
-    lines="$lines seed $seed:$(grep ' vs p2=' <<<"$games" | sed 's/.*pp,//');"
-done
-echo
-echo "head-to-head, \`mc:64\` vs \`greedy\`: $(wilson "$won" "$played")" \
-     "of $played paired games —${lines%;}"
+echo "+ $report_bin ${inputs[*]}" >&2
+"$report_bin" \
+    --stamp "$stamp" \
+    --round-pairs "$ROUND_PAIRS" \
+    --game-pairs "$GAME_PAIRS" \
+    --game-pairs-128 "$GAME_PAIRS_128" \
+    --round-seed "$ROUND_SEED" \
+    --seeds "$seed_csv" \
+    "${inputs[@]}"

@@ -6,7 +6,7 @@
 //! by construction for any [`Strategy`].
 
 use crate::view::Knowledge;
-use crate::{DrawAction, Strategy, TurnAction, UpcardAction, View};
+use crate::{DealerRotation, DrawAction, Strategy, TurnAction, UpcardAction, View};
 use gin_rummy::round::RoundError;
 use gin_rummy::{Phase, Player, Round, RoundResult};
 use thiserror::Error;
@@ -36,6 +36,7 @@ pub struct Table {
     round: Round,
     knowledge: [Knowledge; 2],
     scores: [u16; 2],
+    dealer_rotation: DealerRotation,
 }
 
 impl Table {
@@ -55,6 +56,7 @@ impl Table {
             round,
             knowledge: [Knowledge::default(); 2],
             scores: [0; 2],
+            dealer_rotation: DealerRotation::WinnerDeals,
         }
     }
 
@@ -66,6 +68,17 @@ impl Table {
     #[must_use]
     pub const fn scores(mut self, scores: [u16; 2]) -> Self {
         self.scores = scores;
+        self
+    }
+
+    /// Set how the next dealer is chosen after this round.
+    ///
+    /// Strategies that value the running game score receive this protocol
+    /// through [`View::dealer_rotation`].  Standalone tables default to
+    /// [`DealerRotation::WinnerDeals`].
+    #[must_use]
+    pub const fn dealer_rotation(mut self, dealer_rotation: DealerRotation) -> Self {
+        self.dealer_rotation = dealer_rotation;
         self
     }
 
@@ -99,7 +112,13 @@ impl Table {
             self.scores[seat as usize],
             self.scores[seat.opponent() as usize],
         ];
-        View::new(&self.round, seat, &self.knowledge[seat as usize], scores)
+        View::new(
+            &self.round,
+            seat,
+            &self.knowledge[seat as usize],
+            scores,
+            self.dealer_rotation,
+        )
     }
 
     /// Ask `strategy` — which must belong to the seat to act — for one

@@ -2,7 +2,8 @@
 
 use gin_rummy::{Hand, Phase, Player, Round, Rules};
 use gin_rummy_engine::{
-    DrawAction, HeuristicBot, Layoff, Strategy, Table, TurnAction, UpcardAction, View,
+    DealerRotation, DrawAction, HeuristicBot, Layoff, Strategy, Table, TurnAction, UpcardAction,
+    View,
 };
 
 /// A scripted seat: fixed upcard and draw choices, sheds the first legal
@@ -81,6 +82,24 @@ fn assert_hygiene(table: &Table) {
                 view.stock_len() + view.opponent_hand_len() - known.len(),
             );
         }
+    }
+}
+
+#[test]
+fn dealer_rotation_is_public_protocol_metadata() {
+    let default = Table::new(fixed_deal(Player::One));
+    assert_eq!(
+        default.view(Player::One).dealer_rotation(),
+        DealerRotation::WinnerDeals,
+    );
+
+    let alternate = Table::new(fixed_deal(Player::One))
+        .dealer_rotation(DealerRotation::AlternateAfterScoredRound);
+    for seat in Player::ALL {
+        assert_eq!(
+            alternate.view(seat).dealer_rotation(),
+            DealerRotation::AlternateAfterScoredRound,
+        );
     }
 }
 

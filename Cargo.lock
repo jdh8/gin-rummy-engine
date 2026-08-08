@@ -264,6 +264,7 @@ dependencies = [
  "proptest",
  "rand 0.10.2",
  "rayon",
+ "serde_json",
  "thiserror",
 ]
 

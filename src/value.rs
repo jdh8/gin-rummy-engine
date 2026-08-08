@@ -14,9 +14,10 @@
 //! the distribution of points the winner banks; the DP then solves
 //! `V(mine, theirs, i_deal_next)` — my probability of reaching
 //! [`Rules::game_target`] first — by the game recursion the crate actually
-//! plays: the round winner deals the next hand
-//! ([`gin_rummy::Game::record`]), and a dead hand is redealt by the same
-//! dealer, which closes into a self-loop solved in closed form.  Because
+//! plays.  Under ordinary rules the round winner deals next; under the EAAI
+//! protocol every scored round flips the dealer.  A dead hand is redealt by
+//! the same dealer in either case, which closes into a self-loop solved in
+//! closed form.  Because
 //! every decisive gain is at least one point under the presets this targets
 //! (a tie is an undercut, never a zero-margin knock), scores strictly climb
 //! toward the target and the DP fills bottom-up with no other cycle.
@@ -42,6 +43,7 @@
 //! the recursion says the marginal point value genuinely changes — near a
 //! clinch, under a big lead or deficit, and across the dealer rotation.
 
+use crate::{DealerRotation, eaai_rules};
 use gin_rummy::Rules;
 use std::collections::HashMap;
 use std::sync::{Mutex, OnceLock};
@@ -190,18 +192,13 @@ const EAAI: Baked = Baked {
 /// rules editor is the one that can produce it — gets `None` and keeps the
 /// affine value rather than paying two seconds to sample a fresh model.
 fn baked(rules: &Rules) -> Option<&'static Baked> {
-    let eaai = || {
-        let mut rules = Rules::new();
-        rules.big_gin_bonus = None;
-        rules
-    };
     if *rules == Rules::new() {
         Some(&MODERN)
     } else if *rules == Rules::classic() {
         Some(&CLASSIC)
     } else if *rules == Rules::palace() {
         Some(&PALACE)
-    } else if *rules == eaai() {
+    } else if *rules == eaai_rules() {
         Some(&EAAI)
     } else {
         None
@@ -236,7 +233,7 @@ impl WinTable {
 
 /// Solve `V(mine, theirs, i_deal_next)` by dynamic programming over a baked
 /// outcome model
-fn solve(target: u16, o: &Baked) -> WinTable {
+fn solve(target: u16, o: &Baked, dealer_rotation: DealerRotation) -> WinTable {
     let n = usize::from(target);
     let total = f64::from(o.total);
     let p_dead = f64::from(o.dead) / total;
@@ -258,10 +255,26 @@ fn solve(target: u16, o: &Baked) -> WinTable {
                     let (g, w) = (usize::from(g), f64::from(c) / total);
                     acc += w * if i_deal {
                         let m2 = m + g;
-                        if m2 >= n { 1.0 } else { probs[m2 * n + t][1] }
+                        if m2 >= n {
+                            1.0
+                        } else {
+                            let next = match dealer_rotation {
+                                DealerRotation::WinnerDeals => true,
+                                DealerRotation::AlternateAfterScoredRound => false,
+                            };
+                            probs[m2 * n + t][usize::from(next)]
+                        }
                     } else {
                         let t2 = t + g;
-                        if t2 >= n { 0.0 } else { probs[m * n + t2][0] }
+                        if t2 >= n {
+                            0.0
+                        } else {
+                            let next = match dealer_rotation {
+                                DealerRotation::WinnerDeals => false,
+                                DealerRotation::AlternateAfterScoredRound => true,
+                            };
+                            probs[m * n + t2][usize::from(next)]
+                        }
                     };
                 }
                 // When the non-dealer wins: the non-dealer is me iff I do
@@ -270,7 +283,13 @@ fn solve(target: u16, o: &Baked) -> WinTable {
                     let (g, w) = (usize::from(g), f64::from(c) / total);
                     acc += w * if i_deal {
                         let t2 = t + g;
-                        if t2 >= n { 0.0 } else { probs[m * n + t2][0] }
+                        if t2 >= n {
+                            0.0
+                        } else {
+                            // The non-dealer won, so winner-deals and
+                            // alternate-after-score both flip this role.
+                            probs[m * n + t2][0]
+                        }
                     } else {
                         let m2 = m + g;
                         if m2 >= n { 1.0 } else { probs[m2 * n + t][1] }
@@ -286,14 +305,15 @@ fn solve(target: u16, o: &Baked) -> WinTable {
     WinTable { target: n, probs }
 }
 
-/// The process-wide table cache, keyed by rules
-fn cache() -> &'static Mutex<HashMap<Rules, &'static WinTable>> {
-    static CACHE: OnceLock<Mutex<HashMap<Rules, &'static WinTable>>> = OnceLock::new();
+/// The process-wide table cache, keyed by rules and dealer protocol
+fn cache() -> &'static Mutex<HashMap<(Rules, DealerRotation), &'static WinTable>> {
+    static CACHE: OnceLock<Mutex<HashMap<(Rules, DealerRotation), &'static WinTable>>> =
+        OnceLock::new();
     CACHE.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
-/// The win-probability table for `rules`, solved once per ruleset per
-/// process, or `None` where no baked model exists
+/// The win-probability table for `rules` and `dealer_rotation`, solved once
+/// per combination per process, or `None` where no baked model exists
 ///
 /// The DP is a pure, deterministic function of the baked model, so the first
 /// caller solves it and every later caller — across bots, seeds, and
@@ -301,18 +321,23 @@ fn cache() -> &'static Mutex<HashMap<Rules, &'static WinTable>> {
 /// never during a rollout, so the batched scorer sees no contention.
 ///
 /// The solved table is intentionally leaked: there are four baked rulesets
-/// and the cache lives for the whole process.
-// ponytail: leak-per-ruleset; a bounded few tables, never freed by design.
-pub(crate) fn table_for(rules: &Rules) -> Option<&'static WinTable> {
+/// and two supported dealer protocols, and the cache lives for the process.
+// ponytail: leak-per-ruleset/protocol; eight tables at most, never freed.
+pub(crate) fn table_for(
+    rules: &Rules,
+    dealer_rotation: DealerRotation,
+) -> Option<&'static WinTable> {
     let baked = baked(rules)?;
     let mut map = cache()
         .lock()
         .expect("the value-table cache is not poisoned");
-    if let Some(&table) = map.get(rules) {
+    let key = (*rules, dealer_rotation);
+    if let Some(&table) = map.get(&key) {
         return Some(table);
     }
-    let table: &'static WinTable = Box::leak(Box::new(solve(rules.game_target, baked)));
-    map.insert(*rules, table);
+    let table: &'static WinTable =
+        Box::leak(Box::new(solve(rules.game_target, baked, dealer_rotation)));
+    map.insert(key, table);
     Some(table)
 }
 
@@ -425,13 +450,6 @@ mod tests {
         }
     }
 
-    /// The EAAI challenge ruleset: modern bonuses, no big gin.
-    fn eaai() -> Rules {
-        let mut rules = Rules::new();
-        rules.big_gin_bonus = None;
-        rules
-    }
-
     /// The checked-in histograms must be exactly what the sampler produces.
     /// This is the guard on an upstream mechanics change quietly making the
     /// baked model wrong: the rollout would drift, the sample would move,
@@ -442,7 +460,7 @@ mod tests {
     /// --ignored --nocapture` reprints all four.
     #[test]
     fn baked_matches_fresh_sampling() {
-        let rules = eaai();
+        let rules = eaai_rules();
         let fresh = sample_outcomes(&rules);
         assert_eq!(fresh.dead, EAAI.dead, "dead-hand count drifted");
         assert_eq!(fresh.total, EAAI.total, "sample total drifted");
@@ -465,7 +483,7 @@ mod tests {
             ("MODERN", Rules::new()),
             ("CLASSIC", Rules::classic()),
             ("PALACE", Rules::palace()),
-            ("EAAI", eaai()),
+            ("EAAI", eaai_rules()),
         ] {
             let s = sample_outcomes(&rules);
             // Eight pairs to a line, and `rustfmt::skip` so the formatter
@@ -499,20 +517,32 @@ mod tests {
     /// declines rather than stalling to sample one.
     #[test]
     fn only_built_in_rulesets_are_baked() {
-        for rules in [Rules::new(), Rules::classic(), Rules::palace(), eaai()] {
-            assert!(table_for(&rules).is_some(), "a built-in preset is baked");
+        for rules in [
+            Rules::new(),
+            Rules::classic(),
+            Rules::palace(),
+            eaai_rules(),
+        ] {
+            assert!(
+                table_for(&rules, DealerRotation::WinnerDeals).is_some(),
+                "a built-in preset is baked"
+            );
         }
         let mut odd = Rules::new();
         odd.game_target = 137;
-        assert!(table_for(&odd).is_none(), "an unknown ruleset declines");
+        assert!(
+            table_for(&odd, DealerRotation::WinnerDeals).is_none(),
+            "an unknown ruleset declines"
+        );
     }
 
     /// A table is a genuine probability field: every entry lies in `[0, 1]`,
     /// a bigger lead is worth more, and a bigger deficit is worth less.
     #[test]
     fn table_is_a_monotone_probability_field() {
-        let rules = eaai();
-        let table = table_for(&rules).expect("the EAAI preset is baked");
+        let rules = eaai_rules();
+        let table =
+            table_for(&rules, DealerRotation::WinnerDeals).expect("the EAAI preset is baked");
         let n = rules.game_target;
 
         for mine in 0..n {
@@ -539,7 +569,8 @@ mod tests {
     /// deficit far less — the whole point of the table.
     #[test]
     fn table_prices_leads_and_deficits() {
-        let table = table_for(&eaai()).expect("the EAAI preset is baked");
+        let table = table_for(&eaai_rules(), DealerRotation::WinnerDeals)
+            .expect("the EAAI preset is baked");
 
         let level = table.get(50, 50, true);
         let ahead = table.get(90, 10, true);
@@ -550,5 +581,48 @@ mod tests {
             (level - 0.5).abs() < 0.1,
             "level score not near 0.5: {level}"
         );
+    }
+
+    #[test]
+    fn dealer_protocols_have_distinct_cached_solutions() {
+        let rules = eaai_rules();
+        let winner =
+            table_for(&rules, DealerRotation::WinnerDeals).expect("the EAAI preset is baked");
+        let winner_again =
+            table_for(&rules, DealerRotation::WinnerDeals).expect("the EAAI preset is cached");
+        let alternate = table_for(&rules, DealerRotation::AlternateAfterScoredRound)
+            .expect("the EAAI preset is baked for alternate dealing");
+
+        assert!(std::ptr::eq(winner, winner_again));
+        assert!(!std::ptr::eq(winner, alternate));
+        assert!(
+            (winner.get(80, 10, true) - alternate.get(80, 10, true)).abs() > f64::EPSILON,
+            "the two dealer recurrences must not collapse to one table",
+        );
+    }
+
+    #[test]
+    fn both_dealer_recurrences_match_an_exact_toy_game() {
+        const DEALER_POINT: &[(u16, u32)] = &[(1, 1)];
+        let model = Baked {
+            dead: 1,
+            total: 2,
+            dealer_wins: DEALER_POINT,
+            nondealer_wins: &[],
+        };
+        let winner_deals = solve(2, &model, DealerRotation::WinnerDeals);
+        let alternating = solve(2, &model, DealerRotation::AlternateAfterScoredRound);
+
+        // At 0-1 with me dealing, deterministic dealer wins make me score.
+        // Winner-deals lets me score again and win; alternating gives the
+        // opponent the next decisive deal and therefore the game.  The 50%
+        // dead self-loop changes neither exact answer.
+        assert_eq!(winner_deals.get(0, 1, true), 1.0);
+        assert_eq!(alternating.get(0, 1, true), 0.0);
+
+        // With one point already banked, my first decisive dealer win
+        // clinches before either next-dealer recurrence is consulted.
+        assert_eq!(winner_deals.get(1, 0, true), 1.0);
+        assert_eq!(alternating.get(1, 0, true), 1.0);
     }
 }

@@ -3,7 +3,7 @@
 use crate::heuristic::greedy_layoff;
 use crate::sim::{SeatPolicy, Sim, SimPhase};
 use crate::value::WinTable;
-use crate::{DrawAction, Layoff, Strategy, TurnAction, UpcardAction, View};
+use crate::{DealerRotation, DrawAction, Layoff, Strategy, TurnAction, UpcardAction, View};
 use gin_rummy::{Card, Hand, Phase, Player, RoundResult, Rules, best_melds, deadwood};
 use rand::{Rng, RngExt as _};
 
@@ -300,9 +300,13 @@ impl<R: Rng> MonteCarloBot<R> {
     ///
     /// The table is a `'static` reference into a process-wide cache, solved
     /// once per ruleset, so fetching it borrows nothing from the bot.
-    fn value_table(&self, rules: &Rules) -> Option<&'static WinTable> {
+    fn value_table(
+        &self,
+        rules: &Rules,
+        dealer_rotation: DealerRotation,
+    ) -> Option<&'static WinTable> {
         matches!(self.config.game_value, GameValue::Table)
-            .then(|| crate::value::table_for(rules))
+            .then(|| crate::value::table_for(rules, dealer_rotation))
             .flatten()
     }
 
@@ -403,7 +407,7 @@ impl<R: Rng> MonteCarloBot<R> {
             return Vec::new();
         }
         let policies = self.policies(view);
-        let value = self.value_table(view.rules());
+        let value = self.value_table(view.rules(), view.dealer_rotation());
         let worlds = self.sample_worlds(view, self.config.samples);
         let scored = Self::score_worlds(
             view,
@@ -423,7 +427,7 @@ impl<R: Rng> MonteCarloBot<R> {
     /// surfaces; `candidates` must be non-empty.
     fn choose(&mut self, view: &View<'_>, candidates: &[Candidate]) -> Choice {
         let policies = self.policies(view);
-        let value = self.value_table(view.rules());
+        let value = self.value_table(view.rules(), view.dealer_rotation());
         let worlds = self.sample_worlds(view, self.config.samples);
         let scored = Self::score_worlds(
             view,
@@ -545,7 +549,15 @@ impl<R: Rng> MonteCarloBot<R> {
             let sim = Self::sim(view, world, candidate.choice.phase(), policies);
             let result = candidate.choice.roll(sim);
             (
-                equity(result, me, standing, rules, value, i_dealt),
+                equity(
+                    result,
+                    me,
+                    standing,
+                    rules,
+                    value,
+                    i_dealt,
+                    view.dealer_rotation(),
+                ),
                 round_points(result, me, rules),
             )
         };
@@ -698,8 +710,8 @@ fn beats(challenger: &[f64], incumbent: &[f64], gate_z: f64) -> bool {
 ///
 /// Under [`GameValue::Table`] a non-clinch standing is instead priced by
 /// the game-win value function `value` — its true probability of winning
-/// the game from the post-round scores, with the next dealer being the
-/// round's winner (or, on a dead hand, whoever dealt it).  That value is
+/// the game from the post-round scores under the table's dealer protocol.
+/// A dead hand keeps its dealer under every supported protocol.  That value is
 /// locally affine at level scores with the empirically correct slope, so it
 /// agrees with the affine value there and diverges only where the game
 /// recursion genuinely changes a point's worth.
@@ -710,6 +722,7 @@ fn equity(
     rules: &Rules,
     value: Option<&WinTable>,
     i_dealt: bool,
+    dealer_rotation: DealerRotation,
 ) -> f64 {
     let mut scores = standing;
     let mut points = 0.0;
@@ -735,8 +748,12 @@ fn equity(
     } else if scores[1] >= rules.game_target {
         0.0
     } else if let Some(table) = value {
-        // The round winner deals next; a dead hand keeps its dealer.
-        let i_deal_next = result.winner().map_or(i_dealt, |winner| winner == me);
+        let i_deal_next = result
+            .winner()
+            .map_or(i_dealt, |winner| match dealer_rotation {
+                DealerRotation::WinnerDeals => winner == me,
+                DealerRotation::AlternateAfterScoredRound => !i_dealt,
+            });
         table.get(scores[0], scores[1], i_deal_next)
     } else {
         0.5 + points / (4.0 * f64::from(rules.game_target))
@@ -898,13 +915,35 @@ mod tests {
             winner: me,
             margin: 15,
         };
-        assert_eq!(equity(win, me, [90, 50], &rules, None, false), 1.0);
+        assert_eq!(
+            equity(
+                win,
+                me,
+                [90, 50],
+                &rules,
+                None,
+                false,
+                DealerRotation::WinnerDeals,
+            ),
+            1.0
+        );
 
         let loss = RoundResult::Knock {
             winner: me.opponent(),
             margin: 15,
         };
-        assert_eq!(equity(loss, me, [50, 90], &rules, None, false), 0.0);
+        assert_eq!(
+            equity(
+                loss,
+                me,
+                [50, 90],
+                &rules,
+                None,
+                false,
+                DealerRotation::WinnerDeals,
+            ),
+            0.0
+        );
     }
 
     #[test]
@@ -916,11 +955,27 @@ mod tests {
             margin: 3,
         };
         assert_eq!(
-            equity(result, me, [95, 95], &Rules::palace(), None, false),
+            equity(
+                result,
+                me,
+                [95, 95],
+                &Rules::palace(),
+                None,
+                false,
+                DealerRotation::WinnerDeals,
+            ),
             1.0
         );
 
-        let deferred = equity(result, me, [95, 95], &Rules::default(), None, false);
+        let deferred = equity(
+            result,
+            me,
+            [95, 95],
+            &Rules::default(),
+            None,
+            false,
+            DealerRotation::WinnerDeals,
+        );
         assert!(deferred > 0.5 && deferred < 1.0);
     }
 
@@ -938,6 +993,7 @@ mod tests {
             &rules,
             None,
             false,
+            DealerRotation::WinnerDeals,
         );
         let knock = equity(
             RoundResult::Knock {
@@ -949,8 +1005,17 @@ mod tests {
             &rules,
             None,
             false,
+            DealerRotation::WinnerDeals,
         );
-        let dead = equity(RoundResult::Dead, me, [0, 0], &rules, None, false);
+        let dead = equity(
+            RoundResult::Dead,
+            me,
+            [0, 0],
+            &rules,
+            None,
+            false,
+            DealerRotation::WinnerDeals,
+        );
         let loss = equity(
             RoundResult::Knock {
                 winner: me.opponent(),
@@ -961,6 +1026,7 @@ mod tests {
             &rules,
             None,
             false,
+            DealerRotation::WinnerDeals,
         );
         assert!(gin > knock && knock > dead && dead > loss);
         assert_eq!(dead, 0.5);
@@ -979,12 +1045,36 @@ mod tests {
             margin: 10,
         };
         assert_eq!(
-            equity(RoundResult::Dead, me, [60, 20], &rules, None, false),
+            equity(
+                RoundResult::Dead,
+                me,
+                [60, 20],
+                &rules,
+                None,
+                false,
+                DealerRotation::WinnerDeals,
+            ),
             0.5
         );
         assert_eq!(
-            equity(win, me, [60, 20], &rules, None, false),
-            equity(win, me, [0, 0], &rules, None, false),
+            equity(
+                win,
+                me,
+                [60, 20],
+                &rules,
+                None,
+                false,
+                DealerRotation::WinnerDeals,
+            ),
+            equity(
+                win,
+                me,
+                [0, 0],
+                &rules,
+                None,
+                false,
+                DealerRotation::WinnerDeals,
+            ),
         );
     }
 
@@ -993,25 +1083,167 @@ mod tests {
         // `GameValue::Table` must actually reach the value table and price a
         // standing differently from the flat affine value — otherwise the
         // knob would be a silent no-op.
-        let mut rules = Rules::new();
-        rules.big_gin_bonus = None; // the EAAI challenge preset
+        let rules = crate::eaai_rules();
         let me = Player::One;
         let win = RoundResult::Knock {
             winner: me,
             margin: 10,
         };
-        let table = crate::value::table_for(&rules).expect("the EAAI preset is baked");
+        let table = crate::value::table_for(&rules, DealerRotation::WinnerDeals)
+            .expect("the EAAI preset is baked");
 
         // From a commanding lead the affine value is flat while the table
         // knows the game is nearly clinched, so the two disagree.
-        let affine = equity(win, me, [80, 10], &rules, None, false);
-        let priced = equity(win, me, [80, 10], &rules, Some(table), false);
+        let affine = equity(
+            win,
+            me,
+            [80, 10],
+            &rules,
+            None,
+            false,
+            DealerRotation::WinnerDeals,
+        );
+        let priced = equity(
+            win,
+            me,
+            [80, 10],
+            &rules,
+            Some(table),
+            false,
+            DealerRotation::WinnerDeals,
+        );
         assert_ne!(affine, priced);
 
         // And the table orders leads above deficits, as a probability must.
-        let ahead = equity(win, me, [80, 10], &rules, Some(table), false);
-        let behind = equity(win, me, [10, 80], &rules, Some(table), false);
+        let ahead = equity(
+            win,
+            me,
+            [80, 10],
+            &rules,
+            Some(table),
+            false,
+            DealerRotation::WinnerDeals,
+        );
+        let behind = equity(
+            win,
+            me,
+            [10, 80],
+            &rules,
+            Some(table),
+            false,
+            DealerRotation::WinnerDeals,
+        );
         assert!(ahead > behind);
+    }
+
+    #[test]
+    fn table_equity_uses_the_views_next_dealer_protocol() {
+        let rules = crate::eaai_rules();
+        let me = Player::One;
+        let mine = RoundResult::Knock {
+            winner: me,
+            margin: 10,
+        };
+        let theirs = RoundResult::Knock {
+            winner: me.opponent(),
+            margin: 10,
+        };
+        let winner_table = crate::value::table_for(&rules, DealerRotation::WinnerDeals)
+            .expect("the EAAI preset is baked");
+        let alternate_table =
+            crate::value::table_for(&rules, DealerRotation::AlternateAfterScoredRound)
+                .expect("the EAAI preset is baked");
+
+        assert_eq!(
+            equity(
+                mine,
+                me,
+                [0, 0],
+                &rules,
+                Some(winner_table),
+                true,
+                DealerRotation::WinnerDeals,
+            ),
+            winner_table.get(10, 0, true),
+        );
+        assert_eq!(
+            equity(
+                mine,
+                me,
+                [0, 0],
+                &rules,
+                Some(alternate_table),
+                true,
+                DealerRotation::AlternateAfterScoredRound,
+            ),
+            alternate_table.get(10, 0, false),
+        );
+        assert_eq!(
+            equity(
+                theirs,
+                me,
+                [0, 0],
+                &rules,
+                Some(alternate_table),
+                false,
+                DealerRotation::AlternateAfterScoredRound,
+            ),
+            alternate_table.get(0, 10, true),
+        );
+        assert_eq!(
+            equity(
+                RoundResult::Dead,
+                me,
+                [0, 0],
+                &rules,
+                Some(alternate_table),
+                true,
+                DealerRotation::AlternateAfterScoredRound,
+            ),
+            alternate_table.get(0, 0, true),
+        );
+    }
+
+    #[test]
+    fn table_equity_covers_every_winner_dealer_transition() {
+        let rules = crate::eaai_rules();
+        let me = Player::One;
+        for rotation in [
+            DealerRotation::WinnerDeals,
+            DealerRotation::AlternateAfterScoredRound,
+        ] {
+            let table = crate::value::table_for(&rules, rotation).expect("the preset is baked");
+            for i_dealt in [false, true] {
+                for (result, scores, winner_is_me) in [
+                    (
+                        RoundResult::Knock {
+                            winner: me,
+                            margin: 7,
+                        },
+                        [7, 0],
+                        Some(true),
+                    ),
+                    (
+                        RoundResult::Knock {
+                            winner: me.opponent(),
+                            margin: 7,
+                        },
+                        [0, 7],
+                        Some(false),
+                    ),
+                    (RoundResult::Dead, [0, 0], None),
+                ] {
+                    let next_dealer = winner_is_me.map_or(i_dealt, |winner_is_me| match rotation {
+                        DealerRotation::WinnerDeals => winner_is_me,
+                        DealerRotation::AlternateAfterScoredRound => !i_dealt,
+                    });
+                    assert_eq!(
+                        equity(result, me, [0, 0], &rules, Some(table), i_dealt, rotation,),
+                        table.get(scores[0], scores[1], next_dealer),
+                    );
+                }
+            }
+        }
     }
 
     #[test]
@@ -1220,7 +1452,15 @@ mod tests {
                         policies,
                     );
                     let result = candidate.choice.roll(sim);
-                    equities.push(equity(result, me, standing, rules, None, false));
+                    equities.push(equity(
+                        result,
+                        me,
+                        standing,
+                        rules,
+                        None,
+                        false,
+                        DealerRotation::WinnerDeals,
+                    ));
                     ev_sum += round_points(result, me, rules);
                 }
                 (equities, ev_sum)

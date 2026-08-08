@@ -38,7 +38,7 @@ use anyhow::{Context as _, Result, bail};
 use gin_rummy::{Game, Player, Rules};
 use gin_rummy_engine::{
     EaaiSimpleBot, HeuristicBot, HeuristicConfig, McConfig, MonteCarloBot, OpponentModel, Strategy,
-    play_game,
+    eaai_rules, play_game,
 };
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -232,12 +232,7 @@ fn parse_args() -> Result<Config> {
                     "modern" => Rules::new(),
                     "classic" => Rules::classic(),
                     "palace" => Rules::palace(),
-                    // The EAAI-2021 challenge: modern bonuses, no big gin.
-                    "eaai" => {
-                        let mut rules = Rules::new();
-                        rules.big_gin_bonus = None;
-                        rules
-                    }
+                    "eaai" => eaai_rules(),
                     other => bail!("unknown rules preset {other:?}"),
                 }
             }

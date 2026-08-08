@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Public game-protocol primitives: `DealerRotation` distinguishes ordinary
+  winner-deals-next play from EAAI's
+  `AlternateAfterScoredRound`, `Table::dealer_rotation` passes that choice
+  into every strategy `View`, and `eaai_rules()` returns the challenge's
+  exact scoring preset (no Big Gin, boxes, game bonus, or shutout bonus).
+  Score-aware Monte Carlo value tables are now selected by both rules and
+  dealer rotation.
+- The arena accepts `--seeds 7,8` for per-seed plus pooled runs and
+  `--format json` for the versioned `gin-rummy-arena/v1` evidence schema,
+  including raw scores, finish attribution, cluster moments, primary-test
+  fields, and source/environment reproducibility metadata.  Bare `mc` and
+  `mca` now mean 128 samples; `mc:N` and `mca:N` remain explicit overrides.
+- Benchmark-only strong-opponent adaptations and source-conformance checks
+  cover the 2026 Gold Standard Agent paper policy (`gold-paper`) and a
+  public MARJJ v5 host surrogate (`marjj-v5-surrogate`).  Gold's exactness
+  is limited to meld decomposition, not full-game optimality, and the
+  separately named MARJJ v5 source is not claimed to be the championship
+  submission.  The [strong-opponent report](docs/strong-opponents.md)
+  deliberately carries no result until corrected-protocol runs complete.
 - `McConfig` and `OpponentModel`: public tuning knobs for
   `MonteCarloBot`, in the mold of `HeuristicConfig`.  The knobs expose
   the search's previously hardcoded levers — the per-seat rollout knock
@@ -24,10 +43,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   none of them changes play until it is turned.  (`game_value`, listed
   under Changed, is the one default that did move.)
   `MonteCarloBot::with_config` and `MonteCarloBot::config` round out the
-  API; `samples(n)` remains as sugar.  First measurements through the
-  knobs — mc:64 against the challenge baseline, 3000 deal-paired games
-  per arm and seed — found that modeling the baseline's own conservative
-  draw rule (`MeldOnly`) is no better than the default eager model
+  API; `samples(n)` remains as sugar.  Pre-correction measurements through
+  the knobs — mc:64 against the challenge baseline, 3000 deal-paired games
+  per arm and seed — historically found that modeling the baseline's
+  conservative draw rule (`MeldOnly`) is no better than the default eager model
   (53.9% vs 54.8%), so belief fidelity is not monotone in strength, and
   that a nearly-gin-hunting own continuation (`rollout_knock_self: 2`)
   keeps a small repeatable edge over the knock-ASAP default on both
@@ -36,21 +55,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   strong opposition — the same patient continuation scores 47.9% vs
   48.9% for the default against an unmodified mc:64 — so it is an
   exploit of the baseline's knock-ASAP habit, available as a knob for
-  anyone targeting that baseline.  No finding clears the bar to change
-  a default.
-- The `arena` example measures like an instrument now.  Trials are
-  seeded by index and fan out across the CPUs (a run takes minutes, not
-  hours, at Monte Carlo sample counts); every trial defaults to a
-  *mirrored pair* — both bots play the same deal(s) from both seats,
-  cancelling deal luck (`--unpaired` restores independent trials) — and
-  each run ends with a significance line (paired z and p-value, or a
-  sign test unpaired) so a comparison states its own confidence instead
-  of leaving two overlapping intervals to the reader.
-  `--alternate-dealer` plays whole games under the EAAI challenge's
-  protocol (the deal alternates every hand) rather than gin rummy's
-  winner-deals-next, which measurably shifts game rates and is required
-  for numbers quoted against the challenge literature.  A run without
-  `--seed` picks one and prints it, so any result can be reproduced.
+  anyone targeting that baseline.  No finding cleared the bar to change
+  a default.  Those rates are tuning history, not current EAAI evidence;
+  the corrected-protocol panel is pending.
+- The `arena` example measures like an instrument now.  Trials are seeded
+  by index and fan out across the CPUs.  Every trial defaults to a
+  common-random-number *mirrored pair*: the bots swap seats on one cloned
+  round deal or identically seeded whole-game shuffle streams
+  (`--unpaired` restores independent trials).  A different dead/scored
+  result can make the orientations' later dealer sequences diverge, so a
+  game pair is correlated without being an exact replay throughout.
+  Mirrored win rates now carry 95% pair-cluster intervals, and the primary
+  comparison is an exact two-sided sign test over pairs swept by each bot;
+  the paired-normal z statistic remains diagnostic only.
+  `--alternate-dealer` follows the EAAI challenge: the dealer flips after
+  each scored hand, while a dead hand is redealt by the same dealer.  A run
+  without `--seed` or `--seeds` picks and prints a seed for reproduction.
 - The `tune` example sweeps `MonteCarloBot` knobs: `--mc-samples N`
   makes the candidate a Monte Carlo bot and `--rollout-knock`,
   `--opp-knock`, `--opp-model`, `--gate`, `--max-candidates`, and
@@ -63,10 +83,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   nobody else could repeat; the script pins the bots, the rules, the
   dealer protocol, the seeds and the counts, prints the table on stdout
   and the full arena log on stderr, and stamps the commit it ran at.
-  Anyone can now reproduce the crate's claimed strength — the arena is
-  deterministic in its seed, so at a given commit the table comes back
-  identical — and a claim that no longer reproduces is visible instead
-  of quietly rotting.
+  The checked-in table is now explicitly historical: it predates the
+  corrected dead-hand dealer rule and exact EAAI preset.  It will not be
+  treated as a current strength claim until the full corrected panel has
+  been regenerated.
 
 ### Changed
 
@@ -79,13 +99,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   do better for the defender than the framework's first-fit pass, so win
   rates published against this baseline are conservative rather than
   inflated; and the round's (draw, discard) loop breaker, which keys on
-  an ordered pair where the original keys on an unordered one.  The
-  `--rules eaai` preset carries box, game, and shutout bonuses the
-  framework has none of, which the docs now explain are settled only
-  after a player has reached the game target and therefore never decide
-  a game.  Behavior is unchanged and every published number stands; this
-  audit against the framework's source is what confirms them
-  comparable with the challenge literature.
+  an ordered pair where the original keys on an unordered one.  The same
+  source audit corrected two host-protocol mismatches: `--rules eaai` now
+  has no Big Gin, box, game, or shutout bonus, and
+  `--alternate-dealer` flips only after a scored hand while a dead hand
+  retains the dealer.  Bot-policy behavior is otherwise unchanged, but
+  earlier EAAI rates and intervals no longer stand as current evidence;
+  their corrected-protocol regeneration is pending.
 - `MonteCarloBot` now values a decision by its probability of winning the
   **game**, not by the round points it banks.  Short of a clinch the old
   equity was affine in round points, so the search had no sense of the
@@ -93,14 +113,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a point of a hopeless deficit, and the bot neither banked a lead nor
   pressed a comeback.  It now prices a round outcome through a solved
   win-probability function of both scores and the dealer rotation, so it
-  plays the lead it has.  Measured against the previous behavior over
-  12 000 deal-paired games per seed under the EAAI challenge protocol,
-  the new default wins 51.1% and 51.4% of games on two seeds (+2.1 and
-  +2.7 points, p = 0.044 and p = 0.009), winning on banked points as well
-  as on games, and it does not regress against other opponents: 54.9% and
-  54.7% of games against `EaaiSimpleBot` where the old equity scored
-  54.8% and 53.9%, and 53.4% and 52.6% against `HeuristicBot` where it
-  scored 52.9%.  `McConfig::game_value` selects the behavior —
+  plays the lead it has.  Historical pre-correction measurements against
+  the previous behavior used 12 000 deal-paired games per seed under what
+  was then believed to be the EAAI challenge protocol.  They reported the
+  new default at 51.1% and 51.4% of games on two seeds (+2.1 and +2.7
+  points, p = 0.044 and p = 0.009), with 54.9% and 54.7% against
+  `EaaiSimpleBot` where the old equity scored 54.8% and 53.9%, and 53.4%
+  and 52.6% against `HeuristicBot` where it scored 52.9%.  Those figures
+  require a corrected-protocol rerun and are retained only as development
+  history.  `McConfig::game_value` selects the behavior —
   `GameValue::Table` is the new default, `GameValue::Affine` restores the
   old one — and the arena's `mca` bot spec plays the affine arm so the
   comparison stays reproducible.
@@ -116,22 +137,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   than stalling to measure itself.
 
 - `arena`'s trial seeding is per-index (SplitMix-style), so the deal
-  stream depends only on `--seed` and the trial index.  Runs at the same
-  seed reproduce exactly across machines and code revisions — old-vs-new
-  comparisons at one seed are themselves paired — but a seeded 0.2.0
-  arena run is not reproduced by this version.  `--rounds N`/`--games N`
-  now count trials (mirrored pairs by default, so twice as many rounds
-  or games are played).
-- The README benchmarks against `EaaiSimpleBot` are re-settled with the
-  new instrument — mirrored pairs, the challenge's alternate-dealer
+  stream depends only on `--seed` and the trial index.  An unchanged
+  build reproduces its run; old-vs-new comparisons receive the same
+  indexed random streams, but changed play can alter dead/scored results
+  and therefore later dealer assignments, so whole games are
+  common-random-number comparisons rather than exact deal-for-deal
+  replays.  A seeded 0.2.0 arena run is not reproduced by this version.
+  `--rounds N`/`--games N` now count trials (mirrored pairs by default, so
+  twice as many rounds or games are played).
+- The previous README benchmarks against `EaaiSimpleBot` were re-settled
+  with the former instrument — mirrored pairs, the then-implemented dealer
   protocol, and 8000–12 000 games per matchup where the old table had
   500–600: `greedy` wins 59.7% of games (was 57.4% ± 4.4), `mc:64` 54.8%
   (was 53.3% ± 4.0, now genuinely below greedy rather than within
   noise), and `mc:128` — previously unmeasured over games — 59.6%,
   closing the gap.  `mc:64` still beats `greedy` head-to-head over whole
-  games (53.0% of 12 000), so exploiting the weak baseline and winning
-  the head-to-head are established as different skills.  No bot behavior
-  changed; only the measurement did.
+  games (53.0% of 12 000).  The panel is now labeled historical because it
+  used the former incorrect dead-hand rotation and interval analysis.  A
+  corrected-protocol, pair-cluster regeneration is pending; none of these
+  rates or p-values is a current claim.
 
 ## [0.2.0] - 2026-07-17
 
@@ -149,16 +173,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   face-up card only into an immediate meld, shed a uniformly random card
   among the minimal-deadwood choices (never repeating a draw/discard pair
   within a round), knock at the first legal opportunity.  It is a fixed
-  measuring stick: win rates against it are comparable with the agents in
-  the EAAI-21 literature.  The `arena` and `play` examples accept it as
+  measuring stick intended for comparison with the agents in the EAAI-21
+  literature.  The `arena` and `play` examples accept it as
   bot spec `eaai`, and `arena` gains a `--rules eaai` preset (modern
-  bonuses, no big gin) matching the challenge's round conditions.
+  bonuses, no big gin), then believed to match the challenge's conditions.
   Measured at seed 7 under those rules: the default heuristic wins 57.4%
   of games against the baseline (95% CI 53.0–61.7%, 500 games) while
   conceding single rounds at 39.9% by gin-hunting design; `mc:64` takes
   52.4% of 4000 rounds and 53.3% of 600 games; `mc:128` takes 54.0% of
   4000 rounds.  Published EAAI-21 entries sit around 55–68% against the
-  same baseline, metrics varying by paper.
+  same baseline, metrics varying by paper.  A later source audit found
+  that these release-time rates used extra game-level bonuses and not the
+  corrected scored-hand-only dealer protocol; they are historical and are
+  not directly comparable with corrected-protocol results.
 - A `parallel` cargo feature (off by default): Monte Carlo scoring batches
   spread their rollouts across the CPU cores via rayon.  Decisions are
   bit-identical to the serial build — batch results are collected in world

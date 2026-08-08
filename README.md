@@ -21,6 +21,12 @@ The design triangle:
   asks strategies for decisions, and applies them — so information hygiene
   holds by construction.
 
+Game-level protocol is explicit too: [`eaai_rules`] returns the challenge's
+exact scoring preset (no Big Gin, box, game, or shutout bonus), while
+[`DealerRotation`] tells `Table` and score-aware strategies how the next
+dealer is chosen.  The EAAI variant flips the dealer after a scored hand and
+retains the same dealer after a dead hand.
+
 ## Bots
 
 - [`HeuristicBot`]: deterministic and fast.  Draws from the pile only when
@@ -41,20 +47,33 @@ The design triangle:
 - [`EaaiSimpleBot`] (feature `rand`): the published policy of
   `SimpleGinRummyPlayer`, the baseline every entry of the EAAI-2021 Gin Rummy
   AI challenge was measured against.  Deliberately weak and knob-free — it
-  exists so that win rates against it are comparable across engines and
-  papers.
+  exists as a cross-engine yardstick when the host's policy adaptations,
+  scoring preset, and dealer protocol are reported explicitly.
 
 ## Benchmarks
 
-[`EaaiSimpleBot`] is the yardstick: arena runs under `--rules eaai` (the
-challenge's round conditions) with `--alternate-dealer` (the challenge's
-dealer protocol), every trial a mirrored pair — both bots play the same
-deals from both seats.  Rounds: 4000 pairs at seed 7.  Games: 3000 pairs
-(`mc:128`: 2000) at each of seeds 7 and 8, pooled to 12 000 (`mc:128`:
-8000) games.  Parenthesized ranges are 95% intervals, in percent.
-`scripts/bench-panel.sh` runs exactly that panel and prints the table
-below, so every number here is reproducible from the commit it was taken
-at — the arena is deterministic in its seed.
+Correct EAAI-compatible measurements use `--rules eaai` and
+`--alternate-dealer`.  The latter means *alternate after a scored hand*;
+a dead hand is redealt by the same dealer.  Arena trials are mirrored
+pairs, with the bots swapping seats under common-random-number deal streams.
+For a single round the deal is identical.  During a whole game, one
+orientation can score where the other goes dead, so their later dealer
+sequences can diverge even though they continue from identically seeded
+shuffle streams.
+
+Headline uncertainty for mirrored runs is a 95% pair-cluster confidence
+interval.  The primary comparison is the exact two-sided sign test over
+pairs swept by each bot; the normal paired-z value is diagnostic only.
+Use `--seeds 7,8 --format json` to obtain per-seed and pooled results with
+the `gin-rummy-arena/v1` schema and reproducibility metadata.
+
+The panel below is retained as **historical data only**.  It predates the
+correction that retains the dealer after dead EAAI hands and the exact EAAI
+scoring preset, and its intervals use the former analysis.  It therefore
+needs a corrected-protocol regeneration before any rate, interval,
+p-value, or throughput figure is quoted as current.  A fresh
+`scripts/bench-panel.sh` run will replace it; the cells are left unchanged
+until that run completes.
 
 | Bot vs baseline | Rounds won        | Points/round | Games won         |
 |-----------------|-------------------|--------------|-------------------|
@@ -62,19 +81,29 @@ at — the arena is deterministic in its seed.
 | `mc:64`         | 51.5% (50.4–52.6) | 9.22 vs 8.41 | 54.8% (53.9–55.7) |
 | `mc:128`        | 52.7% (51.6–53.8) | 9.90 vs 8.38 | 59.6% (58.5–60.7) |
 
-The default heuristic concedes rounds by design — it hunts gin while the
-baseline knocks at the first opportunity — yet wins the matches on the
-gin and undercut bonuses; the EAAI-21 literature identifies exactly that
-patient, undercutting style as the strongest exploit of this baseline's
-knock-ASAP habit.  The Monte Carlo bots win rounds instead, and the
-comparison is not transitive: `mc:64` beats `greedy` head-to-head over
-whole games (53.0% of 12 000 paired games, p < 0.001) yet exploits the
-baseline less than `greedy` does, while doubling the sample count closes
-that gap — `mc:128` matches `greedy` against the baseline.  For
-calibration, EAAI-21 entries reported roughly 55–68% against this same
-baseline under the same dealer protocol (metrics vary by paper).
+Historical interpretation, not a current strength claim: the old panel
+suggested that the default heuristic conceded rounds by hunting gin while
+the baseline knocked at the first opportunity, yet won matches on gin and
+undercut bonuses.  It also reported `mc:64` beating `greedy` head-to-head
+over whole games (53.0% of 12 000 paired games, p < 0.001), despite
+exploiting the baseline less, and `mc:128` matching `greedy` against the
+baseline.  EAAI-21 entries reported roughly 55–68% against this baseline
+(metrics vary by paper), but the old panel's protocol mismatch prevents a
+direct comparison.
 Throughput in those runs, trials fanned across 16 cores: ~19 500 games/s
 for `greedy` vs the baseline, 7–8 games/s at `mc:64`, ~4.9 at `mc:128`.
+
+### Strong opponents
+
+The strong-opponent harness has adapters for two external reference agents.
+No result is claimed until the corrected-protocol panel has completed; see
+the [strong-opponents report](docs/strong-opponents.md) for methodology,
+provenance, conformance checks, and eventual measurements.
+
+| Opponent | Reference | Corrected-protocol result |
+|----------|-----------|---------------------------|
+| GoldStandardAgent host adaptation (`gold-paper`) | 2026 Adversarial Co-Evolution reference; exact meld decomposition, not a game-theoretically optimal full-game player | Pending |
+| MARJJ v5 host surrogate (`marjj-v5-surrogate`) | Public repository associated with the 2021 challenge winner; the v5 file is not established as the submitted championship build | Pending |
 
 ## Quick start
 
@@ -129,8 +158,16 @@ Writing your own bot is implementing [`Strategy`]'s four decisions against a
 
 - `play`: play against a bot in the terminal —
   `cargo run --example play` (`--bot mc`, `--rules classic`, …)
-- `arena`: bot-vs-bot tournaments with win-rate statistics —
-  `cargo run --release --example arena -- --rounds 1000 --p1 greedy --p2 mc:64`
+- `arena`: bot-vs-bot tournaments with win-rate statistics.  For example:
+
+  ```console
+  cargo run --release --example arena -- --games 3000 \
+    --p1 mc --p2 gold-paper --rules eaai --alternate-dealer \
+    --seeds 7,8 --format json
+  ```
+
+  Bare `mc` and `mca` use 128 samples; use `mc:N` or `mca:N` to set an
+  explicit budget.
 
 ## Alternatives
 
@@ -138,8 +175,8 @@ No other open-source project ships gin rummy bots as a reusable library.
 [OpenSpiel] and [RLCard] embed gin rummy environments for generic search
 and reinforcement-learning algorithms (bring your own agent), and
 [gin-rummy-eaai] is the EAAI-2021 challenge framework whose reference
-baseline this crate ports as [`EaaiSimpleBot`] — precisely so the numbers
-above stay comparable with the challenge literature.
+baseline this crate ports as [`EaaiSimpleBot`] — so corrected-protocol
+measurements can be calibrated against the challenge literature.
 
 [gin rummy]: https://www.pagat.com/rummy/ginrummy.html
 [OpenSpiel]: https://github.com/google-deepmind/open_spiel
@@ -153,4 +190,6 @@ above stay comparable with the challenge literature.
 [`HeuristicBot`]: https://docs.rs/gin-rummy-engine/latest/gin_rummy_engine/struct.HeuristicBot.html
 [`MonteCarloBot`]: https://docs.rs/gin-rummy-engine/latest/gin_rummy_engine/struct.MonteCarloBot.html
 [`McConfig`]: https://docs.rs/gin-rummy-engine/latest/gin_rummy_engine/struct.McConfig.html
+[`DealerRotation`]: https://docs.rs/gin-rummy-engine/latest/gin_rummy_engine/enum.DealerRotation.html
+[`eaai_rules`]: https://docs.rs/gin-rummy-engine/latest/gin_rummy_engine/fn.eaai_rules.html
 [`Round`]: https://docs.rs/gin-rummy/latest/gin_rummy/round/struct.Round.html

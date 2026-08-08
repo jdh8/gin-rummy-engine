@@ -8,6 +8,7 @@
 //! recover (which discards the opponent took, what they declined, whether
 //! this turn's draw is forced from the stock).
 
+use crate::DealerRotation;
 use gin_rummy::{Card, Hand, Meld, Melds, Phase, Player, Round, Rules, best_melds, deadwood};
 
 /// What a seat has learned beyond the public table state
@@ -42,6 +43,7 @@ pub struct View<'a> {
     know: &'a Knowledge,
     /// Running game totals, this seat's first
     scores: [u16; 2],
+    dealer_rotation: DealerRotation,
 }
 
 impl<'a> View<'a> {
@@ -50,12 +52,14 @@ impl<'a> View<'a> {
         seat: Player,
         know: &'a Knowledge,
         scores: [u16; 2],
+        dealer_rotation: DealerRotation,
     ) -> Self {
         Self {
             round,
             seat,
             know,
             scores,
+            dealer_rotation,
         }
     }
 
@@ -78,6 +82,16 @@ impl<'a> View<'a> {
     #[must_use]
     pub const fn game_scores(&self) -> [u16; 2] {
         self.scores
+    }
+
+    /// How the dealer for the next round is selected.
+    ///
+    /// This is public table information rather than hidden card knowledge;
+    /// score-aware strategies need it to value the standing after a
+    /// possible round result.
+    #[must_use]
+    pub const fn dealer_rotation(&self) -> DealerRotation {
+        self.dealer_rotation
     }
 
     /// The scoring rules of the round

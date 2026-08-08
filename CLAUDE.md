@@ -14,21 +14,23 @@ belongs in this crate.
 | ---- | -------- |
 | `src/strategy.rs` | The `Strategy` trait: four decision methods against a `View`, object-safe. |
 | `src/action.rs` | Per-phase action types, so a structurally illegal action cannot be expressed. |
-| `src/view.rs` | `View` (public, includes the public game score via `game_scores`) plus the crate-private `Knowledge` the driver accumulates. |
-| `src/driver.rs` | `Table`, `play_round`, `play_game`, `EngineError`: validates and applies decisions, keeps both seats' `Knowledge` current. |
+| `src/view.rs` | `View` (public, includes `game_scores` and `dealer_rotation`) plus the crate-private `Knowledge` the driver accumulates. |
+| `src/driver.rs` | `Table`, `play_round`, `play_game`, `EngineError`: validates and applies decisions, keeps both seats' `Knowledge` current, and supplies the public dealer protocol to strategies. |
+| `src/protocol.rs` | Public `DealerRotation` and the exact EAAI challenge scoring preset, `eaai_rules()`. |
 | `src/heuristic.rs` | `HeuristicBot`, `HeuristicConfig`, and the shared greedy primitives `best_shed`, `improves`, `greedy_layoff`. |
 | `src/mc.rs` | `MonteCarloBot` (feature `rand`): plausibility-biased world sampling, common random numbers, a game-winning equity objective, significance-gated deviation from the greedy baseline, batched rollouts that eliminate statistically hopeless challengers early. |
 | `src/sim.rs` | Crate-private forward model for rollouts (feature `rand`); must mirror `gin_rummy::round` exactly. |
-| `src/value.rs` | Crate-private game-win value function (feature `rand`): checked-in greedy-self-play outcome models per ruleset, solved by DP into `V(mine, theirs, i_deal_next)`.  Backs the default `GameValue::Table` equity; unbaked rulesets fall back to affine. |
+| `src/value.rs` | Crate-private game-win value function (feature `rand`): checked-in greedy-self-play outcome models, solved by DP for each `(Rules, DealerRotation)`.  Backs the default `GameValue::Table` equity; unbaked rulesets fall back to affine. |
 | `tests/view.rs` | Information-hygiene assertions on driven rounds. |
 | `tests/driver.rs` | End-to-end rounds and games, illegal-action reporting and retry. |
 | `tests/proptest.rs` | Termination, deck partition, and the `unseen` identity under every ruleset. |
 | `tests/strength.rs` | Statistical strength tripwire, `#[ignore]`d; release mode only. |
 | `benches/decision.rs` | Criterion benches for per-decision latency. |
 | `examples/play.rs` | Human vs bot in the terminal. |
-| `examples/arena.rs` | Bot-vs-bot tournaments with Wilson score intervals. |
+| `examples/arena.rs` | Bot-vs-bot tournaments with mirrored pairs, pair-cluster intervals, exact pair-sweep sign tests, multi-seed pooling, and versioned JSON output. |
+| `examples/strong_report.rs` | Reproducible strong-opponent panel driver; its publication target is `docs/strong-opponents.md`. |
 | `examples/tune.rs` | Whole-game A/B self-play sweep for tuning the heuristic's knock knobs against a fixed opponent. |
-| `scripts/bench-panel.sh` | Regenerates README's benchmark table: the pinned panel against the EAAI baseline, ~1.5 hours. |
+| `scripts/bench-panel.sh` | Regenerates README's EAAI-baseline panel; the checked-in rates remain historical until a corrected-protocol run replaces them. |
 
 ## Invariants
 
@@ -80,10 +82,23 @@ Check these before merging any change; each names its guarding test.
    functions changes both bots and shifts every Monte Carlo evaluation,
    and changing any `McConfig` default is a strength change — either way,
    re-measure afterwards (follow the `measure-strength` skill).
-6. **Determinism.**  `HeuristicBot` is a pure function of the view;
+6. **Dealer protocol is part of the position.**  `Table` defaults to
+   `DealerRotation::WinnerDeals`.  EAAI-compatible games use
+   `eaai_rules()` with `DealerRotation::AlternateAfterScoredRound`: a
+   scored hand flips the dealer and a dead hand retains it.  `View`
+   exposes this public state, and the Monte Carlo game-value cache and DP
+   are keyed by `(Rules, DealerRotation)`.  Never describe EAAI as
+   alternating after a dead hand, and test both rotations when changing
+   the driver, view, or score-aware evaluation.
+7. **Determinism.**  `HeuristicBot` is a pure function of the view;
    `MonteCarloBot` owns its RNG, so a seeded generator replays
    identically.  Tests rely on both.  Never call a global RNG inside a
-   strategy — take the generator as a constructor argument.
+   strategy — take the generator as a constructor argument.  Arena
+   mirroring is a common-random-number seat swap: rounds clone the exact
+   deal, while games reuse identically seeded shuffle streams.  Do not
+   claim that every later dealer/deal pairing stays identical in a game;
+   if one orientation has a dead hand where the other scores, their dealer
+   sequences can diverge.
 
 ## The sibling crate
 
@@ -102,6 +117,9 @@ Check these before merging any change; each names its guarding test.
 - For rules questions, [Pagat](https://www.pagat.com/rummy/ginrummy.html)
   is the most reliable source; scoring bonuses vary by rule school and are
   all knobs on `Rules`.
+- Do not construct an EAAI approximation from `Rules::new()`.  Use the
+  engine's public `eaai_rules()` preset: no Big Gin, box, game, or shutout
+  bonus, alongside the scored-hand-only dealer rotation above.
 
 ## Verification
 
@@ -131,6 +149,12 @@ path (CI runs both).
   release mode, never debug:
   `cargo test --release --test strength -- --ignored` (minutes long).
   For real measurement, follow the `measure-strength` skill.
+- For a publishable arena panel, pass explicit `--seeds`, request
+  `--format json`, and retain the `gin-rummy-arena/v1` output.  Bare `mc`
+  and `mca` mean 128 samples, although publication commands should spell
+  out `mc:128` or `mca:128`.  Use pair-cluster confidence intervals and
+  the exact pair-sweep sign test as headline inference; paired-normal
+  z-values are diagnostics only.
 - For performance-sensitive changes, `cargo bench` (needs the default
   `rand` feature).
 
