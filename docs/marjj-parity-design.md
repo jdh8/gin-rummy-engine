@@ -92,31 +92,52 @@ ten-card draws from ~20 unseen cards sits in the twenties.  Undercut
 risk is therefore priced near zero exactly where it is highest — the
 32% undercut rate against MARJJ is this bug wearing a costume.
 
-### Design
+### The measurement that changed this design
 
-Sample toward a **target deadwood** instead of the minimum:
+The problem above is real and *twice as large as stated*: at a
+twelve-card pile the best of twelve uniform draws carries 28 deadwood
+where a hand played since the deal carries 13
+(`calibrated_worlds_price_a_developed_opponent` measures both).
 
-1. **Baked curves.**  For each archetype (eager / balanced / camper —
-   concretely, the rollout policy at `knock_threshold` 255 / 4 / 0,
-   with the matching draw rule), measure hidden-hand deadwood *mean
-   and spread by turn index*, plus the **knock-hazard curve** —
-   P(first knock at turn t) — from seeded self-play driven by the
-   existing `Sim`/`Table` machinery.  Bake the small tables into the
-   crate with an `#[ignore]`d `regenerate_*` test that reprints them,
-   exactly the `src/value.rs` precedent (`regenerate_baked`).
-2. **Sampling.**  Per world: draw a target from the archetype's curve
-   at the current turn (clamped), draw the same k candidate hands as
-   today, keep the one whose `deadwood(known | hidden)` is *closest to
-   the target* rather than lowest.  Diversity across worlds now comes
-   from the target draw, not only from the uniform hands, so worlds
-   spread realistically instead of stacking at best-of-k.
-3. **Turn index.**  The bot's own `play_turn` count within the round
-   (reset per D5); the opponent's is that ±1.  `discard_pile().len()`
-   is not monotone (takes pop it), so it stays a fallback only.
-4. **Knob surface.**  One added `McConfig` field, e.g.
-   `hand_calibration: Option<Archetype>`, `None` meaning today's
-   best-of-k (default, pinned by the existing default-pinning test).
-   `opponent_strength_percent` keeps its meaning for the `None` path.
+But selecting toward a target — this section's original design — cannot
+fix it.  The minimum of k uniform draws is already the closest draw to
+any target below it, so "keep the closest" is *identical to best-of-k*
+whenever the target sits under the best draw, which is every position
+that matters; early in the round, where the target sits above, it merely
+picks a weaker hand.  Nor can more draws close the gap: the minimum of k
+falls logarithmically in k, which is exactly why
+`opponent_strength_percent` bought two points at 200 and nothing at 400.
+
+Sampling therefore has to **construct** a developed hand, not select one.
+
+### Design (as built)
+
+1. **One baked curve.**  `CALIBRATED_TARGET` in `src/mc.rs`: mean
+   deadwood of the waiting seat's ten cards by discard-pile length, from
+   5000 seeded camper-versus-camper rounds under `eaai_rules()`, both
+   seats at `knock_threshold: 0`.  `Sim::rollout` gains an observed
+   variant so the sampler can watch a round develop; `rollout` is that
+   function with an inert probe.  The `src/value.rs` precedent holds:
+   `curve_matches_fresh_sampling` guards the checked-in numbers and an
+   `#[ignore]`d `regenerate_curve` reprints them.
+2. **Development.**  `MonteCarloBot::develop` takes the best-of-k draw
+   and swaps cards against the unseen pool, accepting a swap when it
+   moves the hand's deadwood *closer to* the target, under a 64-attempt
+   cap.  Acceptance is by distance rather than by deadwood because one
+   swap can complete a meld and overshoot — an overestimate of the
+   opponent is no better than the underestimate it replaces.
+3. **Pile length, not turn index.**  The curve is measured against the
+   same quantity the `View` exposes, so a pile that shrinks when the
+   opponent takes reads off the deadwood that hands with that pile
+   length really carry.  No turn counter, so M2 does not need `D5`.
+4. **Knob surface.**  `McConfig::hand_calibration: bool`, default
+   `false`, pinned by the default-pinning test.
+   `opponent_strength_percent` keeps its meaning on both paths: it is
+   how many hands a world draws before development starts.
+
+One archetype, not three: M1 refuted the archetype *knock policy*, and
+until inference (D4) has measured value there is nothing to select
+between.  `Option<Archetype>` is the upgrade if D4 ever earns it.
 
 Curves for MARJJ specifically are *not* baked — the camper archetype
 is measured from the crate's own policy family, in-tree and
@@ -127,8 +148,10 @@ can log the true hidden deadwood by turn) to *validate* the camper
 curve against the surrogate's reality; the dump is scaffolding, not a
 shipped interface.
 
-Cost: one extra `deadwood` call per candidate hand — the same k calls
-as today, plus a target draw.  `cargo bench` before/after.
+Cost: up to 64 extra `deadwood` calls per world against today's twelve,
+so this is a real sampling cost rather than the free one first
+estimated.  Rollouts still dominate a decision; `cargo bench` with the
+knob on decides whether it can ever be a default.
 
 ## D4. Adaptive opponent-archetype inference (phase M3)
 

@@ -14,8 +14,8 @@
 //! `(knock_threshold, score_awareness)` pair; with `--mc-samples N` a
 //! Monte Carlo [`McConfig`], whose swept knobs are `--rollout-knock`
 //! (the bot's own continuation), `--opp-knock` (the modeled opponent's),
-//! `--opp-model eager,meld`, `--gate`, `--max-candidates`, and
-//! `--opp-strength` (percent).  Arms are the cartesian product of the
+//! `--opp-model eager,meld`, `--gate`, `--max-candidates`,
+//! `--opp-strength` (percent), and `--hand-calibration off,on`.  Arms are the cartesian product of the
 //! given lists — sweep one list at a time or the arm count multiplies.
 //! Score-aware knobs only show up across a game (a single round has no
 //! scoreboard), so evaluation is game-based, not round-based like
@@ -104,19 +104,25 @@ impl Arm {
             Self::Heuristic(knock, awareness) => {
                 format!("knock={knock:>2} awareness={awareness:>3}")
             }
-            Self::Mc(config) => format!(
-                "mc:{} sknock={:>3} oknock={:>3} model={} gate={} cand={} strength={}%",
-                config.samples,
-                config.rollout_knock_self,
-                config.rollout_knock_opponent,
-                match config.opponent_model {
-                    OpponentModel::MeldOnly => "meld",
-                    _ => "eager",
-                },
-                config.gate_z,
-                config.max_candidates,
-                config.opponent_strength_percent,
-            ),
+            Self::Mc(config) => {
+                format!(
+                    "mc:{} sknock={:>3} oknock={:>3} model={} gate={} cand={} strength={}%",
+                    config.samples,
+                    config.rollout_knock_self,
+                    config.rollout_knock_opponent,
+                    match config.opponent_model {
+                        OpponentModel::MeldOnly => "meld",
+                        _ => "eager",
+                    },
+                    config.gate_z,
+                    config.max_candidates,
+                    config.opponent_strength_percent,
+                ) + if config.hand_calibration {
+                    " calibrated"
+                } else {
+                    ""
+                }
+            }
         }
     }
 }
@@ -133,6 +139,7 @@ struct Config {
     gate: Vec<f64>,
     max_candidates: Vec<usize>,
     opp_strength: Vec<u32>,
+    hand_calibration: Vec<bool>,
     opponent: Opponent,
     rules: Rules,
     alternate_dealer: bool,
@@ -219,6 +226,17 @@ where
         .collect()
 }
 
+/// Parse a comma-separated list of switches: `off,on`.
+fn parse_flags(text: &str) -> Result<Vec<bool>> {
+    text.split(',')
+        .map(|item| match item.trim() {
+            "on" | "true" => Ok(true),
+            "off" | "false" => Ok(false),
+            other => bail!("unknown switch {other:?} (on | off)"),
+        })
+        .collect()
+}
+
 /// Parse a comma-separated list of opponent models: `eager,meld`.
 fn parse_models(text: &str) -> Result<Vec<OpponentModel>> {
     text.split(',')
@@ -244,6 +262,7 @@ fn parse_args() -> Result<Config> {
         gate: vec![defaults.gate_z],
         max_candidates: vec![defaults.max_candidates],
         opp_strength: vec![defaults.opponent_strength_percent],
+        hand_calibration: vec![defaults.hand_calibration],
         opponent: Opponent::Greedy(
             HeuristicConfig::default().knock_threshold,
             HeuristicConfig::default().score_awareness,
@@ -266,6 +285,7 @@ fn parse_args() -> Result<Config> {
             "--gate" => config.gate = parse_list(&value()?)?,
             "--max-candidates" => config.max_candidates = parse_list(&value()?)?,
             "--opp-strength" => config.opp_strength = parse_list(&value()?)?,
+            "--hand-calibration" => config.hand_calibration = parse_flags(&value()?)?,
             "--opponent" => config.opponent = parse_opponent(&value()?)?,
             "--rules" => {
                 config.rules = match value()?.as_str() {
@@ -284,7 +304,8 @@ fn parse_args() -> Result<Config> {
                 "unknown flag {other:?} \
                  (--games/--seed/--knock/--awareness/--mc-samples/--rollout-knock/\
                  --opp-knock/--opp-model/--gate/--max-candidates/--opp-strength/\
-                 --opponent/--rules/--box-bonus/--alternate-dealer)"
+                 --hand-calibration/--opponent/--rules/--box-bonus/\
+                 --alternate-dealer)"
             ),
         }
     }
@@ -314,17 +335,20 @@ fn arms(config: &Config) -> Vec<Arm> {
                 for &gate_z in &config.gate {
                     for &max_candidates in &config.max_candidates {
                         for &opponent_strength_percent in &config.opp_strength {
-                            // `McConfig` is non-exhaustive: start from
-                            // Default and adjust.
-                            let mut mc = McConfig::default();
-                            mc.samples = samples;
-                            mc.rollout_knock_self = rollout_knock_self;
-                            mc.rollout_knock_opponent = rollout_knock_opponent;
-                            mc.opponent_model = opponent_model;
-                            mc.gate_z = gate_z;
-                            mc.max_candidates = max_candidates;
-                            mc.opponent_strength_percent = opponent_strength_percent;
-                            arms.push(Arm::Mc(mc));
+                            for &hand_calibration in &config.hand_calibration {
+                                // `McConfig` is non-exhaustive: start from
+                                // Default and adjust.
+                                let mut mc = McConfig::default();
+                                mc.samples = samples;
+                                mc.rollout_knock_self = rollout_knock_self;
+                                mc.rollout_knock_opponent = rollout_knock_opponent;
+                                mc.opponent_model = opponent_model;
+                                mc.gate_z = gate_z;
+                                mc.max_candidates = max_candidates;
+                                mc.opponent_strength_percent = opponent_strength_percent;
+                                mc.hand_calibration = hand_calibration;
+                                arms.push(Arm::Mc(mc));
+                            }
                         }
                     }
                 }

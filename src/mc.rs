@@ -108,6 +108,14 @@ pub struct McConfig {
     /// are makes knocking look safe exactly where it is not.  0 samples
     /// uniformly random opponent hands.
     pub opponent_strength_percent: u32,
+    /// Whether a sampled opponent hand is developed until it carries the
+    /// deadwood a hand really carries this far into the round — measured
+    /// by discard-pile length from self-play — instead of being the
+    /// strongest of several uniform draws, which is a far weaker hand than
+    /// any opponent actually holds.  `opponent_strength_percent` keeps its meaning
+    /// either way: it is how many candidate hands a world draws from
+    /// before the development starts.
+    pub hand_calibration: bool,
     /// How a mid-game round outcome is valued: [`GameValue::Table`], the
     /// default game-win value function that gives the search score
     /// awareness, or [`GameValue::Affine`], the historical round-point
@@ -127,6 +135,7 @@ impl McConfig {
             gate_z: 2.0,
             max_candidates: 4,
             opponent_strength_percent: 200,
+            hand_calibration: false,
             game_value: GameValue::Table,
         }
     }
@@ -335,14 +344,31 @@ impl<R: Rng> MonteCarloBot<R> {
     /// passed, the heuristic's disinterest signal pointed the other way —
     /// measured flat (+0.2/−0.2 points on two 10 000-round seeds at mc:64),
     /// so the deadwood bias stands alone.
+    ///
+    /// The bias is nowhere near enough on its own, which
+    /// [`McConfig::hand_calibration`] is the answer to.  Selecting the best
+    /// of twelve uniform draws lands near 28 deadwood at a twelve-card
+    /// pile, where a hand that has been played since the deal carries 13
+    /// ([`calibrated_target`]) — the opponent is modeled at less than half
+    /// their real strength exactly where undercut risk is priced.  Raising
+    /// the draw count cannot fix that: the minimum of `k` uniform draws
+    /// falls logarithmically in `k`, which is why
+    /// `opponent_strength_percent` measured worth two points at 200 and
+    /// nothing more at 400.  Calibration instead *develops* the drawn hand
+    /// toward the target, the way its owner did — see [`Self::develop`].
     fn sample_worlds(&mut self, view: &View<'_>, count: u32) -> Vec<World> {
         let unseen = view.unseen();
         let known = view.opponent_known();
         let missing = view.opponent_hand_len() - known.len();
+        let pile_len = view.discard_pile().len();
         // At least one draw always happens, so 0 percent degrades to a
         // uniformly random hidden hand rather than an empty sample.
         let percent = self.config.opponent_strength_percent as usize;
-        let strength = (opponent_strength(view.discard_pile().len()) * percent / 100).max(1);
+        let strength = (opponent_strength(pile_len) * percent / 100).max(1);
+        let target = self
+            .config
+            .hand_calibration
+            .then(|| calibrated_target(pile_len));
         // One scratch pool for the whole decision.  Each hidden-hand draw is
         // a partial Fisher-Yates prefix, which is uniform from any starting
         // permutation, so the pool never needs rebuilding between draws.
@@ -360,6 +386,10 @@ impl<R: Rng> MonteCarloBot<R> {
                     })
                     .min_by_key(|&hidden| deadwood(known | hidden))
                     .expect("at least one draw is always sampled");
+                let hidden = match target {
+                    Some(target) => self.develop(hidden, &pool, known, target),
+                    None => hidden,
+                };
 
                 let mut stock: Vec<Card> = pool
                     .iter()
@@ -376,6 +406,55 @@ impl<R: Rng> MonteCarloBot<R> {
                 }
             })
             .collect()
+    }
+
+    /// Play a sampled hidden hand forward until it is as developed as a
+    /// real one: swap cards with the unseen pool, keeping every swap that
+    /// moves the hand's deadwood toward `target`
+    ///
+    /// Selecting among uniform draws cannot reach a developed hand at all.
+    /// Best of twelve uniform draws lands near 28 deadwood at mid-round
+    /// where a hand that has been played since the deal carries 13, and
+    /// closing that by drawing more is exponentially expensive: the
+    /// minimum of `k` uniform draws falls only logarithmically in `k`, so
+    /// no affordable `opponent_strength_percent` gets there.  Improving
+    /// one drawn hand does close it, and it closes it the way the opponent
+    /// did — by keeping what fits and shedding what does not.
+    ///
+    /// Swaps are accepted by *distance* to the target rather than by
+    /// deadwood alone, because one lucky swap can complete a meld and drop
+    /// a hand well past it: the modeled opponent must be as strong as the
+    /// measurement says and no stronger, or calibration trades an
+    /// underestimate for an overestimate.
+    fn develop(&mut self, hidden: Hand, pool: &[Card], known: Hand, target: u8) -> Hand {
+        // ponytail: random-swap hill climbing under a fixed attempt cap.
+        // It reaches the target from every mid-round position measured; a
+        // meld-first constructive sampler is the upgrade if the cap ever
+        // binds where it matters.
+        const ATTEMPTS: usize = 64;
+
+        let mut hidden = hidden;
+        let mut distance = deadwood(known | hidden).abs_diff(target);
+        for _ in 0..ATTEMPTS {
+            if distance == 0 {
+                break;
+            }
+            let incoming = pool[self.rng.random_range(0..pool.len())];
+            if hidden.contains(incoming) {
+                continue;
+            }
+            let outgoing = hidden
+                .iter()
+                .nth(self.rng.random_range(0..hidden.len()))
+                .expect("the index is inside the hand");
+            let swapped = (hidden - outgoing.into()) | incoming.into();
+            let swapped_distance = deadwood(known | swapped).abs_diff(target);
+            if swapped_distance < distance {
+                hidden = swapped;
+                distance = swapped_distance;
+            }
+        }
+        hidden
     }
 
     /// Instantiate one world as a rollout state, to act at `phase`
@@ -665,6 +744,41 @@ const fn opponent_strength(pile_len: usize) -> usize {
     if pile_len < 2 { 1 } else { pile_len / 2 }
 }
 
+/// Mean deadwood of a ten-card hand that has been played to gin for a
+/// round this long, by discard-pile length
+///
+/// Measured from seeded self-play between two campers — the greedy core at
+/// `knock_threshold: 0`, so neither seat ever banks a knock and both keep
+/// improving — which is the developed hand that
+/// [`sample_worlds`](MonteCarloBot::sample_worlds) must price and the case
+/// best-of-k misses worst.  Index 0 is unused: a decision always sees at
+/// least the upcard.
+///
+/// Indexed by pile length rather than by turn because that is what a
+/// [`View`] carries, and because a pile that shrinks when the opponent
+/// takes the upcard is not a defect of the index here: the curve is
+/// *measured against the same quantity*, so a taken upcard reads off the
+/// deadwood that hands with that pile length really have.
+///
+/// Checked in rather than sampled at construction for the reason
+/// `src/value.rs` bakes its histograms — a first-decision stall is felt by
+/// every interactive caller.  `curve_matches_fresh_sampling` proves the
+/// numbers are still what sampling produces; `regenerate_curve` reprints
+/// them after a deliberate change.
+#[rustfmt::skip]
+const CALIBRATED_TARGET: [u8; 30] = [
+    53, 50, 43, 38, 34, 30, 27, 24,
+    21, 19, 17, 15, 13, 12, 10, 9,
+    8, 8, 7, 6, 6, 5, 5, 5,
+    4, 4, 4, 4, 4, 3,
+];
+
+/// The deadwood [`CALIBRATED_TARGET`] expects at this pile length, clamped
+/// to the measured range
+fn calibrated_target(pile_len: usize) -> u8 {
+    CALIBRATED_TARGET[pile_len.clamp(1, CALIBRATED_TARGET.len() - 1)]
+}
+
 /// Whether the challenger's paired advantage over the incumbent is large
 /// enough to trust
 ///
@@ -847,7 +961,7 @@ impl<R: Rng> Strategy for MonteCarloBot<R> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::Table;
+    use crate::{HeuristicBot, HeuristicConfig, Table, eaai_rules};
     use gin_rummy::{Round, Rules};
     use rand::SeedableRng as _;
     use rand::rngs::StdRng;
@@ -874,8 +988,13 @@ mod tests {
         let table = fixed_table();
         let view = table.view(Player::Two);
         let mut bot = MonteCarloBot::new(StdRng::seed_from_u64(1)).samples(32);
+        // Calibration changes which draw a world keeps, never whether the
+        // world is a legal partition, so both settings answer here.
+        let mut worlds = bot.sample_worlds(&view, 32);
+        bot.config.hand_calibration = true;
+        worlds.extend(bot.sample_worlds(&view, 32));
 
-        for world in bot.sample_worlds(&view, 32) {
+        for world in worlds {
             // Right sizes: a full opponent hand and the whole stock.
             assert_eq!(world.opponent.len(), view.opponent_hand_len());
             assert_eq!(world.stock.len(), view.stock_len());
@@ -896,6 +1015,54 @@ mod tests {
                 view.opponent_known()
             );
         }
+    }
+
+    #[test]
+    fn calibrated_worlds_price_a_developed_opponent() {
+        // Mid-round is where best-of-k goes wrong, and it goes wrong in
+        // the direction that makes knocking look safe: the strongest of
+        // its uniform draws is still a far weaker hand than the opponent
+        // holds, so an undercut reads as unlikely where it is likeliest.
+        // Development must close that gap, not narrow it.
+        let mut table = fixed_table();
+        let mut patient = HeuristicBot::with_config(HeuristicConfig {
+            knock_threshold: 0,
+            ..HeuristicConfig::default()
+        });
+        let seat = loop {
+            let seat = table.turn().expect("the round outlasts a short pile");
+            if table.view(seat).discard_pile().len() >= 12 {
+                break seat;
+            }
+            table
+                .step(&mut patient)
+                .expect("the greedy bot plays legally");
+        };
+
+        let view = table.view(seat);
+        let target = f64::from(calibrated_target(view.discard_pile().len()));
+        let mut bot = MonteCarloBot::new(StdRng::seed_from_u64(3)).samples(64);
+        let mean = |worlds: &[World]| {
+            worlds
+                .iter()
+                .map(|world| f64::from(deadwood(world.opponent)))
+                .sum::<f64>()
+                / worlds.len() as f64
+        };
+        let best_of_k = mean(&bot.sample_worlds(&view, 64));
+        bot.config.hand_calibration = true;
+        let calibrated = mean(&bot.sample_worlds(&view, 64));
+
+        assert!(
+            best_of_k > target + 3.0,
+            "best-of-k should model an implausibly weak hand \
+             (deadwood {best_of_k:.1} against a measured {target:.1})"
+        );
+        assert!(
+            (calibrated - target).abs() < 2.0,
+            "calibrated worlds ({calibrated:.1}) should sit at the measured \
+             {target:.1}, not at best-of-k's {best_of_k:.1}"
+        );
     }
 
     #[test]
@@ -1281,6 +1448,99 @@ mod tests {
         assert_eq!(decide(4), decide(4));
     }
 
+    /// Rounds behind each baked point of [`CALIBRATED_TARGET`]
+    const CURVE_ROUNDS: u32 = 5000;
+    /// The curve sampler's fixed seed, so the baked numbers are exactly
+    /// what re-sampling reproduces
+    const CURVE_SEED: u64 = 20260809;
+
+    /// Mean deadwood of the waiting seat's hand by pile length, over
+    /// camper-versus-camper self-play
+    ///
+    /// The sampler that produced [`CALIBRATED_TARGET`]; kept as test code
+    /// because the baked curve is what ships.  Both seats knock only on
+    /// gin, so each round runs long and both hands keep developing — the
+    /// hand `sample_worlds` has to price.  The *waiting* seat is the one
+    /// measured: that is the seat a deciding bot cannot see.
+    fn sample_curve() -> Vec<u8> {
+        let rules = eaai_rules();
+        let mut rng = StdRng::seed_from_u64(CURVE_SEED);
+        let mut deck: Vec<Card> = Hand::ALL.iter().collect();
+        let mut totals = [0u64; CALIBRATED_TARGET.len()];
+        let mut counts = [0u64; CALIBRATED_TARGET.len()];
+
+        for i in 0..CURVE_ROUNDS {
+            for k in (1..deck.len()).rev() {
+                let j = rng.random_range(0..=k);
+                deck.swap(k, j);
+            }
+            let hands = [
+                deck[..10].iter().copied().collect::<Hand>(),
+                deck[10..20].iter().copied().collect(),
+            ];
+            let mut sim = Sim::from_deal(
+                rules,
+                Player::ALL[(i & 1) as usize],
+                hands,
+                deck[20],
+                deck[21..].to_vec(),
+            );
+            sim.policies = [SeatPolicy {
+                knock_threshold: 0,
+                meld_only_draw: false,
+            }; 2];
+            sim.rollout_observed(|sim| {
+                let waiting = sim.hands[sim.turn.opponent() as usize];
+                // Only ten-card hands: the acting seat's eleventh card is
+                // not part of what a world samples.
+                if let Some(slot) = totals.get_mut(sim.pile.len()) {
+                    *slot += u64::from(deadwood(waiting));
+                    counts[sim.pile.len()] += 1;
+                }
+            });
+        }
+
+        totals
+            .iter()
+            .zip(&counts)
+            .map(|(&total, &count)| {
+                // Rounded to the nearest point.  An unvisited pile length
+                // reads 0, which the clamp in `calibrated_target` never
+                // reaches.
+                let mean = if count == 0 {
+                    0
+                } else {
+                    (2 * total + count) / (2 * count)
+                };
+                u8::try_from(mean).expect("mean deadwood of ten cards fits in a byte")
+            })
+            .collect()
+    }
+
+    /// The checked-in curve must be exactly what the sampler produces —
+    /// the guard on an upstream mechanics change quietly making the
+    /// calibration describe a game nobody plays, mirroring
+    /// `value::tests::baked_matches_fresh_sampling`.
+    #[test]
+    fn curve_matches_fresh_sampling() {
+        assert_eq!(sample_curve(), CALIBRATED_TARGET, "calibration drifted");
+    }
+
+    /// Reprint the baked curve, for pasting back after a deliberate
+    /// change.  Ignored: it is a generator, not a check.
+    #[test]
+    #[ignore = "generator; run with --ignored --nocapture and paste the output"]
+    fn regenerate_curve() {
+        let curve = sample_curve();
+        println!("#[rustfmt::skip]");
+        println!("const CALIBRATED_TARGET: [u8; {}] = [", curve.len());
+        for row in curve.chunks(8) {
+            let cells: Vec<String> = row.iter().map(u8::to_string).collect();
+            println!("    {},", cells.join(", "));
+        }
+        println!("];");
+    }
+
     #[test]
     fn beats_requires_a_clear_margin() {
         // A small mean edge buried in noise is not enough: the paired
@@ -1314,6 +1574,7 @@ mod tests {
         assert!((config.gate_z - 2.0).abs() < f64::EPSILON);
         assert_eq!(config.max_candidates, 4);
         assert_eq!(config.opponent_strength_percent, 200);
+        assert!(!config.hand_calibration);
         assert_eq!(config.game_value, GameValue::Table);
         // The two construction paths agree.
         assert_eq!(McConfig::new(), config);

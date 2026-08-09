@@ -215,8 +215,20 @@ impl Sim {
     /// deadwood risk correctly, and a patient forward model plays
     /// complacent.  The per-seat policies exist to test the *asymmetric*
     /// cases that finding does not cover.
-    pub(crate) fn rollout(mut self) -> RoundResult {
+    pub(crate) fn rollout(self) -> RoundResult {
+        self.rollout_observed(|_| ())
+    }
+
+    /// [`rollout`](Self::rollout), calling `probe` on every state the round
+    /// passes through
+    ///
+    /// The probe is how the calibration curves in [`crate::mc`] are measured:
+    /// they need the hidden hand's deadwood as the round develops, which the
+    /// result alone cannot report.  `rollout` is this function with an inert
+    /// probe, so the two cannot drift.
+    pub(crate) fn rollout_observed(mut self, mut probe: impl FnMut(&Self)) -> RoundResult {
         loop {
+            probe(&self);
             let hand = self.hands[self.turn as usize];
             match self.phase {
                 SimPhase::Upcard => {
