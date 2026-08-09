@@ -38,7 +38,8 @@ use std::path::Path;
 use std::process::{Command, Stdio};
 use std::time::Instant;
 use support::arena_stats::{
-    Interval, RatioMoments, SignedRatioMoments, exact_sign_p_value, normal_p_value, wilson,
+    ExactPValue, Interval, RatioMoments, SignedRatioMoments, exact_sign_p_value, normal_p_value,
+    wilson,
 };
 
 /// SplitMix64's increment: mixed into the seed so adjacent trial indices
@@ -68,6 +69,15 @@ struct Config {
     rules: Rules,
     rules_name: &'static str,
     format: OutputFormat,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum BotSpec {
+    Greedy,
+    Eaai,
+    MonteCarlo { samples: u32, affine: bool },
+    GoldPaper,
+    MarjjV5Surrogate,
 }
 
 fn parse_args() -> Result<Config> {
@@ -146,6 +156,8 @@ fn parse_args_from(args: impl IntoIterator<Item = String>) -> Result<Config> {
     if config.count == 0 {
         bail!("the trial count must be greater than zero");
     }
+    parse_bot_spec(&config.p1).context("invalid --p1 bot specification")?;
+    parse_bot_spec(&config.p2).context("invalid --p2 bot specification")?;
     Ok(config)
 }
 
@@ -157,37 +169,80 @@ fn push_seed(seeds: &mut Vec<u64>, seed: u64) -> Result<()> {
     Ok(())
 }
 
-fn make_bot(spec: &str, seed: u64) -> Result<Box<dyn Strategy>> {
-    if let Some(bot) = support::strong::make_bot(spec, seed)? {
-        return Ok(bot);
-    }
-    let (kind, samples) = match spec.split_once(':') {
-        Some((kind, samples)) => (kind, Some(samples.parse::<u32>()?)),
-        None => (spec, None),
+fn parse_bot_spec(spec: &str) -> Result<BotSpec> {
+    let parsed = match spec {
+        "greedy" => BotSpec::Greedy,
+        "eaai" => BotSpec::Eaai,
+        "mc" => BotSpec::MonteCarlo {
+            samples: 128,
+            affine: false,
+        },
+        "mca" => BotSpec::MonteCarlo {
+            samples: 128,
+            affine: true,
+        },
+        "gold-paper" => BotSpec::GoldPaper,
+        "marjj-v5-surrogate" => BotSpec::MarjjV5Surrogate,
+        _ => {
+            if let Some((kind, samples)) = spec.split_once(':') {
+                match kind {
+                    "mc" | "mca" => BotSpec::MonteCarlo {
+                        samples: samples
+                            .parse::<u32>()
+                            .with_context(|| format!("invalid sample count in bot {spec:?}"))?,
+                        affine: kind == "mca",
+                    },
+                    "greedy" | "eaai" | "gold-paper" | "marjj-v5-surrogate" => {
+                        bail!("bot {kind:?} does not accept a sample-count suffix")
+                    }
+                    _ => {
+                        let strong = support::strong::BOT_SPECS.join(" | ");
+                        bail!(
+                            "unknown bot {spec:?} (greedy | eaai | mc[:samples] | \
+                             mca[:samples] | {strong})"
+                        )
+                    }
+                }
+            } else {
+                let strong = support::strong::BOT_SPECS.join(" | ");
+                bail!(
+                    "unknown bot {spec:?} (greedy | eaai | mc[:samples] | \
+                     mca[:samples] | {strong})"
+                )
+            }
+        }
     };
-    match kind {
-        "greedy" => Ok(Box::new(HeuristicBot::new())),
+    Ok(parsed)
+}
+
+fn make_bot(spec: &str, seed: u64) -> Result<Box<dyn Strategy>> {
+    match parse_bot_spec(spec)? {
+        BotSpec::Greedy => Ok(Box::new(HeuristicBot::new())),
         // The EAAI-2021 challenge baseline, the cross-engine yardstick.
-        "eaai" => Ok(Box::new(EaaiSimpleBot::new(StdRng::seed_from_u64(seed)))),
-        "mc" => Ok(Box::new(
-            MonteCarloBot::new(StdRng::seed_from_u64(seed)).samples(samples.unwrap_or(128)),
+        BotSpec::Eaai => Ok(Box::new(EaaiSimpleBot::new(StdRng::seed_from_u64(seed)))),
+        BotSpec::MonteCarlo {
+            samples,
+            affine: false,
+        } => Ok(Box::new(
+            MonteCarloBot::new(StdRng::seed_from_u64(seed)).samples(samples),
         )),
         // Monte Carlo with the historical affine equity in place of the
         // default game-win value function.  This is the arm that default was
         // measured against, kept so the comparison stays reproducible.
-        "mca" => {
+        BotSpec::MonteCarlo {
+            samples,
+            affine: true,
+        } => {
             let mut config = McConfig::new();
-            config.samples = samples.unwrap_or(128);
+            config.samples = samples;
             config.game_value = GameValue::Affine;
             Ok(Box::new(MonteCarloBot::with_config(
                 StdRng::seed_from_u64(seed),
                 config,
             )))
         }
-        other => {
-            let strong = support::strong::BOT_SPECS.join(" | ");
-            bail!("unknown bot {other:?} (greedy | eaai | mc[:samples] | mca[:samples] | {strong})")
-        }
+        BotSpec::GoldPaper | BotSpec::MarjjV5Surrogate => support::strong::make_bot(spec, seed)?
+            .with_context(|| format!("strong bot {spec:?} was parsed but could not be built")),
     }
 }
 
@@ -462,7 +517,7 @@ struct Comparison {
     normal_z: Option<f64>,
     infinite_z_direction: i8,
     normal_p: Option<f64>,
-    exact_p: Option<f64>,
+    exact_p: ExactPValue,
 }
 
 fn comparison(outcome: &Outcome, config: &Config, denominator: u32) -> Comparison {
@@ -494,7 +549,8 @@ fn comparison(outcome: &Outcome, config: &Config, denominator: u32) -> Compariso
             // With no sweeps the exact test has no evidence against its
             // null; report p=1 so a fixed multi-matchup panel remains
             // directly consumable by Holm correction.
-            exact_p: Some(exact_sign_p_value(outcome.sweeps[0], outcome.sweeps[1]).unwrap_or(1.0)),
+            exact_p: exact_sign_p_value(outcome.sweeps[0], outcome.sweeps[1])
+                .unwrap_or_else(ExactPValue::one),
         }
     } else {
         let decisive = outcome.wins[0] + outcome.wins[1];
@@ -506,9 +562,16 @@ fn comparison(outcome: &Outcome, config: &Config, denominator: u32) -> Compariso
             normal_z,
             infinite_z_direction: 0,
             normal_p: normal_z.map(normal_p_value),
-            exact_p: Some(exact_sign_p_value(outcome.wins[0], outcome.wins[1]).unwrap_or(1.0)),
+            exact_p: exact_sign_p_value(outcome.wins[0], outcome.wins[1])
+                .unwrap_or_else(ExactPValue::one),
         }
     }
+}
+
+fn text_p_value(value: ExactPValue) -> String {
+    value
+        .as_f64()
+        .map_or_else(|| value.decimal(), |number| format!("{number:.3}"))
 }
 
 fn rate_interval(
@@ -578,19 +641,17 @@ fn print_significance(outcome: &Outcome, config: &Config, denominator: u32) {
             print!(", no sweeps, exact sign p = 1.000");
         } else {
             print!(
-                ", sweeps {}-{}, exact sign p = {p:.3}",
+                ", sweeps {}-{}, exact sign p = {}",
                 outcome.sweeps[0],
                 outcome.sweeps[1],
-                p = comparison.exact_p.expect("the exact p-value is total"),
+                text_p_value(comparison.exact_p),
             );
         }
     } else if let Some(z) = comparison.normal_z {
         print!(
-            ", sign z = {z:.2}, normal p = {:.3}, exact p = {:.3}",
+            ", sign z = {z:.2}, normal p = {:.3}, exact p = {}",
             comparison.normal_p.expect("a finite z has a p-value"),
-            comparison
-                .exact_p
-                .expect("a decisive result has an exact p-value"),
+            text_p_value(comparison.exact_p),
         );
     } else {
         print!(", no decisive trials");
@@ -731,23 +792,26 @@ fn rules_json(rules: &Rules) -> String {
 /// Fully expand a bot spec so a JSON result remains interpretable if defaults
 /// move in a later release.
 fn bot_configuration_json(spec: &str) -> String {
-    let configuration = if spec == "greedy" {
-        "{\"kind\":\"HeuristicBot\",\"knock_threshold\":4,\"safety_weight\":1,\"score_awareness\":40}".to_owned()
-    } else if spec == "eaai" {
-        "{\"kind\":\"EaaiSimpleBot\",\"draw\":\"take_only_into_immediate_meld\",\"discard_ties\":\"seeded_uniform\",\"knock\":\"first_legal\"}".to_owned()
-    } else if spec == "gold-paper" {
-        "{\"kind\":\"GoldPaperBot\",\"draw\":\"strict_minimum_deadwood_improvement\",\"ordinary_ties\":\"highest_pip_then_RLCard_S_H_D_C\",\"knock_ties\":\"RLCard_S_H_D_C\",\"knock_threshold\":10,\"score_or_history_dependent\":false}".to_owned()
-    } else if spec == "marjj-v5-surrogate" {
-        "{\"kind\":\"MarjjV5Surrogate\",\"initial_future_weight\":18,\"discount\":0.9,\"future_cards\":7,\"tie_rng\":\"arena_seeded_StdRng\",\"canonical_card_order\":\"C_H_S_D_then_rank\",\"canonical_meld_order\":\"meld_bitset\"}".to_owned()
-    } else {
-        let (kind, samples) = spec.split_once(':').map_or((spec, 128), |(kind, samples)| {
-            (kind, samples.parse::<u32>().unwrap_or(128))
-        });
-        let game_value = if kind == "mca" { "affine" } else { "table" };
-        format!(
-            "{{\"kind\":\"MonteCarloBot\",\"samples\":{samples},\"rollout_knock_self\":255,\"rollout_knock_opponent\":255,\"opponent_model\":\"eager\",\"gate_z\":2.0,\"max_candidates\":4,\"opponent_strength_percent\":100,\"game_value\":{}}}",
-            json_string(game_value),
-        )
+    let configuration = match parse_bot_spec(spec).expect("bot specification was validated") {
+        BotSpec::Greedy => {
+            "{\"kind\":\"HeuristicBot\",\"knock_threshold\":4,\"safety_weight\":1,\"score_awareness\":40}".to_owned()
+        }
+        BotSpec::Eaai => {
+            "{\"kind\":\"EaaiSimpleBot\",\"draw\":\"take_only_into_immediate_meld\",\"discard_ties\":\"seeded_uniform\",\"knock\":\"first_legal\"}".to_owned()
+        }
+        BotSpec::GoldPaper => {
+            "{\"kind\":\"GoldPaperBot\",\"draw\":\"strict_minimum_deadwood_improvement\",\"ordinary_ties\":\"highest_pip_then_RLCard_S_H_D_C\",\"knock_ties\":\"RLCard_S_H_D_C\",\"knock_threshold\":10,\"score_or_history_dependent\":false}".to_owned()
+        }
+        BotSpec::MarjjV5Surrogate => {
+            "{\"kind\":\"MarjjV5Surrogate\",\"initial_future_weight\":18,\"discount\":0.9,\"future_cards\":7,\"tie_rng\":\"arena_seeded_StdRng\",\"canonical_card_order\":\"C_H_S_D_then_rank\",\"canonical_meld_order\":\"meld_bitset\"}".to_owned()
+        }
+        BotSpec::MonteCarlo { samples, affine } => {
+            let game_value = if affine { "affine" } else { "table" };
+            format!(
+                "{{\"kind\":\"MonteCarloBot\",\"samples\":{samples},\"rollout_knock_self\":255,\"rollout_knock_opponent\":255,\"opponent_model\":\"eager\",\"gate_z\":2.0,\"max_candidates\":4,\"opponent_strength_percent\":100,\"game_value\":{}}}",
+                json_string(game_value),
+            )
+        }
     };
     format!(
         "{{\"spec\":{},\"configuration\":{configuration}}}",
@@ -910,6 +974,7 @@ fn outcome_json(outcome: &Outcome, config: &Config, elapsed: std::time::Duration
     let decisive = outcome.wins[0] + outcome.wins[1];
     let denominator = if config.games { total } else { decisive };
     let comparison = comparison(outcome, config, denominator);
+    let exact_decimal = comparison.exact_p.decimal();
     let throughput =
         (elapsed.as_secs_f64() > 0.0).then(|| f64::from(total) / elapsed.as_secs_f64());
 
@@ -940,7 +1005,7 @@ fn outcome_json(outcome: &Outcome, config: &Config, elapsed: std::time::Duration
     }
 
     format!(
-        "{{\"trials\":{},\"plays\":{total},\"decisive\":{decisive},\"failures\":0,\"elapsed_seconds\":{:.9},\"throughput_per_second\":{},\"players\":[{}],\"round_finishes\":{{\"knock\":{},\"undercut\":{},\"gin\":{},\"big_gin\":{},\"dead\":{}}},\"comparison\":{{\"rate_difference\":{:.15},\"paired_difference_sum\":{},\"paired_difference_sq_sum\":{},\"normal_z\":{},\"infinite_z_direction\":{},\"normal_p_value\":{},\"sweeps\":[{},{}],\"exact_sign_p_value\":{},\"primary_test\":{},\"primary_p_value\":{},\"point_margin_moments\":{}}}}}",
+        "{{\"trials\":{},\"plays\":{total},\"decisive\":{decisive},\"failures\":0,\"elapsed_seconds\":{:.9},\"throughput_per_second\":{},\"players\":[{}],\"round_finishes\":{{\"knock\":{},\"undercut\":{},\"gin\":{},\"big_gin\":{},\"dead\":{}}},\"comparison\":{{\"rate_difference\":{:.15},\"paired_difference_sum\":{},\"paired_difference_sq_sum\":{},\"normal_z\":{},\"infinite_z_direction\":{},\"normal_p_value\":{},\"sweeps\":[{},{}],\"exact_sign_p_value\":{},\"exact_sign_p_value_decimal\":{},\"primary_test\":{},\"primary_p_value\":{},\"primary_p_value_decimal\":{},\"point_margin_moments\":{}}}}}",
         outcome.trials,
         elapsed.as_secs_f64(),
         optional_json_number(throughput),
@@ -958,13 +1023,15 @@ fn outcome_json(outcome: &Outcome, config: &Config, elapsed: std::time::Duration
         optional_json_number(comparison.normal_p),
         outcome.sweeps[0],
         outcome.sweeps[1],
-        optional_json_number(comparison.exact_p),
+        optional_json_number(comparison.exact_p.as_f64()),
+        json_string(&exact_decimal),
         json_string(if config.paired {
             "exact_sweep_sign"
         } else {
             "exact_sign"
         }),
-        optional_json_number(comparison.exact_p),
+        optional_json_number(comparison.exact_p.as_f64()),
+        json_string(&exact_decimal),
         signed_moments_json(outcome.margin_rate),
     )
 }
@@ -1104,6 +1171,20 @@ mod tests {
     }
 
     #[test]
+    fn sample_suffixes_are_rejected_for_non_monte_carlo_bots() {
+        for spec in ["greedy:1", "eaai:1", "gold-paper:1", "marjj-v5-surrogate:1"] {
+            let error = parse_args_from(["--p1".to_owned(), spec.to_owned()])
+                .err()
+                .expect("only Monte Carlo bots accept sample-count suffixes");
+            assert!(
+                format!("{error:#}").contains("does not accept a sample-count suffix"),
+                "unexpected error for {spec}: {error:#}"
+            );
+            assert!(make_bot(spec, 7).is_err(), "make_bot accepted {spec}");
+        }
+    }
+
+    #[test]
     fn json_strings_escape_control_characters() {
         assert_eq!(json_string("a\"b\\c\n"), "\"a\\\"b\\\\c\\n\"");
         assert_eq!(json_string("\u{01}"), "\"\\u0001\"");
@@ -1116,6 +1197,109 @@ mod tests {
         assert_eq!(value["spec"], "mc");
         assert_eq!(value["configuration"]["samples"], 128);
         assert_eq!(value["configuration"]["game_value"], "table");
+    }
+
+    #[test]
+    fn explicit_mc_json_matches_the_parsed_variant() {
+        for (spec, samples, game_value) in [("mc:64", 64, "table"), ("mca:17", 17, "affine")] {
+            let parsed = parse_bot_spec(spec).expect("valid Monte Carlo specification");
+            assert_eq!(
+                parsed,
+                BotSpec::MonteCarlo {
+                    samples,
+                    affine: game_value == "affine",
+                }
+            );
+
+            let config = bot_configuration_json(spec);
+            let value: serde_json::Value = serde_json::from_str(&config).expect("valid bot JSON");
+            assert_eq!(value["spec"], spec);
+            assert_eq!(value["configuration"]["kind"], "MonteCarloBot");
+            assert_eq!(value["configuration"]["samples"], samples);
+            assert_eq!(value["configuration"]["game_value"], game_value);
+        }
+
+        let greedy: serde_json::Value =
+            serde_json::from_str(&bot_configuration_json("greedy")).expect("valid greedy bot JSON");
+        assert_eq!(greedy["configuration"]["kind"], "HeuristicBot");
+    }
+
+    fn exact_json_config() -> Config {
+        Config {
+            count: 4000,
+            games: true,
+            paired: true,
+            alternate_dealer: true,
+            p1: "greedy".into(),
+            p2: "gold-paper".into(),
+            seeds: vec![7],
+            rules: eaai_rules(),
+            rules_name: "eaai",
+            format: OutputFormat::Json,
+        }
+    }
+
+    #[test]
+    fn exact_json_uses_null_and_decimal_instead_of_underflowed_zero() {
+        let outcome = Outcome {
+            wins: [8000, 0],
+            trials: 4000,
+            d_sum: 8000,
+            d2_sum: 16_000,
+            sweeps: [4000, 0],
+            ..Outcome::default()
+        };
+        let json = outcome_json(&outcome, &exact_json_config(), std::time::Duration::ZERO);
+        let value: serde_json::Value = serde_json::from_str(&json).expect("valid outcome JSON");
+        let comparison = &value["comparison"];
+        let expected = exact_sign_p_value(4000, 0).unwrap().decimal();
+
+        assert!(comparison["exact_sign_p_value"].is_null());
+        assert!(comparison["primary_p_value"].is_null());
+        assert_eq!(comparison["exact_sign_p_value_decimal"], expected);
+        assert_eq!(comparison["primary_p_value_decimal"], expected);
+        assert_ne!(comparison["exact_sign_p_value_decimal"], "0");
+    }
+
+    #[test]
+    fn exact_json_keeps_numeric_and_decimal_forms_for_ordinary_and_empty_tests() {
+        let config = exact_json_config();
+        let ordinary = Outcome {
+            trials: 3,
+            sweeps: [3, 0],
+            ..Outcome::default()
+        };
+        let ordinary: serde_json::Value =
+            serde_json::from_str(&outcome_json(&ordinary, &config, std::time::Duration::ZERO))
+                .expect("valid ordinary outcome JSON");
+        assert!(
+            (ordinary["comparison"]["exact_sign_p_value"]
+                .as_f64()
+                .expect("ordinary p-value is numeric")
+                - 0.25)
+                .abs()
+                < 1e-12
+        );
+        assert_eq!(
+            ordinary["comparison"]["exact_sign_p_value_decimal"],
+            exact_sign_p_value(3, 0).unwrap().decimal()
+        );
+
+        let no_sweeps = Outcome {
+            trials: 1,
+            ..Outcome::default()
+        };
+        let no_sweeps: serde_json::Value = serde_json::from_str(&outcome_json(
+            &no_sweeps,
+            &config,
+            std::time::Duration::ZERO,
+        ))
+        .expect("valid no-sweeps outcome JSON");
+        assert_eq!(no_sweeps["comparison"]["exact_sign_p_value"], 1.0);
+        assert_eq!(
+            no_sweeps["comparison"]["primary_p_value_decimal"],
+            "1.000000000000000e+0"
+        );
     }
 
     #[test]

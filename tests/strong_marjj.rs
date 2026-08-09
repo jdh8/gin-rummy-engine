@@ -6,7 +6,7 @@ mod marjj;
 mod melds;
 
 use gin_rummy::{Card, Hand, Player, Round, Rules};
-use gin_rummy_engine::{HeuristicBot, Strategy, Table};
+use gin_rummy_engine::{HeuristicBot, Strategy, Table, TurnAction};
 use marjj::MarjjV5Surrogate;
 use rand::SeedableRng as _;
 
@@ -19,6 +19,23 @@ fn hand(cards: &[&str]) -> Hand {
         .iter()
         .map(|text| card(text))
         .fold(Hand::EMPTY, |cards, card| cards | card.into())
+}
+
+fn round_with_upcard(one: Hand, upcard: Card) -> Round {
+    assert_eq!(one.len(), 10);
+    let two = Hand::ALL
+        .iter()
+        .filter(|&candidate| !one.contains(candidate) && candidate != upcard)
+        .take(10)
+        .collect::<Hand>();
+    let stock = Hand::ALL
+        .iter()
+        .filter(|&candidate| {
+            !one.contains(candidate) && !two.contains(candidate) && candidate != upcard
+        })
+        .collect();
+    Round::from_deal(Rules::default(), Player::Two, [one, two], upcard, stock)
+        .expect("a partitioned deck")
 }
 
 #[test]
@@ -225,4 +242,37 @@ fn exact_best_ties_use_only_the_injected_rng() {
     assert_eq!(choose(2021), choose(2021));
     let choices: Hand = (0..32).map(choose).collect();
     assert_eq!(choices, hand(&["KC", "QH"]));
+}
+
+#[test]
+fn knock_uses_the_optimal_spread_with_the_lower_legacy_layoff_estimate() {
+    let initial = hand(&["9C", "TC", "QC", "KC", "9H", "KH", "2S", "8S", "9S", "9D"]);
+    let mut table = Table::new(round_with_upcard(initial, card("JC")));
+    let mut bot = MarjjV5Surrogate::new(rand::rngs::StdRng::seed_from_u64(2021));
+
+    table
+        .step(&mut bot)
+        .expect("MARJJ takes the improving opening jack");
+    let TurnAction::Knock { discard, melds } = bot.play_turn(&table.view(Player::One)) else {
+        panic!("the first-turn ten-deadwood position is a voluntary knock");
+    };
+
+    assert_eq!(discard, card("KH"));
+    let remaining = table.view(Player::One).hand() - discard.into();
+    let partitions = melds::all_minimum_melds(remaining);
+    assert_eq!(partitions.len(), 2);
+    assert!(partitions.iter().all(|spread| spread.deadwood() == 10));
+
+    // The selected split has no available layoff points: C9 is already in
+    // the four-nine set, blocking the low end of the CT-CK run.  The other
+    // minimum-deadwood split exposes C8 below its C9-CK run, which v5's
+    // legacy boundary arithmetic estimates at nine points.
+    let selected: Vec<Hand> = melds.iter().map(|meld| meld.cards()).collect();
+    assert_eq!(
+        selected,
+        vec![
+            hand(&["TC", "JC", "QC", "KC"]),
+            hand(&["9C", "9H", "9S", "9D"]),
+        ]
+    );
 }

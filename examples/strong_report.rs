@@ -17,7 +17,7 @@ use std::process::{Command, Stdio};
 #[path = "support/arena_stats.rs"]
 mod arena_stats;
 
-use arena_stats::{RatioMoments, SignedRatioMoments, exact_sign_p_value};
+use arena_stats::{ExactPValue, RatioMoments, SignedRatioMoments, exact_sign_p_value};
 
 const CANDIDATES: [&str; 3] = ["greedy", "mc:64", "mc:128"];
 const OPPONENTS: [&str; 2] = ["gold-paper", "marjj-v5-surrogate"];
@@ -68,8 +68,8 @@ struct Matchup {
     opponent: String,
     rounds: Value,
     games: Value,
-    raw_p: f64,
-    holm_p: f64,
+    raw_p: ExactPValue,
+    holm_p: ExactPValue,
     seed_directions: Vec<i8>,
     verdict: &'static str,
 }
@@ -160,6 +160,75 @@ fn f64_at(document: &Value, path: &str) -> Result<f64> {
         .with_context(|| format!("{path} is not numeric"))?;
     ensure!(value.is_finite(), "{path} is not finite");
     Ok(value)
+}
+
+fn exact_p_value_for(outcome: &Value) -> Result<ExactPValue> {
+    let positive =
+        u32::try_from(u64_at(outcome, "/comparison/sweeps/0")?).context("p1 sweeps exceed u32")?;
+    let negative =
+        u32::try_from(u64_at(outcome, "/comparison/sweeps/1")?).context("p2 sweeps exceed u32")?;
+    Ok(exact_sign_p_value(positive, negative).unwrap_or_else(ExactPValue::one))
+}
+
+fn validate_p_value_field(
+    outcome: &Value,
+    numeric_name: &str,
+    decimal_name: &str,
+    expected: ExactPValue,
+) -> Result<()> {
+    let comparison = pointer(outcome, "/comparison")?;
+    let numeric = comparison
+        .get(numeric_name)
+        .with_context(|| format!("comparison has no {numeric_name}"))?;
+    match (numeric.as_f64(), expected.as_f64()) {
+        (Some(actual), Some(expected)) => {
+            ensure!(actual > 0.0, "{numeric_name} must be positive");
+            ensure_close(actual, expected, numeric_name)?;
+        }
+        (None, None) if numeric.is_null() => {}
+        // Version-1 arena files written before the decimal companion fields
+        // used a false numeric zero when `f64` underflowed. Accept that only
+        // as migration input; normalization below never writes it back out.
+        (Some(0.0), None) if comparison.get(decimal_name).is_none() => {}
+        _ => bail!("{numeric_name} does not match the recomputed exact p-value"),
+    }
+    if let Some(decimal) = comparison.get(decimal_name) {
+        ensure!(
+            decimal.as_str() == Some(expected.decimal().as_str()),
+            "{decimal_name} does not match the recomputed exact p-value"
+        );
+    }
+    Ok(())
+}
+
+fn normalize_outcome_p_values(outcome: &mut Value) -> Result<()> {
+    let expected = exact_p_value_for(outcome)?;
+    let comparison = outcome
+        .get_mut("comparison")
+        .and_then(Value::as_object_mut)
+        .context("outcome comparison is not an object")?;
+    let numeric = expected.as_f64().map_or(Value::Null, Value::from);
+    let decimal = Value::String(expected.decimal());
+    comparison.insert("exact_sign_p_value".to_owned(), numeric.clone());
+    comparison.insert("exact_sign_p_value_decimal".to_owned(), decimal.clone());
+    comparison.insert("primary_p_value".to_owned(), numeric);
+    comparison.insert("primary_p_value_decimal".to_owned(), decimal);
+    Ok(())
+}
+
+fn normalize_document_p_values(document: &mut Value) -> Result<()> {
+    let runs = document
+        .get_mut("runs")
+        .and_then(Value::as_array_mut)
+        .context("arena runs is not an array")?;
+    for run in runs {
+        normalize_outcome_p_values(run.get_mut("outcome").context("arena run has no outcome")?)?;
+    }
+    normalize_outcome_p_values(
+        document
+            .get_mut("pooled")
+            .context("arena document has no pooled outcome")?,
+    )
 }
 
 fn bool_at(document: &Value, path: &str) -> Result<bool> {
@@ -388,17 +457,23 @@ fn validate_win_interval(player: &Value, outcome: &Value, moments_path: &str) ->
 }
 
 fn validate_primary_fields(outcome: &Value) -> Result<()> {
-    let positive =
-        u32::try_from(u64_at(outcome, "/comparison/sweeps/0")?).context("p1 sweeps exceed u32")?;
-    let negative =
-        u32::try_from(u64_at(outcome, "/comparison/sweeps/1")?).context("p2 sweeps exceed u32")?;
-    let expected = exact_sign_p_value(positive, negative).unwrap_or(1.0);
-    ensure_close_at(outcome, "/comparison/exact_sign_p_value", expected)?;
+    let expected = exact_p_value_for(outcome)?;
+    validate_p_value_field(
+        outcome,
+        "exact_sign_p_value",
+        "exact_sign_p_value_decimal",
+        expected,
+    )?;
     ensure!(
         string_at(outcome, "/comparison/primary_test")? == "exact_sweep_sign",
         "unexpected primary test"
     );
-    ensure_close_at(outcome, "/comparison/primary_p_value", expected)?;
+    validate_p_value_field(
+        outcome,
+        "primary_p_value",
+        "primary_p_value_decimal",
+        expected,
+    )?;
     Ok(())
 }
 
@@ -723,7 +798,7 @@ fn load_legs(config: &Config) -> Result<BTreeMap<(String, String), Legs>> {
     let mut reproducibility = None;
     for path in &config.inputs {
         let bytes = std::fs::read(path).with_context(|| format!("read {}", path.display()))?;
-        let document: Value =
+        let mut document: Value =
             serde_json::from_slice(&bytes).with_context(|| format!("parse {}", path.display()))?;
         let mode = string_at(&document, "/mode")?.to_owned();
         let pairs = match mode.as_str() {
@@ -743,6 +818,8 @@ fn load_legs(config: &Config) -> Result<BTreeMap<(String, String), Legs>> {
         );
         validate_document(&document, &mode, pairs, &candidate, &opponent)
             .with_context(|| format!("validate {}", path.display()))?;
+        normalize_document_p_values(&mut document)
+            .with_context(|| format!("normalize p-values in {}", path.display()))?;
         let current_reproducibility = pointer(&document, "/reproducibility")?;
         if let Some(expected) = &reproducibility {
             validate_same_reproducibility(expected, current_reproducibility)
@@ -764,15 +841,22 @@ fn load_legs(config: &Config) -> Result<BTreeMap<(String, String), Legs>> {
 }
 
 /// Holm's step-down family-wise-error correction, returned in input order.
-fn holm_adjust(p_values: &[f64]) -> Vec<f64> {
+fn holm_adjust(p_values: &[ExactPValue]) -> Vec<ExactPValue> {
     let mut order = (0..p_values.len()).collect::<Vec<_>>();
-    order.sort_by(|&left, &right| p_values[left].total_cmp(&p_values[right]));
-    let mut adjusted = vec![1.0; p_values.len()];
-    let mut running: f64 = 0.0;
+    order.sort_by(|&left, &right| p_values[left].ln().total_cmp(&p_values[right].ln()));
+    let mut adjusted = vec![ExactPValue::one(); p_values.len()];
+    let mut running = None::<ExactPValue>;
     for (rank, index) in order.into_iter().enumerate() {
-        let candidate = ((p_values.len() - rank) as f64 * p_values[index]).min(1.0);
-        running = running.max(candidate);
-        adjusted[index] = running;
+        let candidate = p_values[index].multiply_clamped(p_values.len() - rank);
+        let current = running.map_or(candidate, |previous| {
+            if previous.ln() >= candidate.ln() {
+                previous
+            } else {
+                candidate
+            }
+        });
+        running = Some(current);
+        adjusted[index] = current;
     }
     adjusted
 }
@@ -787,17 +871,22 @@ fn direction(difference: f64) -> i8 {
     }
 }
 
-fn declare_edge(seed_directions: &[i8], adjusted_p: f64) -> &'static str {
-    if adjusted_p < 0.05 && seed_directions == [1, 1] {
+fn declare_edge(seed_directions: &[i8], adjusted_p: ExactPValue) -> &'static str {
+    let significant = adjusted_p.ln() < 0.05_f64.ln();
+    if significant && seed_directions == [1, 1] {
         "candidate edge"
-    } else if adjusted_p < 0.05 && seed_directions == [-1, -1] {
+    } else if significant && seed_directions == [-1, -1] {
         "opponent edge"
     } else {
         "inconclusive"
     }
 }
 
-fn report_verdict(evidentiary: bool, seed_directions: &[i8], adjusted_p: f64) -> &'static str {
+fn report_verdict(
+    evidentiary: bool,
+    seed_directions: &[i8],
+    adjusted_p: ExactPValue,
+) -> &'static str {
     if evidentiary {
         declare_edge(seed_directions, adjusted_p)
     } else {
@@ -817,8 +906,7 @@ fn build_matchups(
                 .with_context(|| format!("missing {candidate} vs {opponent}"))?;
             let rounds = legs.rounds.context("missing rounds leg")?;
             let games = legs.games.context("missing games leg")?;
-            let raw_p = f64_at(&games, "/pooled/comparison/primary_p_value")?;
-            ensure!((0.0..=1.0).contains(&raw_p));
+            let raw_p = exact_p_value_for(pointer(&games, "/pooled")?)?;
             let seed_directions = pointer(&games, "/runs")?
                 .as_array()
                 .context("game runs is not an array")?
@@ -831,7 +919,7 @@ fn build_matchups(
                 rounds,
                 games,
                 raw_p,
-                holm_p: 1.0,
+                holm_p: ExactPValue::one(),
                 seed_directions,
                 verdict: "inconclusive",
             });
@@ -884,9 +972,28 @@ fn adaptations_and_limits() -> Value {
         "Gold opening offers use its strict draw rule; gin uses the ordinary discard key; Big Gin is replaced by discard-to-gin; canonical local melds and host greedy layoffs are used.",
         "The later public MARJJ_v5 file is a surrogate and is not established as the submitted MARJJ_Player champion binary. Its source constants 18/0.9/7 differ from the paper's 20/0.9/6.",
         "MARJJ uses deterministic canonical C,H,S,D ordering where Java iteration order is unrecoverable, arena-seeded tie selection, host optimized-defender settlement, and host greedy layoffs.",
+        "MARJJ round reset is inferred from host callbacks because View has no round identifier. In the pathological case where an opening callback is skipped and the same player receives the exact same ten-card hand in consecutive rounds, stale surrogate history could survive; this limitation is preserved in the measured and conformed adapter.",
         "Defender and layoff semantics can differ from upstream environments, and no EAAI 30-second player timer is enforced.",
         "Mirrored pairs use common random numbers and reverse seats. Because orientation-dependent dead hands retain the dealer, later dealer sequences can diverge."
     ])
+}
+
+fn file_sha256(relative: &str) -> Result<String> {
+    let output = Command::new("sha256sum")
+        .arg(relative)
+        .current_dir(env!("CARGO_MANIFEST_DIR"))
+        .output()
+        .with_context(|| format!("hash {relative}"))?;
+    ensure!(
+        output.status.success(),
+        "sha256sum could not hash {relative}"
+    );
+    String::from_utf8(output.stdout)
+        .context("sha256sum output is not UTF-8")?
+        .split_whitespace()
+        .next()
+        .map(str::to_owned)
+        .with_context(|| format!("sha256sum returned no digest for {relative}"))
 }
 
 fn conformance_source_sha256() -> Result<String> {
@@ -1046,8 +1153,10 @@ fn build_panel(config: &Config, matchups: &[Matchup], conformance: &Value) -> Re
                 "opponent": matchup.opponent,
                 "inference": {
                     "seed_directions": matchup.seed_directions,
-                    "pooled_raw_exact_sign_p_value": matchup.raw_p,
-                    "pooled_holm_adjusted_p_value": matchup.holm_p,
+                    "pooled_raw_exact_sign_p_value": matchup.raw_p.as_f64(),
+                    "pooled_raw_exact_sign_p_value_decimal": matchup.raw_p.decimal(),
+                    "pooled_holm_adjusted_p_value": matchup.holm_p.as_f64(),
+                    "pooled_holm_adjusted_p_value_decimal": matchup.holm_p.decimal(),
                     "declaration_suppressed": config.smoke,
                     "declaration": matchup.verdict
                 },
@@ -1062,6 +1171,13 @@ fn build_panel(config: &Config, matchups: &[Matchup], conformance: &Value) -> Re
         "evidence_status": if config.smoke { "non_evidentiary_smoke" } else { "publication_panel" },
         "evidentiary": !config.smoke,
         "upstream_conformance": conformance,
+        "report_generation": {
+            "helper": "examples/strong_report.rs",
+            "helper_sha256": file_sha256("examples/strong_report.rs")?,
+            "statistics_helper": "examples/support/arena_stats.rs",
+            "statistics_helper_sha256": file_sha256("examples/support/arena_stats.rs")?,
+            "p_value_normalization": "Exact-sign numeric and scientific-decimal fields were recomputed solely from validated sweep counts in the embedded arena inputs; no rounds or games were rerun. All non-p-value sufficient statistics and measurement metadata are preserved from those inputs."
+        },
         "predeclared_design": {
             "candidates": CANDIDATES,
             "opponents": OPPONENTS,
@@ -1107,11 +1223,11 @@ fn percent(value: f64) -> String {
     format!("{:.1}%", 100.0 * value)
 }
 
-fn p_value(value: f64) -> String {
-    if value < 0.001 {
+fn p_value(value: ExactPValue) -> String {
+    if value.ln() < 0.001_f64.ln() {
         "<0.001".to_owned()
     } else {
-        format!("{value:.3}")
+        format!("{:.3}", value.as_f64().expect("p >= .001 fits in f64"))
     }
 }
 
@@ -1135,7 +1251,7 @@ fn game_table(markdown: &mut String, matchups: &[Matchup]) -> Result<()> {
             let sweeps = pointer(result, "/comparison/sweeps")?
                 .as_array()
                 .context("sweeps is not an array")?;
-            let raw_p = f64_at(result, "/comparison/primary_p_value")?;
+            let raw_p = exact_p_value_for(result)?;
             writeln!(
                 markdown,
                 "| `{}` vs `{}` | {} | {} ({}–{}) | {:+.2} | {}–{} | {} | — | diagnostic |",
@@ -1232,7 +1348,7 @@ fn environment_table(
     writeln!(markdown, "\n## Reproducibility\n")?;
     writeln!(
         markdown,
-        "- Arena source SHA-256: `{}`",
+        "- Measured arena source SHA-256: `{}`",
         string_at(environment, "/source_sha256")?
     )?;
     writeln!(
@@ -1291,6 +1407,10 @@ fn environment_table(
         markdown,
         "- Raw machine-readable evidence: [strong-opponents.json](strong-opponents.json)"
     )?;
+    writeln!(
+        markdown,
+        "- Report encoding: exact-sign numeric and scientific-decimal fields were recomputed after measurement solely from the validated sweep counts; no rounds or games were rerun. The raw JSON records the report-helper hashes."
+    )?;
     Ok(())
 }
 
@@ -1322,6 +1442,10 @@ fn markdown_report(config: &Config, matchups: &[Matchup], conformance: &Value) -
             markdown,
             "An edge is declared only when both seed estimates point in the same nonzero direction and the pooled exact pair-sweep sign-test p-value remains below .05 after Holm correction across all six matchups. Everything else is **inconclusive**, never “equal.”\n"
         )?;
+        writeln!(
+            markdown,
+            "All three candidates beat `gold-paper` over games (62.0%–67.1% candidate win share) and lost to `marjj-v5-surrogate` (29.2%–34.2%); all six Holm-adjusted p-values were below .001 and both seeds agreed in direction. `mc:128` had the highest observed share against both opponents, but the predeclared tests compare each candidate with its opponent—not candidates with one another.\n"
+        )?;
     }
     game_table(&mut markdown, matchups)?;
     round_table(&mut markdown, matchups)?;
@@ -1341,6 +1465,10 @@ fn markdown_report(config: &Config, matchups: &[Matchup], conformance: &Value) -
     )?;
     writeln!(
         markdown,
+        "Because the host `View` has no round identifier, the MARJJ adaptation infers round reset from callbacks. If its opening callback is skipped and the same seat receives the exact same ten-card hand in consecutive rounds, stale surrogate history could theoretically survive. This pathological limitation is retained in the measured, conformed adapter.\n"
+    )?;
+    writeln!(
+        markdown,
         "Mirroring is common-random-number seat reversal, not a guarantee of identical later game histories. Orientation-dependent outcomes—including whether a hand is dead—can make later dealer sequences diverge under dead-hand retention.\n"
     )?;
     writeln!(
@@ -1349,7 +1477,10 @@ fn markdown_report(config: &Config, matchups: &[Matchup], conformance: &Value) -
     )?;
     writeln!(markdown, "```console")?;
     writeln!(markdown, "scripts/bench-strong.sh --smoke")?;
-    writeln!(markdown, "scripts/bench-strong.sh")?;
+    writeln!(
+        markdown,
+        "STRONG_CONFORMANCE_RECEIPT=contrib/strong-conformance/receipt.json \\\n  scripts/bench-strong.sh"
+    )?;
     writeln!(markdown, "```")?;
     environment_table(&mut markdown, matchups, conformance)?;
     Ok(markdown)
@@ -1445,24 +1576,40 @@ mod tests {
 
     #[test]
     fn holm_is_monotone_in_sorted_order_and_restores_input_order() {
-        let adjusted = holm_adjust(&[0.04, 0.001, 0.03, 1.0, 0.02, 0.5]);
-        assert_eq!(adjusted, [0.12, 0.006, 0.12, 1.0, 0.1, 1.0]);
+        let values = [
+            exact_sign_p_value(3, 0).unwrap(),
+            exact_sign_p_value(8, 2).unwrap(),
+            ExactPValue::one(),
+        ];
+        let adjusted = holm_adjust(&values);
+        let numeric = adjusted
+            .into_iter()
+            .map(|value| value.as_f64().unwrap())
+            .collect::<Vec<_>>();
+        for (actual, expected) in numeric.into_iter().zip([0.5, 0.328_125, 1.0]) {
+            assert!((actual - expected).abs() < 1e-12);
+        }
     }
 
     #[test]
     fn edge_rule_requires_both_seed_directions_and_adjusted_significance() {
-        assert_eq!(declare_edge(&[1, 1], 0.049), "candidate edge");
-        assert_eq!(declare_edge(&[-1, -1], 0.0), "opponent edge");
-        assert_eq!(declare_edge(&[1, -1], 0.001), "inconclusive");
-        assert_eq!(declare_edge(&[1, 1], 0.05), "inconclusive");
-        assert_eq!(declare_edge(&[0, 1], 0.001), "inconclusive");
-        assert_eq!(report_verdict(false, &[1, 1], 0.0), "not evaluated (smoke)");
+        let significant = exact_sign_p_value(6, 0).unwrap();
+        let not_significant = exact_sign_p_value(8, 2).unwrap();
+        assert_eq!(declare_edge(&[1, 1], significant), "candidate edge");
+        assert_eq!(declare_edge(&[-1, -1], significant), "opponent edge");
+        assert_eq!(declare_edge(&[1, -1], significant), "inconclusive");
+        assert_eq!(declare_edge(&[1, 1], not_significant), "inconclusive");
+        assert_eq!(declare_edge(&[0, 1], significant), "inconclusive");
+        assert_eq!(
+            report_verdict(false, &[1, 1], significant),
+            "not evaluated (smoke)"
+        );
     }
 
     #[test]
     fn p_value_format_covers_unanimous_underflow() {
-        assert_eq!(p_value(0.0), "<0.001");
-        assert_eq!(p_value(1.0), "1.000");
+        assert_eq!(p_value(exact_sign_p_value(4000, 0).unwrap()), "<0.001");
+        assert_eq!(p_value(ExactPValue::one()), "1.000");
     }
 
     #[test]
@@ -1471,8 +1618,10 @@ mod tests {
             "comparison": {
                 "sweeps": [8, 2],
                 "exact_sign_p_value": 0.109375,
+                "exact_sign_p_value_decimal": exact_sign_p_value(8, 2).unwrap().decimal(),
                 "primary_test": "exact_sweep_sign",
-                "primary_p_value": 0.109375
+                "primary_p_value": 0.109375,
+                "primary_p_value_decimal": exact_sign_p_value(8, 2).unwrap().decimal()
             }
         });
         validate_primary_fields(&valid).expect("valid exact sign fields");
@@ -1485,9 +1634,34 @@ mod tests {
         bad_exact["comparison"]["exact_sign_p_value"] = json!(0.01);
         assert!(validate_primary_fields(&bad_exact).is_err());
 
+        let mut bad_decimal = valid.clone();
+        bad_decimal["comparison"]["primary_p_value_decimal"] = json!("1e-99");
+        assert!(validate_primary_fields(&bad_decimal).is_err());
+
         let mut bad_name = valid;
         bad_name["comparison"]["primary_test"] = json!("normal_z");
         assert!(validate_primary_fields(&bad_name).is_err());
+    }
+
+    #[test]
+    fn legacy_underflow_is_accepted_only_for_migration_and_normalized() {
+        let mut legacy = json!({
+            "comparison": {
+                "sweeps": [4000, 0],
+                "exact_sign_p_value": 0.0,
+                "primary_test": "exact_sweep_sign",
+                "primary_p_value": 0.0
+            }
+        });
+        validate_primary_fields(&legacy).expect("legacy arena underflow can be migrated");
+        normalize_outcome_p_values(&mut legacy).expect("normalize legacy p-values");
+        assert!(legacy["comparison"]["exact_sign_p_value"].is_null());
+        assert!(legacy["comparison"]["primary_p_value"].is_null());
+        assert_eq!(
+            legacy["comparison"]["exact_sign_p_value_decimal"],
+            exact_sign_p_value(4000, 0).unwrap().decimal()
+        );
+        validate_primary_fields(&legacy).expect("normalized fields validate");
     }
 
     #[test]

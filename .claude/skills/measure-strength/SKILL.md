@@ -21,21 +21,20 @@ timing you observe in them is meaningless.
 - The ignored tripwire (`tests/strength.rs`) holds deliberately loose
   floors for `mc:128` versus `greedy` rounds and for `greedy` and default
   Monte Carlo versus `eaai` games.  A floor catches a large accident; it
-  is neither an estimator nor publication evidence.  The EAAI fixtures
-  also need rebaselining after the dealer-protocol correction, so do not
-  quote their historical realized rates.
-- Every EAAI-baseline rate currently printed in README is historical.
-  Those runs predate both the exact `eaai_rules()` preset and the audit
-  showing that a dead hand retains the dealer.  The prior panel reported
-  39.4%/59.7% for `greedy`, 51.5%/54.8% for `mc:64`, and 52.7%/59.6%
-  for `mc:128` (round/game where available), but none is a current
-  corrected-protocol claim.  Regenerate the complete fixed panel before
-  comparing it with EAAI literature or a strong external opponent.
+  is neither an estimator nor publication evidence.
+- The fixed corrected-EAAI panel reports decisive-round/game win shares of
+  39.4%/59.8% for `greedy`, 51.5%/54.9% for `mc:64`, and 52.7%/59.9%
+  for `mc:128` against `EaaiSimpleBot`.  Points/round are 8.92–8.29,
+  9.22–8.41, and 9.88–8.38; raw scores/game are 90.28–78.76,
+  86.47–79.26, and 89.75–75.99.  The game pair-cluster intervals are
+  59.0–60.6%, 54.1–55.7%, and 58.9–60.8%; exact pair-sweep p-values are
+  all below .001.  Head-to-head, `mc:64` beats `greedy` in 53.0%
+  (52.2–53.8%) of games, scoring 86.69–81.13, also p < .001.
 
-When the corrected panel is complete, update this file,
-`tests/strength.rs`, the relevant `MonteCarloBot` docs, README, and the
-strong-opponent report together.  `scripts/bench-panel.sh` owns the README
-table cells, so never hand-edit an individual result.
+Keep `tests/strength.rs`, the relevant `MonteCarloBot` docs, README, and the
+strong-opponent report synchronized after a new full measurement.
+`scripts/bench-panel.sh` owns the README table cells, so never hand-edit an
+individual result.
 
 ## Procedure
 
@@ -94,11 +93,12 @@ table cells, so never hand-edit an individual result.
    scripts/bench-panel.sh > panel.md   # ~1.5 hours, arena log on stderr
    ```
 
-   The checked-in README panel predates the corrected protocol and remains
-   historical until this full run replaces it.  The script pins the bots,
-   seeds and counts, so at an unchanged commit it reprints the same table
-   — a rerun that differs means the numbers moved, not that the measurement
-   wandered.
+   The checked-in README panel is the completed corrected-protocol run.  It
+   reports game win shares of 59.8% for `greedy`, 54.9% for `mc:64`, and
+   59.9% for `mc:128` against the baseline, plus 53.0% for `mc:64` against
+   `greedy`.  The script pins the bots, seeds and counts, so at an unchanged
+   commit it reprints the same table — a rerun that differs means the numbers
+   moved, not that the measurement wandered.
    Shrink it for a dry run: `ROUND_PAIRS=20 GAME_PAIRS=20
    GAME_PAIRS_128=20 scripts/bench-panel.sh`.
 
@@ -113,11 +113,25 @@ source is not established as the submitted championship build.  Run the
 opt-in source-conformance checks described by
 `scripts/check-strong-conformance.sh` before publishing either adaptation.
 
+Run the smoke panel first, then pass the successful conformance receipt into
+the fixed publication run so it is recorded in the evidence:
+
+```console
+scripts/bench-strong.sh --smoke
+STRONG_CONFORMANCE_RECEIPT=contrib/strong-conformance/receipt.json \
+  scripts/bench-strong.sh
+```
+
 Keep commands, source identities, exclusions, JSON evidence, and results in
-[`docs/strong-opponents.md`](../../../docs/strong-opponents.md).  Its table
-must stay pending until corrected-protocol runs actually complete; upstream
-claims about those opponents are context, never substitute measurements of
-this engine.
+[`docs/strong-opponents.md`](../../../docs/strong-opponents.md), with raw
+evidence in
+[`docs/strong-opponents.json`](../../../docs/strong-opponents.json).  The
+completed fixed panel finds candidate game win shares against Gold of 62.2%
+(`greedy`), 62.0% (`mc:64`), and 67.1% (`mc:128`), all candidate edges.  The
+same candidates win 29.2%, 30.2%, and 34.2% against the MARJJ surrogate, all
+opponent edges.  Both seeds agree in direction and all six pooled
+Holm-adjusted exact p-values are below .001.  Upstream claims remain context,
+never substitutes for these host-engine measurements.
 
 ## Reading the numbers
 
@@ -128,7 +142,9 @@ this engine.
 - The primary paired hypothesis test is the exact two-sided sign test over
   *sweeps*: pairs in which one bot won both seat orientations.  Split pairs
   carry no sign; if neither bot sweeps a pair, the exact p-value is 1.  Use
-  `comparison.primary_test` and `primary_p_value` from JSON.  The paired
+  `comparison.primary_test` and `primary_p_value_decimal` from JSON.  The
+  numeric `primary_p_value` is convenient when representable and is `null`
+  rather than a mathematically false zero below `f64` range.  The paired
   normal z/p fields are diagnostics, not headline evidence.
 - Power, unpaired rule of thumb: detecting a 4-point game-rate gap at
   80% power needs ≈2 400 games per arm; a 2-point gap ≈9 700.  Pairing
@@ -157,10 +173,12 @@ inert: its value function is locally linear at level scores with the
 empirically measured slope, so it reproduces round-point play until the
 board goes lopsided.  Its table is selected by both `Rules` and
 `DealerRotation`; a value function solved for winner-deals is not evidence
-for the EAAI protocol.  Historical pre-correction measurements found the
-two value functions indistinguishable in rounds but separated in whole
-games.  Regenerate those rates under the corrected protocol before quoting
-their former 51.5% round rate, point totals, or +2.1/+2.7-point game lifts.
+for the EAAI protocol.  Historical pre-correction A/B measurements found the
+two value functions indistinguishable in rounds but separated in whole games.
+The corrected baseline panel now measures the current default at 51.5% of
+decisive rounds, 9.22 vs 8.41 points/round, and 54.9% (54.1–55.7%) of games
+against `EaaiSimpleBot`, but it does not re-estimate the causal lift over the
+affine arm.  Do not quote the former +2.1/+2.7-point lifts as current evidence.
 The round tripwire and `arena --rounds` therefore neither catch a
 score-aware regression nor credit an improvement.
 

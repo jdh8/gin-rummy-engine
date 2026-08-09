@@ -19,15 +19,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The arena accepts `--seeds 7,8` for per-seed plus pooled runs and
   `--format json` for the versioned `gin-rummy-arena/v1` evidence schema,
   including raw scores, finish attribution, cluster moments, primary-test
-  fields, and source/environment reproducibility metadata.  Bare `mc` and
-  `mca` now mean 128 samples; `mc:N` and `mca:N` remain explicit overrides.
+  fields, and source/environment reproducibility metadata.  Exact sign-test
+  p-values are retained in log space and include a canonical decimal string;
+  the numeric field is `null`, never a false zero, below `f64` range.  Bare
+  `mc` and `mca` now mean 128 samples; `mc:N` and `mca:N` remain explicit
+  overrides.
 - Benchmark-only strong-opponent adaptations and source-conformance checks
   cover the 2026 Gold Standard Agent paper policy (`gold-paper`) and a
   public MARJJ v5 host surrogate (`marjj-v5-surrogate`).  Gold's exactness
   is limited to meld decomposition, not full-game optimality, and the
   separately named MARJJ v5 source is not claimed to be the championship
-  submission.  The [strong-opponent report](docs/strong-opponents.md)
-  deliberately carries no result until corrected-protocol runs complete.
+  submission.  In the completed corrected-protocol panel, `greedy`, `mc:64`,
+  and `mc:128` won 62.2%, 62.0%, and 67.1% of games against Gold, while
+  winning 29.2%, 30.2%, and 34.2% against the MARJJ surrogate.  Both seeds
+  agreed in direction for every matchup and all six pooled Holm-adjusted
+  exact p-values were below .001.  The
+  [strong-opponent report](docs/strong-opponents.md) and
+  [raw JSON](docs/strong-opponents.json) preserve the full provenance,
+  adaptations, intervals, scores, and round diagnostics.
 - `McConfig` and `OpponentModel`: public tuning knobs for
   `MonteCarloBot`, in the mold of `HeuristicConfig`.  The knobs expose
   the search's previously hardcoded levers — the per-seat rollout knock
@@ -56,8 +65,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   48.9% for the default against an unmodified mc:64 — so it is an
   exploit of the baseline's knock-ASAP habit, available as a knob for
   anyone targeting that baseline.  No finding cleared the bar to change
-  a default.  Those rates are tuning history, not current EAAI evidence;
-  the corrected-protocol panel is pending.
+  a default.  Those rates remain tuning history rather than current EAAI
+  evidence; the completed fixed panel below measures the current defaults.
 - The `arena` example measures like an instrument now.  Trials are seeded
   by index and fan out across the CPUs.  Every trial defaults to a
   common-random-number *mirrored pair*: the bots swap seats on one cloned
@@ -83,10 +92,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   nobody else could repeat; the script pins the bots, the rules, the
   dealer protocol, the seeds and the counts, prints the table on stdout
   and the full arena log on stderr, and stamps the commit it ran at.
-  The checked-in table is now explicitly historical: it predates the
-  corrected dead-hand dealer rule and exact EAAI preset.  It will not be
-  treated as a current strength claim until the full corrected panel has
-  been regenerated.
+  The regenerated table now reports the corrected dead-hand dealer rule,
+  exact EAAI preset, pair-cluster intervals, exact pair-sweep tests, and raw
+  target-reaching scores.  Against `EaaiSimpleBot`, `greedy`, `mc:64`, and
+  `mc:128` win 59.8%, 54.9%, and 59.9% of games respectively; every exact
+  pair-sweep p-value is below .001.
 
 ### Changed
 
@@ -103,9 +113,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   source audit corrected two host-protocol mismatches: `--rules eaai` now
   has no Big Gin, box, game, or shutout bonus, and
   `--alternate-dealer` flips only after a scored hand while a dead hand
-  retains the dealer.  Bot-policy behavior is otherwise unchanged, but
-  earlier EAAI rates and intervals no longer stand as current evidence;
-  their corrected-protocol regeneration is pending.
+  retains the dealer.  Bot-policy behavior is otherwise unchanged.  The
+  corrected fixed panel now supersedes the earlier EAAI rates and intervals:
+  `greedy`, `mc:64`, and `mc:128` win 59.8%, 54.9%, and 59.9% of games,
+  respectively, against the baseline.
 - `MonteCarloBot` now values a decision by its probability of winning the
   **game**, not by the round points it banks.  Short of a clinch the old
   equity was affine in round points, so the search had no sense of the
@@ -145,17 +156,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   replays.  A seeded 0.2.0 arena run is not reproduced by this version.
   `--rounds N`/`--games N` now count trials (mirrored pairs by default, so
   twice as many rounds or games are played).
-- The previous README benchmarks against `EaaiSimpleBot` were re-settled
-  with the former instrument — mirrored pairs, the then-implemented dealer
-  protocol, and 8000–12 000 games per matchup where the old table had
-  500–600: `greedy` wins 59.7% of games (was 57.4% ± 4.4), `mc:64` 54.8%
-  (was 53.3% ± 4.0, now genuinely below greedy rather than within
-  noise), and `mc:128` — previously unmeasured over games — 59.6%,
-  closing the gap.  `mc:64` still beats `greedy` head-to-head over whole
-  games (53.0% of 12 000).  The panel is now labeled historical because it
-  used the former incorrect dead-hand rotation and interval analysis.  A
-  corrected-protocol, pair-cluster regeneration is pending; none of these
-  rates or p-values is a current claim.
+- The fixed README panel now measures the corrected EAAI protocol with
+  mirrored-pair clusters and exact pair-sweep sign tests.  Against
+  `EaaiSimpleBot`, `greedy` wins 39.4% of decisive rounds but 59.8%
+  (59.0–60.6%) of games, scoring 90.28–78.76 raw points/game; `mc:64` wins
+  51.5% of rounds and 54.9% (54.1–55.7%) of games, scoring 86.47–79.26;
+  `mc:128` wins 52.7% of rounds and 59.9% (58.9–60.8%) of games, scoring
+  89.75–75.99.  `mc:64` beats `greedy` head-to-head in 53.0%
+  (52.2–53.8%) of 12,000 games, 86.69–81.13 raw score/game.  Every exact
+  pair-sweep p-value is below .001.
 
 ## [0.2.0] - 2026-07-17
 

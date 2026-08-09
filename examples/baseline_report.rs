@@ -11,6 +11,12 @@ use std::collections::BTreeMap;
 use std::fmt::Write as _;
 use std::path::PathBuf;
 
+#[allow(dead_code)]
+#[path = "support/arena_stats.rs"]
+mod arena_stats;
+
+use arena_stats::{ExactPValue, exact_sign_p_value};
+
 const CANDIDATES: [&str; 3] = ["greedy", "mc:64", "mc:128"];
 
 #[derive(Debug)]
@@ -138,8 +144,10 @@ impl Outcome {
         }
     }
 
-    fn exact_p(self) -> f64 {
-        exact_sign_p_value(self.sweeps[0], self.sweeps[1]).unwrap_or(1.0)
+    fn exact_p(self) -> Result<ExactPValue> {
+        let positive = u32::try_from(self.sweeps[0]).context("p1 sweep count exceeds u32")?;
+        let negative = u32::try_from(self.sweeps[1]).context("p2 sweep count exceeds u32")?;
+        Ok(exact_sign_p_value(positive, negative).unwrap_or_else(ExactPValue::one))
     }
 }
 
@@ -245,12 +253,6 @@ fn u64_at(document: &Value, path: &str) -> Result<u64> {
         .with_context(|| format!("{path} is not an unsigned integer"))
 }
 
-fn f64_at(document: &Value, path: &str) -> Result<f64> {
-    pointer(document, path)?
-        .as_f64()
-        .with_context(|| format!("{path} is not numeric"))
-}
-
 fn bool_at(document: &Value, path: &str) -> Result<bool> {
     pointer(document, path)?
         .as_bool()
@@ -331,6 +333,45 @@ fn ensure_close(left: f64, right: f64, label: &str) -> Result<()> {
     Ok(())
 }
 
+/// Validate an exact p-value in either the current lossless representation or
+/// the legacy numeric-only arena representation.
+///
+/// Current arena JSON uses `null` when the value is smaller than the least
+/// positive `f64` and always carries a canonical scientific-decimal companion.
+/// Historical evidence used numeric `0.0` on underflow; accepting that value
+/// only when the recomputed result really underflows lets old measurements be
+/// migrated without treating zero as a mathematically valid p-value.
+fn validate_exact_p_value(document: &Value, path: &str, expected: ExactPValue) -> Result<()> {
+    let numeric = pointer(document, path)?;
+    let decimal_path = format!("{path}_decimal");
+    let decimal = document.pointer(&decimal_path);
+    if let Some(decimal) = decimal {
+        ensure!(
+            decimal.as_str() == Some(expected.decimal().as_str()),
+            "{decimal_path} differs from the recomputed exact p-value"
+        );
+    }
+
+    match expected.as_f64() {
+        Some(expected_numeric) => {
+            let reported = numeric
+                .as_f64()
+                .with_context(|| format!("{path} is not numeric"))?;
+            ensure!((0.0..=1.0).contains(&reported));
+            ensure_close(reported, expected_numeric, "exact pair-sweep p-value")?;
+        }
+        None if decimal.is_some() => ensure!(
+            numeric.is_null(),
+            "{path} must be null when the exact p-value underflows f64"
+        ),
+        None => ensure!(
+            numeric.as_f64() == Some(0.0),
+            "legacy {path} must be 0.0 when the exact p-value underflows f64"
+        ),
+    }
+    Ok(())
+}
+
 fn parse_outcome(document: &Value) -> Result<Outcome> {
     ensure!(u64_at(document, "/failures")? == 0);
     let trials = u64_at(document, "/trials")?;
@@ -374,20 +415,17 @@ fn parse_outcome(document: &Value) -> Result<Outcome> {
         string_at(document, "/comparison/primary_test")? == "exact_sweep_sign",
         "paired arena primary test must be exact_sweep_sign"
     );
-    let reported_p = f64_at(document, "/comparison/primary_p_value")?;
-    ensure!((0.0..=1.0).contains(&reported_p));
-    ensure_close(
-        reported_p,
-        exact_sign_p_value(sweeps[0], sweeps[1]).unwrap_or(1.0),
-        "exact pair-sweep p-value",
-    )?;
-    Ok(Outcome {
+    let outcome = Outcome {
         trials,
         plays,
         decisive,
         players: parsed,
         sweeps,
-    })
+    };
+    let expected_p = outcome.exact_p()?;
+    validate_exact_p_value(document, "/comparison/exact_sign_p_value", expected_p)?;
+    validate_exact_p_value(document, "/comparison/primary_p_value", expected_p)?;
+    Ok(outcome)
 }
 
 fn aggregate_document(document: &Value) -> Result<Outcome> {
@@ -535,25 +573,6 @@ fn take_leg(
     .with_context(|| format!("missing {} leg {p1} vs {p2}", mode.as_str()))
 }
 
-fn exact_sign_p_value(positive: u64, negative: u64) -> Option<f64> {
-    let n = positive + negative;
-    if n == 0 {
-        return None;
-    }
-    let tail = positive.min(negative);
-    let log_combination = (1..=tail).fold(0.0, |sum, index| {
-        sum + ((n - tail + index) as f64).ln() - (index as f64).ln()
-    });
-    let log_largest = log_combination - n as f64 * std::f64::consts::LN_2;
-    let mut relative_term = 1.0;
-    let mut relative_sum = 1.0;
-    for index in (1..=tail).rev() {
-        relative_term *= index as f64 / (n - index + 1) as f64;
-        relative_sum += relative_term;
-    }
-    Some((2.0 * log_largest.exp() * relative_sum).min(1.0))
-}
-
 fn percent(value: f64) -> String {
     format!("{:.1}%", 100.0 * value)
 }
@@ -572,11 +591,11 @@ fn mean(moments: RatioMoments) -> Result<f64> {
     moments.estimate().context("mean denominator is zero")
 }
 
-fn p_value(value: f64) -> String {
-    if value < 0.001 {
+fn p_value(value: ExactPValue) -> String {
+    if value.ln() < 0.001_f64.ln() {
         "<0.001".to_owned()
     } else {
-        format!("{value:.3}")
+        format!("{:.3}", value.as_f64().expect("p >= 0.001 fits f64"))
     }
 }
 
@@ -632,7 +651,7 @@ fn render(config: &Config, panel: &Panel) -> Result<String> {
             mean(row.games.players[1].point_rate)?,
             row.games.sweeps[0],
             row.games.sweeps[1],
-            p_value(row.games.exact_p()),
+            p_value(row.games.exact_p()?),
         )?;
     }
 
@@ -646,7 +665,7 @@ fn render(config: &Config, panel: &Panel) -> Result<String> {
         mean(head.players[1].point_rate)?,
         head.sweeps[0],
         head.sweeps[1],
-        p_value(head.exact_p()),
+        p_value(head.exact_p()?),
     )?;
     Ok(output)
 }
@@ -686,6 +705,7 @@ mod tests {
     }
 
     fn outcome_value(outcome: Outcome) -> Value {
+        let exact_p = outcome.exact_p().expect("fixture sweep counts fit u32");
         json!({
             "trials": outcome.trials,
             "plays": outcome.plays,
@@ -697,8 +717,11 @@ mod tests {
             ],
             "comparison": {
                 "sweeps": outcome.sweeps,
+                "exact_sign_p_value": exact_p.as_f64(),
+                "exact_sign_p_value_decimal": exact_p.decimal(),
                 "primary_test": "exact_sweep_sign",
-                "primary_p_value": outcome.exact_p()
+                "primary_p_value": exact_p.as_f64(),
+                "primary_p_value_decimal": exact_p.decimal()
             }
         })
     }
@@ -872,7 +895,7 @@ mod tests {
         assert_eq!(aggregate.players[0].win_rate.denominator, 8);
         assert_eq!(aggregate.players[0].point_rate.estimate(), Some(12.5));
         assert_eq!(aggregate.sweeps, [1, 1]);
-        assert_eq!(aggregate.exact_p(), 1.0);
+        assert_eq!(aggregate.exact_p().unwrap().as_f64(), Some(1.0));
         let interval = aggregate.players[0]
             .win_rate
             .cluster_interval(true)
@@ -911,6 +934,65 @@ mod tests {
         let error = validate_document(&stale_bonus, &config)
             .expect_err("modern game bonuses must not enter the EAAI panel");
         assert!(error.to_string().contains("exact EAAI rules"));
+    }
+
+    #[test]
+    fn exact_p_validation_is_lossless_and_migrates_legacy_underflow() {
+        let exact = exact_sign_p_value(4_000, 0).expect("there are non-tied sweeps");
+        assert!(exact.as_f64().is_none());
+        assert_ne!(exact.decimal(), "0");
+
+        let current = json!({
+            "p": null,
+            "p_decimal": exact.decimal(),
+        });
+        validate_exact_p_value(&current, "/p", exact)
+            .expect("current null-plus-decimal representation validates");
+
+        let legacy = json!({"p": 0.0});
+        validate_exact_p_value(&legacy, "/p", exact)
+            .expect("legacy underflow zero remains readable for migration");
+
+        let false_current_zero = json!({
+            "p": 0.0,
+            "p_decimal": exact.decimal(),
+        });
+        let error = validate_exact_p_value(&false_current_zero, "/p", exact)
+            .expect_err("new JSON must not serialize mathematical underflow as zero");
+        assert!(error.to_string().contains("must be null"));
+
+        let wrong_decimal = json!({
+            "p": null,
+            "p_decimal": "1.0e-9999",
+        });
+        let error = validate_exact_p_value(&wrong_decimal, "/p", exact)
+            .expect_err("decimal companion must match the recomputed p-value");
+        assert!(error.to_string().contains("differs"));
+        assert_eq!(p_value(exact), "<0.001");
+    }
+
+    #[test]
+    fn validation_accepts_numeric_only_legacy_arena_p_values() {
+        let config = test_config();
+        let mut document = valid_round_document();
+        for run in document["runs"]
+            .as_array_mut()
+            .expect("fixture has runs")
+            .iter_mut()
+        {
+            let comparison = run["outcome"]["comparison"]
+                .as_object_mut()
+                .expect("fixture has a comparison");
+            comparison.remove("exact_sign_p_value_decimal");
+            comparison.remove("primary_p_value_decimal");
+        }
+        let pooled_comparison = document["pooled"]["comparison"]
+            .as_object_mut()
+            .expect("fixture has a pooled comparison");
+        pooled_comparison.remove("exact_sign_p_value_decimal");
+        pooled_comparison.remove("primary_p_value_decimal");
+        validate_document(&document, &config)
+            .expect("numeric-only legacy exact p-values remain valid inputs");
     }
 
     #[test]

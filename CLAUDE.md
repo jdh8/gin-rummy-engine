@@ -28,9 +28,31 @@ belongs in this crate.
 | `benches/decision.rs` | Criterion benches for per-decision latency. |
 | `examples/play.rs` | Human vs bot in the terminal. |
 | `examples/arena.rs` | Bot-vs-bot tournaments with mirrored pairs, pair-cluster intervals, exact pair-sweep sign tests, multi-seed pooling, and versioned JSON output. |
-| `examples/strong_report.rs` | Reproducible strong-opponent panel driver; its publication target is `docs/strong-opponents.md`. |
+| `examples/support/strong/` | Benchmark-only Gold paper and MARJJ v5 surrogate adaptations shared by the arena and integration tests; never expose them through the public API or interactive bot list. |
+| `examples/baseline_report.rs` | Validates the fixed EAAI-baseline JSON legs and emits README-ready pair-aware results. |
+| `examples/strong_report.rs` | Validates the fixed strong-opponent evidence bundle and generates `docs/strong-opponents.{md,json}`; publication requires pinned passing conformance. |
 | `examples/tune.rs` | Whole-game A/B self-play sweep for tuning the heuristic's knock knobs against a fixed opponent. |
-| `scripts/bench-panel.sh` | Regenerates README's EAAI-baseline panel; the checked-in rates remain historical until a corrected-protocol run replaces them. |
+| `scripts/bench-panel.sh` | Regenerates README's corrected-EAAI baseline panel with pair-cluster intervals, exact sweep tests, and raw scores. |
+| `scripts/bench-strong.sh` | Runs the predeclared strong-opponent smoke and fixed panels without nested Monte Carlo parallelism. |
+| `scripts/check-strong-conformance.sh` | Compares the native adaptations with user-supplied pinned upstream source trees; it never downloads or vendors them. |
+
+## Measured reference results
+
+The fixed corrected-EAAI baseline panel reports game win shares of 59.8%
+(59.0–60.6%) for `greedy`, 54.9% (54.1–55.7%) for `mc:64`, and 59.9%
+(58.9–60.8%) for `mc:128` against `EaaiSimpleBot`.  `mc:64` beats `greedy`
+head-to-head at 53.0% (52.2–53.8%).  Exact mirrored-pair sweep p-values are
+below .001 for all four comparisons.
+
+The fixed strong panel reports candidate game win shares against `gold-paper`
+of 62.2% (`greedy`), 62.0% (`mc:64`), and 67.1% (`mc:128`); against
+`marjj-v5-surrogate` they are 29.2%, 30.2%, and 34.2%.  Every seed agrees in
+direction and every pooled Holm-adjusted exact p-value is below .001.  These
+are host-engine adaptation results, not original-agent tournament
+reproductions.  Keep the Gold and MARJJ qualifications in
+[`docs/strong-opponents.md`](docs/strong-opponents.md) attached to every use
+of these figures; raw evidence is in
+[`docs/strong-opponents.json`](docs/strong-opponents.json).
 
 ## Invariants
 

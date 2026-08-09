@@ -65,45 +65,54 @@ Headline uncertainty for mirrored runs is a 95% pair-cluster confidence
 interval.  The primary comparison is the exact two-sided sign test over
 pairs swept by each bot; the normal paired-z value is diagnostic only.
 Use `--seeds 7,8 --format json` to obtain per-seed and pooled results with
-the `gin-rummy-arena/v1` schema and reproducibility metadata.
+the `gin-rummy-arena/v1` schema and reproducibility metadata. Exact-sign
+p-values also have `*_decimal` scientific-string fields; their numeric fields
+are `null`, never a false zero, when the positive value is below `f64` range.
 
-The panel below is retained as **historical data only**.  It predates the
-correction that retains the dealer after dead EAAI hands and the exact EAAI
-scoring preset, and its intervals use the former analysis.  It therefore
-needs a corrected-protocol regeneration before any rate, interval,
-p-value, or throughput figure is quoted as current.  A fresh
-`scripts/bench-panel.sh` run will replace it; the cells are left unchanged
-until that run completes.
+The fixed EAAI-baseline panel uses the corrected protocol, pair-cluster
+intervals, and raw target-reaching scores.  Round diagnostics use seed 7;
+each game row pools seeds 7 and 8.  It used 4000 mirrored round pairs,
+3000 game pairs per seed for `greedy` and `mc:64`, and 2000 game pairs per
+seed for `mc:128`.  Exact pair-sweep sign-test p-values are below .001.
 
-| Bot vs baseline | Rounds won        | Points/round | Games won         |
-|-----------------|-------------------|--------------|-------------------|
-| `greedy`        | 39.4% (38.4–40.5) | 8.92 vs 8.29 | 59.7% (58.9–60.6) |
-| `mc:64`         | 51.5% (50.4–52.6) | 9.22 vs 8.41 | 54.8% (53.9–55.7) |
-| `mc:128`        | 52.7% (51.6–53.8) | 9.90 vs 8.38 | 59.6% (58.5–60.7) |
+| Bot vs baseline | Decisive rounds won | Points/round | Games won | Raw score/game |
+|-----------------|---------------------:|-------------:|----------:|---------------:|
+| `greedy`        | 39.4% (38.5–40.4%) | 8.92 vs 8.29 | 59.8% (59.0–60.6%) | 90.28 vs 78.76 |
+| `mc:64`         | 51.5% (50.5–52.5%) | 9.22 vs 8.41 | 54.9% (54.1–55.7%) | 86.47 vs 79.26 |
+| `mc:128`        | 52.7% (51.7–53.7%) | 9.88 vs 8.38 | 59.9% (58.9–60.8%) | 89.75 vs 75.99 |
 
-Historical interpretation, not a current strength claim: the old panel
-suggested that the default heuristic conceded rounds by hunting gin while
-the baseline knocked at the first opportunity, yet won matches on gin and
-undercut bonuses.  It also reported `mc:64` beating `greedy` head-to-head
-over whole games (53.0% of 12 000 paired games, p < 0.001), despite
-exploiting the baseline less, and `mc:128` matching `greedy` against the
-baseline.  EAAI-21 entries reported roughly 55–68% against this baseline
-(metrics vary by paper), but the old panel's protocol mismatch prevents a
-direct comparison.
-Throughput in those runs, trials fanned across 16 cores: ~19 500 games/s
-for `greedy` vs the baseline, 7–8 games/s at `mc:64`, ~4.9 at `mc:128`.
+The heuristic still concedes decisive rounds by hunting gin while the
+baseline knocks at the first opportunity, yet wins whole games on raw score.
+`mc:64` also beats `greedy` head-to-head in 53.0% (52.2–53.8%) of 12,000
+games, 86.69–81.13 raw score/game, with exact pair-sweep p < .001.  EAAI-21
+entries reported roughly 55–68% against the baseline, but metrics and host
+semantics vary, so comparisons require the protocol qualifications above.
 
 ### Strong opponents
 
-The strong-opponent harness has adapters for two external reference agents.
-No result is claimed until the corrected-protocol panel has completed; see
-the [strong-opponents report](docs/strong-opponents.md) for methodology,
-provenance, conformance checks, and eventual measurements.
+The fixed strong-opponent panel used 6,000 mirrored game pairs per matchup
+(12,000 games) under the corrected EAAI protocol.  Every seed agreed in
+direction and all pooled Holm-adjusted exact p-values are below .001.
 
-| Opponent | Reference | Corrected-protocol result |
-|----------|-----------|---------------------------|
-| GoldStandardAgent host adaptation (`gold-paper`) | 2026 Adversarial Co-Evolution reference; exact meld decomposition, not a game-theoretically optimal full-game player | Pending |
-| MARJJ v5 host surrogate (`marjj-v5-surrogate`) | Public repository associated with the 2021 challenge winner; the v5 file is not established as the submitted championship build | Pending |
+| Candidate | Opponent | Candidate games won (pair-cluster 95% CI) | Finding |
+|-----------|----------|-------------------------------------------:|---------|
+| `greedy` | `gold-paper` | 62.2% (61.4–62.9%) | candidate edge |
+| `mc:64` | `gold-paper` | 62.0% (61.2–62.7%) | candidate edge |
+| `mc:128` | `gold-paper` | 67.1% (66.3–67.8%) | candidate edge |
+| `greedy` | `marjj-v5-surrogate` | 29.2% (28.4–30.0%) | opponent edge |
+| `mc:64` | `marjj-v5-surrogate` | 30.2% (29.4–31.0%) | opponent edge |
+| `mc:128` | `marjj-v5-surrogate` | 34.2% (33.4–35.0%) | opponent edge |
+
+These are controlled host-engine comparisons, not executions of the original
+agents or reproductions of their tournaments.  Gold's published 70–99% came
+from a different single-hand environment, and its exactness covers meld
+decomposition rather than game-theoretically optimal full-game play.  The
+later public MARJJ v5 file is only a surrogate; it is not established as the
+2021 champion binary.  Settlement and layoffs use host adaptations, and no
+EAAI 30-second player timer is enforced.  See the
+[strong-opponent report](docs/strong-opponents.md) and
+[raw JSON](docs/strong-opponents.json) for per-seed results, round diagnostics,
+provenance, conformance, and all adaptation details.
 
 ## Quick start
 

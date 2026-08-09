@@ -164,31 +164,99 @@ pub fn normal_p_value(z: f64) -> f64 {
     poly * (-x * x).exp()
 }
 
+/// An exact p-value retained in log space.
+///
+/// Keeping the logarithm prevents publication-sized exact tests from being
+/// silently rounded to the mathematically false value zero.  [`as_f64`](Self::as_f64)
+/// returns `None` if the positive value is below the smallest `f64`, while
+/// [`decimal`](Self::decimal) remains available at every supported sample size.
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+pub struct ExactPValue {
+    ln: f64,
+}
+
+impl ExactPValue {
+    /// The null result used when a sign test has no non-tied observations.
+    pub const fn one() -> Self {
+        Self { ln: 0.0 }
+    }
+
+    /// Compute a two-sided exact sign-test p-value.
+    ///
+    /// Ties must be omitted before calling this function.  With no remaining
+    /// observations there is no test, so this returns `None` rather than one;
+    /// callers that need a total p-value for multiplicity correction can use
+    /// [`one`](Self::one).
+    pub fn from_signs(positive: u32, negative: u32) -> Option<Self> {
+        let n = positive + negative;
+        if n == 0 {
+            return None;
+        }
+        let tail = positive.min(negative);
+        let log_combination = (1..=tail).fold(0.0, |sum, i| {
+            sum + f64::from(n - tail + i).ln() - f64::from(i).ln()
+        });
+        let log_largest = log_combination - f64::from(n) * std::f64::consts::LN_2;
+
+        // Sum P(0)..P(tail) relative to P(tail), walking down by the exact
+        // adjacent-term ratio P(k-1)/P(k) = k/(n-k+1).  Only the final
+        // logarithm is retained, so the p-value itself never has to fit in an
+        // `f64`.
+        let mut relative_term = 1.0;
+        let mut relative_sum = 1.0;
+        for k in (1..=tail).rev() {
+            relative_term *= f64::from(k) / f64::from(n - k + 1);
+            relative_sum += relative_term;
+        }
+        let ln = (std::f64::consts::LN_2 + log_largest + relative_sum.ln()).min(0.0);
+        Some(Self { ln })
+    }
+
+    /// The natural logarithm of the p-value.
+    pub const fn ln(self) -> f64 {
+        self.ln
+    }
+
+    /// Return the p-value as a positive `f64`, or `None` on underflow.
+    pub fn as_f64(self) -> Option<f64> {
+        let value = self.ln().exp();
+        (value > 0.0).then_some(value)
+    }
+
+    /// A normalized scientific-decimal representation with 16 significant
+    /// digits, including for values below the range of `f64`.
+    pub fn decimal(self) -> String {
+        let mut exponent = (self.ln() / std::f64::consts::LN_10).floor() as i64;
+        let mantissa = (self.ln() - exponent as f64 * std::f64::consts::LN_10).exp();
+        let mut digits = format!("{mantissa:.15}");
+
+        // Formatting can round a value infinitesimally below ten up to ten.
+        // Renormalize so consumers always receive one digit before the point.
+        if digits.starts_with("10.") {
+            exponent += 1;
+            digits = "1.000000000000000".into();
+        }
+        format!("{digits}e{exponent:+}")
+    }
+
+    /// Multiply by a positive correction factor and clamp the result to one.
+    // This shared support module is compiled independently into each example;
+    // Holm-report examples use this method even though the arena binary does not.
+    #[allow(dead_code)]
+    pub fn multiply_clamped(self, factor: usize) -> Self {
+        assert!(factor > 0, "a p-value correction factor must be positive");
+        Self {
+            ln: (self.ln + (factor as f64).ln()).min(0.0),
+        }
+    }
+}
+
 /// Exact two-sided sign-test p-value for `positive` versus `negative` signs.
 ///
-/// Ties are omitted before calling this function.  The lower binomial tail
-/// is accumulated relative to its largest term, avoiding factorial overflow
-/// and retaining precision for publication-sized sweeps.
-pub fn exact_sign_p_value(positive: u32, negative: u32) -> Option<f64> {
-    let n = positive + negative;
-    if n == 0 {
-        return None;
-    }
-    let tail = positive.min(negative);
-    let log_combination = (1..=tail).fold(0.0, |sum, i| {
-        sum + f64::from(n - tail + i).ln() - f64::from(i).ln()
-    });
-    let log_largest = log_combination - f64::from(n) * std::f64::consts::LN_2;
-
-    // Sum P(0)..P(tail) relative to P(tail), walking down by the exact
-    // adjacent-term ratio P(k-1)/P(k) = k/(n-k+1).
-    let mut relative_term = 1.0;
-    let mut relative_sum = 1.0;
-    for k in (1..=tail).rev() {
-        relative_term *= f64::from(k) / f64::from(n - k + 1);
-        relative_sum += relative_term;
-    }
-    Some((2.0 * log_largest.exp() * relative_sum).min(1.0))
+/// This free function preserves the arena helpers' original entry point while
+/// returning the underflow-safe representation.
+pub fn exact_sign_p_value(positive: u32, negative: u32) -> Option<ExactPValue> {
+    ExactPValue::from_signs(positive, negative)
 }
 
 #[cfg(test)]
@@ -238,10 +306,30 @@ mod tests {
     #[test]
     fn exact_sign_test_covers_ties_and_extremes() {
         assert_eq!(exact_sign_p_value(0, 0), None);
-        assert_eq!(exact_sign_p_value(1, 1), Some(1.0));
-        assert!((exact_sign_p_value(3, 0).unwrap() - 0.25).abs() < 1e-12);
-        assert!((exact_sign_p_value(8, 2).unwrap() - 0.109_375).abs() < 1e-12);
-        assert_eq!(exact_sign_p_value(4000, 0), Some(0.0));
+        assert_eq!(exact_sign_p_value(1, 1), Some(ExactPValue::one()));
+        assert!((exact_sign_p_value(3, 0).unwrap().as_f64().unwrap() - 0.25).abs() < 1e-12);
+        assert!((exact_sign_p_value(8, 2).unwrap().as_f64().unwrap() - 0.109_375).abs() < 1e-12);
+
+        let extreme = exact_sign_p_value(4000, 0).expect("a unanimous test is defined");
+        assert!(extreme.ln().is_finite());
+        assert_eq!(extreme.as_f64(), None);
+        assert!(extreme.decimal().starts_with("1.51721574069"));
+        assert!(extreme.decimal().ends_with("e-1204"));
+        assert_ne!(extreme.decimal(), "0");
+    }
+
+    #[test]
+    fn exact_p_value_formats_and_corrects_without_underflow() {
+        let ordinary = exact_sign_p_value(8, 2).expect("a sign test is defined");
+        assert_eq!(ordinary.decimal(), "1.093750000000000e-1");
+        assert_eq!(ExactPValue::one().decimal(), "1.000000000000000e+0");
+
+        let extreme = exact_sign_p_value(4000, 0).unwrap();
+        let corrected = extreme.multiply_clamped(6);
+        assert!(corrected > extreme);
+        assert_eq!(corrected.as_f64(), None);
+        assert!(corrected.decimal().ends_with("e-1204"));
+        assert_eq!(ExactPValue::one().multiply_clamped(6), ExactPValue::one());
     }
 
     #[test]
