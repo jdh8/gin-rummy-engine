@@ -26,8 +26,8 @@ mod support;
 use anyhow::{Context as _, Result, bail};
 use gin_rummy::{FinalScore, Game, OklahomaAce, Player, Round, RoundResult, Rules, Shutout};
 use gin_rummy_engine::{
-    DealerRotation, EaaiSimpleBot, GameValue, HeuristicBot, McConfig, MonteCarloBot, Strategy,
-    Table, eaai_rules,
+    DealerRotation, EaaiSimpleBot, GameValue, HeuristicBot, HeuristicConfig, McConfig,
+    MonteCarloBot, OpponentModel, Strategy, Table, eaai_rules,
 };
 use rand::rngs::StdRng;
 use rand::{RngExt as _, SeedableRng};
@@ -794,7 +794,11 @@ fn rules_json(rules: &Rules) -> String {
 fn bot_configuration_json(spec: &str) -> String {
     let configuration = match parse_bot_spec(spec).expect("bot specification was validated") {
         BotSpec::Greedy => {
-            "{\"kind\":\"HeuristicBot\",\"knock_threshold\":4,\"safety_weight\":1,\"score_awareness\":40}".to_owned()
+            let config = HeuristicConfig::default();
+            format!(
+                "{{\"kind\":\"HeuristicBot\",\"knock_threshold\":{},\"safety_weight\":{},\"score_awareness\":{}}}",
+                config.knock_threshold, config.safety_weight, config.score_awareness,
+            )
         }
         BotSpec::Eaai => {
             "{\"kind\":\"EaaiSimpleBot\",\"draw\":\"take_only_into_immediate_meld\",\"discard_ties\":\"seeded_uniform\",\"knock\":\"first_legal\"}".to_owned()
@@ -807,8 +811,22 @@ fn bot_configuration_json(spec: &str) -> String {
         }
         BotSpec::MonteCarlo { samples, affine } => {
             let game_value = if affine { "affine" } else { "table" };
+            let config = McConfig::default();
+            let opponent_model = match config.opponent_model {
+                OpponentModel::Eager => "eager",
+                OpponentModel::MeldOnly => "meld_only",
+                // `OpponentModel` is non-exhaustive; a spec the arena has
+                // not learned yet must not be reported as one it has.
+                _ => "unknown",
+            };
             format!(
-                "{{\"kind\":\"MonteCarloBot\",\"samples\":{samples},\"rollout_knock_self\":255,\"rollout_knock_opponent\":255,\"opponent_model\":\"eager\",\"gate_z\":2.0,\"max_candidates\":4,\"opponent_strength_percent\":100,\"game_value\":{}}}",
+                "{{\"kind\":\"MonteCarloBot\",\"samples\":{samples},\"rollout_knock_self\":{},\"rollout_knock_opponent\":{},\"opponent_model\":{},\"gate_z\":{:?},\"max_candidates\":{},\"opponent_strength_percent\":{},\"game_value\":{}}}",
+                config.rollout_knock_self,
+                config.rollout_knock_opponent,
+                json_string(opponent_model),
+                config.gate_z,
+                config.max_candidates,
+                config.opponent_strength_percent,
                 json_string(game_value),
             )
         }
@@ -1197,6 +1215,28 @@ mod tests {
         assert_eq!(value["spec"], "mc");
         assert_eq!(value["configuration"]["samples"], 128);
         assert_eq!(value["configuration"]["game_value"], "table");
+
+        // Published evidence is only interpretable if the recorded
+        // configuration is the one that played, so read the knobs off the
+        // library rather than trusting a literal here.
+        let defaults = McConfig::default();
+        assert_eq!(
+            value["configuration"]["rollout_knock_self"],
+            defaults.rollout_knock_self
+        );
+        assert_eq!(
+            value["configuration"]["rollout_knock_opponent"],
+            defaults.rollout_knock_opponent
+        );
+        assert_eq!(
+            value["configuration"]["opponent_strength_percent"],
+            defaults.opponent_strength_percent
+        );
+        assert_eq!(value["configuration"]["gate_z"], defaults.gate_z);
+        assert_eq!(
+            value["configuration"]["max_candidates"],
+            defaults.max_candidates
+        );
     }
 
     #[test]
