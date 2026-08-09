@@ -63,7 +63,7 @@ The sweep grid, with rationale:
 
 | Knob | Values | Why |
 |------|--------|-----|
-| `rollout_knock_opponent` | 255, 10, 0 | 0 *is* the gin-camper model: rollout opponents knock only at deadwood 0.  10 models an any-legal-knock opponent; 255 is today's knock-ASAP. |
+| `rollout_knock_opponent` | 255, 0 | 0 *is* the gin-camper model: rollout opponents knock only at deadwood 0; 255 is today's knock-ASAP.  Any threshold at or above 10 is the same policy — knocking is legal only at deadwood ≤ 10 — so the grid's original 10 was a duplicate arm and measured byte-identically to 255. |
 | `rollout_knock_self` | 255, 2, 0 | Patient own continuations become correctly valued once the modeled opponent stops knocking first in every rollout.  The old finding that 2 is a baseline exploit was measured under `opp=255`; the interaction is the point. |
 | `opponent_model` | eager, meld | MARJJ's draw gate is meld-only.  Alone this measured flat against the baseline; paired with a camper knock model it may matter. |
 | `opponent_strength_percent` | 100, 200, 400 | Scales the best-of-k hand bias.  400% late in a round is ~30 draws — a crude stand-in for D3, and a cheap upper-bound probe on what calibration can buy. |

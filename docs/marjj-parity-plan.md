@@ -124,6 +124,40 @@ knock model plus stronger sampled hands recovers a large slice of the
 gap by itself.  Compute-bound (a day or two of wall clock), zero risk,
 and it localizes how much gap remains for real designs.
 
+*Gate met, hypothesis refuted.*  At 2000 games per arm on seed 7, the
+causal core ranked by the bot's *own* rollout continuation, not by the
+modeled opponent's: `rollout_knock_self: 0` won 46.0% (Wilson
+43.8–48.1%), `2` won 39.0%, and today's `255` won 34.4%.  Modeling the
+opponent as a camper *hurt* — `rollout_knock_opponent: 0` cost about
+three points at every self value (31.9/31.2/30.8%).  Refining around
+the winner, `opponent_strength_percent: 200` added ~2 points (48.0%,
+45.8–50.2%) with 400 no better (47.5%), `max_candidates` measured flat
+(6: 45.1%, 8: 46.4%), and `OpponentModel::MeldOnly` lost 2.8 points
+(43.2%), reconfirming §6 now that it is paired with a patient self
+policy.  Seed 8 confirmed the best arm at 47.7% (45.5–49.9%).  The
+secondary `greedy` lane peaked at 29.6% (knock 4, awareness 32) against
+the panel's 29.2% default, so no fixed policy closes the gap and the
+whole remedy lives in the search.
+
+So §3's diagnosis was half right: the sampled opponent's *hand
+strength* is the defect, and the camper knock rule is not — a rollout
+opponent who never knocks makes every line look safe and trades the
+undercut error for a passivity error.  That raises M2's importance and
+lowers M3's: calibrated sampling is now the load-bearing change, while
+archetype inference over *knock policy* has no measured value yet.  The
+`opp_strength` probe bounds what crude hand inflation buys at roughly
+two points, which is M2's headroom to beat.
+
+The same arm also beats today's default *everywhere else*, measured
+identically at 2000 games on seed 7: 71.3% vs `EaaiSimpleBot` against
+the default arm's 59.0%, and 76.5% vs `gold-paper` against 67.2%.  This
+is a general strength gain, not an anti-MARJJ exploit, and it is
+therefore a candidate default change — which by house rule needs the
+full panels (`bench-strong.sh`, `bench-panel.sh`) and a `cargo bench`
+latency check, since `rollout_knock_self: 0` lengthens every rollout.
+Promoting it is M4 work arriving early; nothing ships on `tune`
+evidence alone.
+
 **M2 — calibrated sampling (design §D3).**  Replace best-of-k-uniform
 with sampling toward baked deadwood-by-turn curves measured from
 archetype self-play, so a sampled world's opponent is as developed as a
