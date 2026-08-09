@@ -94,20 +94,32 @@ seed 7, confirm on seed 8, per the `measure-strength` skill).
 
 | Phase | Change | Code touched | Gate (win share vs MARJJ) |
 |-------|--------|--------------|---------------------------|
-| M0 | Point the sweep harness at the surrogate | `examples/tune.rs` only | Smoke run reproduces ~34% at defaults |
+| M0 | Point the sweep harness at the surrogate | `examples/tune.rs`, plus the docs it invalidates | Smoke run reproduces ~34% at defaults |
 | M1 | Sweep existing `McConfig` knobs | none | Best fixed config ≥ ~42%, else re-diagnose |
 | M2 | Calibrated opponent-hand sampling | `src/mc.rs` (+ baked curves) | Cumulative ≥ ~46% |
 | M3 | Adaptive opponent-archetype inference (opt-in knob) | `src/mc.rs`, driver hook | ≥ 50%, lower bound ≥ 48%, guards pass |
 | M4 | Flip the measured default; publish | defaults, panels, docs | Full `bench-strong.sh` + `bench-panel.sh` reruns |
 
-**M0 — harness (design §D1).**  `tune` gains `--opponent marjj`; the
-surrogate stays frozen and outside the library API.  Half a day.
+**M0 — harness (design §D1).**  `tune` gains `--opponent
+marjj-v5-surrogate` and `--opponent gold-paper`, and — the part §D1
+originally missed — `--alternate-dealer`, without which every sweep runs
+under winner-deals-next and selects arms against a different Monte Carlo
+value table than the panel measures.  The surrogate stays frozen and
+outside the library API.  Half a day.
+
+*Gate met.*  At 2000 unpaired games on seed 7 under `--rules eaai
+--alternate-dealer`, default `mc:128` won 34.4% (Wilson 32.3–36.5%)
+against `marjj-v5-surrogate`, reproducing the panel's 34.2%; the same
+command against `eaai` returned 59.0% (56.8–61.1%) against the baseline
+panel's 59.9%, which isolates the new dealer loop from the new opponent.
+`tune`'s unflagged path is byte-identical to its pre-change output.
 
 **M1 — the free experiments (design §D2).**  Sweep, against MARJJ over
-paired whole games: `--opp-knock {255, 10, 0}`, `--rollout-knock
-{255, 2, 0}`, `--opp-model {eager, meld}`, `--opp-strength
-{100, 200, 400}`, `--max-candidates {4, 6, 8}`; secondarily a `greedy`
-lane over `(knock_threshold, score_awareness)`.  Hypothesis: camper
+paired whole games under `--rules eaai --alternate-dealer`:
+`--opp-knock {255, 10, 0}`, `--rollout-knock {255, 2, 0}`,
+`--opp-model {eager, meld}`, `--opp-strength {100, 200, 400}`,
+`--max-candidates {4, 6, 8}`; secondarily a `greedy` lane over
+`(knock_threshold, score_awareness)`.  Hypothesis: camper
 knock model plus stronger sampled hands recovers a large slice of the
 gap by itself.  Compute-bound (a day or two of wall clock), zero risk,
 and it localizes how much gap remains for real designs.

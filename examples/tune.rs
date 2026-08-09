@@ -5,6 +5,9 @@
 //!   --knock 4,6,8,10 --awareness 0,4,8,16,32
 //! cargo run --release --example tune -- --games 2000 --seed 1 --rules eaai \
 //!   --opponent eaai --mc-samples 64 --opp-model eager,meld
+//! cargo run --release --example tune -- --games 2000 --seed 7 \
+//!   --rules eaai --alternate-dealer --opponent marjj-v5-surrogate \
+//!   --mc-samples 128
 //! ```
 //!
 //! Each arm is a candidate configuration: by default a `HeuristicConfig`
@@ -16,7 +19,21 @@
 //! given lists — sweep one list at a time or the arm count multiplies.
 //! Score-aware knobs only show up across a game (a single round has no
 //! scoreboard), so evaluation is game-based, not round-based like
-//! `arena`.  Every arm replays the *same* seeded deals against the same
+//! `arena`.
+//!
+//! `--opponent` also takes the benchmark-only strong adaptations
+//! `gold-paper` and `marjj-v5-surrogate`, spelled exactly as `arena`
+//! spells them so a sweep and the panel that confirms it face the same
+//! bot.  Pair them with `--rules eaai --alternate-dealer`: the published
+//! panels play the challenge protocol, where a scored hand flips the deal
+//! and a dead hand is redealt by the same dealer, and the Monte Carlo
+//! value tables are keyed by that rotation — sweeping under the default
+//! winner-deals rule tunes against a different value function than the
+//! panel measures.  As in `arena`, the flag is independent of `--rules`.
+//!
+//! Arms are ranked by an independent per-arm Wilson interval, not the
+//! arena's mirrored-pair inference: `tune` ranks, `arena` publishes.
+//! Every arm replays the *same* seeded deals against the same
 //! opponent (common random numbers), so the arms are paired and directly
 //! comparable, and the printed table is sorted by game-win rate.  Each
 //! arm's games are seeded by index and played in parallel across the
@@ -34,11 +51,17 @@
 //!   --knock 6 --awareness 8
 //! ```
 
+// Only `make_bot` is wanted here; the rest of the shared benchmark tree
+// belongs to the arena, so the whole module is allowed to go unused.
+#[allow(dead_code)]
+#[path = "support/strong/mod.rs"]
+mod strong;
+
 use anyhow::{Context as _, Result, bail};
-use gin_rummy::{Game, Player, Rules};
+use gin_rummy::{FinalScore, Game, Player, Rules};
 use gin_rummy_engine::{
-    EaaiSimpleBot, HeuristicBot, HeuristicConfig, McConfig, MonteCarloBot, OpponentModel, Strategy,
-    eaai_rules, play_game,
+    DealerRotation, EaaiSimpleBot, HeuristicBot, HeuristicConfig, McConfig, MonteCarloBot,
+    OpponentModel, Strategy, Table, eaai_rules, play_game,
 };
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -60,6 +83,9 @@ enum Opponent {
     Mc(u32),
     /// The EAAI-2021 challenge baseline
     Eaai,
+    /// A benchmark-only strong adaptation, named exactly as `arena` names
+    /// it so a sweep and its confirming panel face the same bot
+    Strong(&'static str),
 }
 
 /// One candidate configuration under evaluation
@@ -109,6 +135,7 @@ struct Config {
     opp_strength: Vec<u32>,
     opponent: Opponent,
     rules: Rules,
+    alternate_dealer: bool,
 }
 
 /// Build a fresh candidate `HeuristicBot` from a swept knob pair.
@@ -141,11 +168,17 @@ fn opponent(spec: &Opponent, seed: u64) -> Box<dyn Strategy> {
             Box::new(MonteCarloBot::new(StdRng::seed_from_u64(seed)).samples(samples))
         }
         Opponent::Eaai => Box::new(EaaiSimpleBot::new(StdRng::seed_from_u64(seed))),
+        // `parse_opponent` only ever stores a spec `make_bot` knows, and
+        // `make_bot` never fails on one, so the lookup cannot miss.
+        Opponent::Strong(spec) => strong::make_bot(spec, seed)
+            .ok()
+            .flatten()
+            .expect("a spec parse_opponent validated"),
     }
 }
 
 /// Parse an opponent spec: `greedy`, `greedy:KNOCK:AWARENESS`, `mc[:N]`,
-/// or `eaai`.
+/// `eaai`, or a benchmark-only strong adaptation by its arena name.
 fn parse_opponent(spec: &str) -> Result<Opponent> {
     let mut parts = spec.split(':');
     match parts.next() {
@@ -164,8 +197,14 @@ fn parse_opponent(spec: &str) -> Result<Opponent> {
         },
         Some("mc") => Ok(Opponent::Mc(parts.next().map_or(Ok(64), str::parse)?)),
         Some("eaai") => Ok(Opponent::Eaai),
+        // The literals are the arena's specs, which is what `make_bot`
+        // matches on; spelling them out here is what lets `opponent` treat
+        // the variant as already validated.
+        Some("gold-paper") => Ok(Opponent::Strong("gold-paper")),
+        Some("marjj-v5-surrogate") => Ok(Opponent::Strong("marjj-v5-surrogate")),
         _ => bail!(
-            "unknown opponent {spec:?} (greedy | greedy:knock:awareness | mc[:samples] | eaai)"
+            "unknown opponent {spec:?} (greedy | greedy:knock:awareness | \
+             mc[:samples] | eaai | gold-paper | marjj-v5-surrogate)"
         ),
     }
 }
@@ -210,6 +249,7 @@ fn parse_args() -> Result<Config> {
             HeuristicConfig::default().score_awareness,
         ),
         rules: Rules::default(),
+        alternate_dealer: false,
     };
     let mut args = std::env::args().skip(1);
     while let Some(flag) = args.next() {
@@ -239,11 +279,12 @@ fn parse_args() -> Result<Config> {
             // Override the per-hand box bonus on top of the chosen preset,
             // to probe how the knock policy tracks the scoring.
             "--box-bonus" => config.rules.box_bonus = value()?.parse()?,
+            "--alternate-dealer" => config.alternate_dealer = true,
             other => bail!(
                 "unknown flag {other:?} \
                  (--games/--seed/--knock/--awareness/--mc-samples/--rollout-knock/\
                  --opp-knock/--opp-model/--gate/--max-candidates/--opp-strength/\
-                 --opponent/--rules/--box-bonus)"
+                 --opponent/--rules/--box-bonus/--alternate-dealer)"
             ),
         }
     }
@@ -308,6 +349,36 @@ fn wilson(wins: u32, n: u32) -> (f64, f64) {
     (center - half, center + half)
 }
 
+/// Play a whole game under the EAAI challenge's dealer protocol: a scored
+/// hand flips the deal, a dead hand is redealt by the same dealer.
+///
+/// [`play_game`] cannot express this — it always deals winner-next — and
+/// the rotation is part of the position, since the Monte Carlo value
+/// tables are keyed by `(Rules, DealerRotation)`.  The [`Game`] serves
+/// purely as the scoreboard; its own `next_dealer` is read once, for the
+/// opening deal, and ignored thereafter.
+fn alternating_game(
+    game: &mut Game,
+    strategies: [&mut dyn Strategy; 2],
+    rng: &mut StdRng,
+) -> Result<FinalScore> {
+    let [one, two] = strategies;
+    let rules = *game.rules();
+    let mut dealer = game.next_dealer();
+    while !game.is_over() {
+        let scores = [game.score(Player::One), game.score(Player::Two)];
+        let mut table = Table::deal(rules, dealer, rng)
+            .scores(scores)
+            .dealer_rotation(DealerRotation::AlternateAfterScoredRound);
+        let result = table.play([&mut *one, &mut *two])?;
+        game.record(result)?;
+        if result.winner().is_some() {
+            dealer = dealer.opponent();
+        }
+    }
+    Ok(game.final_score().expect("a game that is over settles"))
+}
+
 /// Play game `index` of an arm and report whether the candidate won.
 ///
 /// The deal, the opponent, and a randomized candidate are seeded from
@@ -324,6 +395,10 @@ fn play_one(arm: Arm, config: &Config, index: u32) -> Result<bool> {
     let mut opponent = opponent(&config.opponent, config.seed ^ mixed ^ OPPONENT_STREAM);
 
     // Swap seats every game and alternate the dealer so neither is favoured.
+    // ponytail: unpaired seat alternation, not the arena's mirrored pairs.
+    // Arms are already paired to each other by common random numbers, which
+    // is what ranking needs; mirroring would also need the arena's
+    // pair-cluster intervals, since `wilson` assumes independent trials.
     let swapped = index % 2 == 1;
     let candidate_seat = usize::from(swapped);
     let dealer = if index % 4 < 2 {
@@ -337,7 +412,11 @@ fn play_one(arm: Arm, config: &Config, index: u32) -> Result<bool> {
         [&mut *candidate, &mut *opponent]
     };
     let mut game = Game::new(config.rules, dealer);
-    let score = play_game(&mut game, seats, &mut rng)?;
+    let score = if config.alternate_dealer {
+        alternating_game(&mut game, seats, &mut rng)?
+    } else {
+        play_game(&mut game, seats, &mut rng)?
+    };
     Ok(score.winner as usize == candidate_seat)
 }
 
@@ -387,9 +466,17 @@ fn main() -> Result<()> {
         }
         Opponent::Mc(samples) => format!("mc:{samples}"),
         Opponent::Eaai => "eaai".to_string(),
+        Opponent::Strong(spec) => spec.to_string(),
+    };
+    // Name the protocol: a pasted result that does not say which rotation
+    // produced it cannot be compared with a published panel.
+    let dealing = if config.alternate_dealer {
+        "alternating dealer"
+    } else {
+        "winner deals"
     };
     println!(
-        "{total} games in {:.1?} ({:.0} games/s) vs {versus}",
+        "{total} games in {:.1?} ({:.0} games/s) vs {versus}, {dealing}",
         elapsed,
         f64::from(total) / elapsed.as_secs_f64(),
     );

@@ -205,14 +205,35 @@ cargo run --release --example tune -- --games 20000 --seed 1 \
   --knock 4 --awareness 0,32 --opponent mc:64
 ```
 
-`tune` pits a candidate `HeuristicConfig` against a fixed opponent (`greedy`,
-`greedy:knock:awareness`, or `mc:N`) over whole games with paired seeds, and
-sweeps a grid of `(knock_threshold, score_awareness)`.  The round-based
-tripwire and `arena --rounds` cannot see these changes — they neither catch
-a regression nor credit an improvement.  Always confirm the winner against a
-**strong** opponent (`--opponent mc:64`), not just the default greedy: a
-config that beats weak greedy but not `mc` is exploiting it, not genuinely
-stronger.  Search on one seed, re-confirm the single best arm on another.
+`tune` pits a candidate `HeuristicConfig` — or, under `--mc-samples N`, a
+whole `McConfig` — against a fixed opponent over whole games with paired
+seeds, sweeping the cartesian product of the given knob lists.  The
+opponents are `greedy`, `greedy:knock:awareness`, `mc[:N]`, `eaai`,
+`gold-paper`, and `marjj-v5-surrogate`, the last two spelled exactly as
+`arena` spells them.  The round-based tripwire and `arena --rounds` cannot
+see these changes — they neither catch a regression nor credit an
+improvement.  Always confirm the winner against a **strong** opponent
+(`--opponent mc:64` at least), not just the default greedy: a config that
+beats weak greedy but not `mc` is exploiting it, not genuinely stronger.
+Search on one seed, re-confirm the single best arm on another.
+
+Carry `--rules eaai --alternate-dealer` whenever a sweep aims at a number
+a panel will confirm.  `tune` defaults to winner-deals-next like the rest
+of the crate, and the Monte Carlo value tables are keyed by
+`(Rules, DealerRotation)` — so a sweep run under the wrong rotation
+selects against a different value function than the panel measures.  The
+summary line names the protocol it played, so check it before quoting a
+sweep result:
+
+```console
+cargo run --release --example tune -- --games 2000 --seed 7 \
+  --rules eaai --alternate-dealer --opponent marjj-v5-surrogate \
+  --mc-samples 128
+```
+
+`tune` ranks; `arena` publishes.  Its per-arm Wilson interval assumes
+independent games, so it is not the arena's mirrored-pair inference and
+must never be quoted as a panel result.
 
 ## Speed
 

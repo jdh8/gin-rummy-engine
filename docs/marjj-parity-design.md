@@ -14,12 +14,39 @@ and `Eaai`.  The arena already constructs the surrogate
 (`support::strong::make_bot("marjj-v5-surrogate", seed)`); `tune` gets
 the same access:
 
-- Add `mod support;` to `tune.rs` exactly as `arena.rs` does
-  (`examples/support/mod.rs` is shared by construction).
-- Add `Opponent::Marjj`, parsed from `--opponent marjj`, constructed
-  through `make_bot` with the per-game seed the existing
-  `OPPONENT_STREAM` offset already provides, so every arm faces the
-  same opponent on the same deals.
+- Mount the benchmark tree narrowly — `#[allow(dead_code)] #[path =
+  "support/strong/mod.rs"] mod strong;` — rather than `mod support;` as
+  `arena.rs` does, which would also pull in an unused `arena_stats`.
+  The precedents are `tests/strong_games.rs` and the two report
+  examples.
+- Add one `Opponent::Strong(&'static str)` variant carrying the arena's
+  own spec, parsed from `--opponent gold-paper` and `--opponent
+  marjj-v5-surrogate`, constructed through `make_bot` with the per-game
+  seed the existing `OPPONENT_STREAM` offset already provides, so every
+  arm faces the same opponent on the same deals.  Spelling the specs as
+  the arena spells them means the same token is pasted into a sweep and
+  into the panel that confirms it.  `gold-paper` costs one extra match
+  arm and completes plan §5's guard matrix, which `tune` otherwise
+  cannot screen without an hours-long arena run.
+
+**The dealer protocol is part of M0, not a detail.**  `tune` plays games
+through the library's `play_game`, which always builds `Table::new(..)`
+and therefore always uses `DealerRotation::WinnerDeals`; there is no
+library API for the challenge rotation, which is why `arena.rs` carries
+its own `alternate_after_scored_round_game`.  Since `src/value.rs` keys
+the Monte Carlo game-value table by `(Rules, DealerRotation)` and bakes
+a separate DP solution for each, a sweep under `--rules eaai` alone
+selects arms against a *different value function* than the published
+panel measures.  So `tune` also gains `--alternate-dealer` and a ~15-line
+game loop of its own — it needs only the winner, so none of the arena's
+`PlayedGame`/`Outcome` bookkeeping comes along — with the unflagged path
+still calling `play_game`, which keeps it byte-identical by construction.
+
+Not adopted: the arena's mirrored pairs.  Arms are already paired to each
+other by common random numbers, which is what ranking needs, and
+mirroring without pair-cluster inference would make `tune`'s Wilson
+interval — which assumes independent games — report a width it has not
+earned.  `tune` ranks; `arena` publishes.
 
 Non-changes, deliberately: the surrogate itself stays frozen — it is
 the measured yardstick, and edits would orphan the published panel —

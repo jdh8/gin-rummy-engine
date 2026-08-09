@@ -87,6 +87,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   cartesian product).  The fixed opponent can now be the challenge
   baseline (`--opponent eaai`) and the rules preset `eaai` is accepted,
   so a knob can be tuned against the yardstick it aims at.
+- `tune` also sweeps against the benchmark-only strong adaptations
+  (`--opponent gold-paper`, `--opponent marjj-v5-surrogate`, spelled as
+  the arena spells them) and follows the EAAI challenge dealer protocol
+  under `--alternate-dealer`, so a knob sweep faces the same opponent and
+  the same rotation as the published panels.  This matters beyond
+  bookkeeping: the Monte Carlo value tables are keyed by rules *and*
+  dealer rotation, so a sweep left on the default winner-deals-next rule
+  selects arms against a different value function than the panel that
+  will confirm them.  The summary line now names the protocol it played.
 - `scripts/bench-panel.sh` regenerates README's benchmark table.  The
   published numbers were previously a hand-kept transcript of runs
   nobody else could repeat; the script pins the bots, the rules, the
