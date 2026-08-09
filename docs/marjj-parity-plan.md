@@ -96,7 +96,7 @@ seed 7, confirm on seed 8, per the `measure-strength` skill).
 |-------|--------|--------------|---------------------------|
 | M0 | Point the sweep harness at the surrogate | `examples/tune.rs`, plus the docs it invalidates | Smoke run reproduces ~34% at defaults |
 | M1 | Sweep existing `McConfig` knobs | none | Best fixed config ≥ ~42%, else re-diagnose |
-| M2 | Calibrated opponent-hand sampling | `src/mc.rs` (+ baked curves) | Cumulative ≥ ~46% |
+| M2 | Calibrated opponent-hand sampling | `src/mc.rs` (+ baked curve) | Cumulative ≥ ~46% — *missed: −1.2 vs MARJJ, ships off* |
 | M3 | Adaptive opponent-archetype inference (opt-in knob) | `src/mc.rs`, driver hook | ≥ 50%, lower bound ≥ 48%, guards pass |
 | M4 | Flip the measured default; publish | defaults, panels, docs | Full `bench-strong.sh` + `bench-panel.sh` reruns |
 
@@ -165,6 +165,38 @@ real one at that point in the round.  This is what prices undercut risk
 correctly, and the same instrumentation yields the knock-hazard curves
 M3 needs.
 
+*Gate missed against the target; the change is real but points the other
+way.*  Two findings, in order.  First, the gap is twice what §3 assumed —
+at a twelve-card pile best-of-k models the opponent at 28 deadwood where
+a hand played since the deal carries 13 — and §D3's *selection* toward a
+target cannot close any of it, because the minimum of k draws already is
+the closest draw to any target below it.  Sampling has to construct a
+developed hand, which `MonteCarloBot::develop` does; sampled worlds now
+land at 13.0 ± 2.  Second, having done so: against `marjj-v5-surrogate`
+calibration measured **−1.2 points** of game win share (48.2% against
+47.0% over 8000 games a side, pooled over seeds 7, 8 and 9; the
+per-seed deltas were +0.2, −1.5 and −1.9, the largest sample the most
+negative), while gaining **+3.2** against `EaaiSimpleBot` (69.1% to
+72.3%) and **+2.0** against `gold-paper` (75.2% to 77.2%), both seeds
+agreeing in direction.  Latency cost is 2.5% at 128 samples.
+
+So a realistic opponent hand is worth two to three points against
+opponents who knock, and costs about one against the camper this plan
+targets — the exact opposite of §3's undercut diagnosis, which predicted
+calibration would pay off *most* against MARJJ.  `hand_calibration`
+therefore ships default off: the goal is parity with MARJJ without
+giving back strength elsewhere, and this trades the target for the
+guards.  It is a documented option for general play, not a step toward
+parity.
+
+That leaves the parity gap unexplained by this plan's model of it.  Both
+halves of §3's diagnosis have now been measured and both are wrong: the
+camper knock model hurt (M1) and the calibrated hand hurts (M2), yet
+patience alone reached 48%.  Before M3 builds inference over exactly
+those two axes, the next step should be a diagnostic pass over the
+rounds we lose — what actually decides them — rather than more
+machinery aimed at a diagnosis that has twice failed to hold.
+
 **M3 — adaptive archetype inference (design §D4, §D5).**  The bot
 tracks, across the rounds of a game, when the opponent knocks and how
 they draw; classifies them over a small archetype set (eager / balanced
@@ -210,7 +242,11 @@ changes:
   are worse than either extreme.
 - `OpponentModel::MeldOnly` alone was no better than `Eager` against
   the baseline it models (53.9% vs 54.8%) — belief fidelity is not
-  monotone in strength.
+  monotone in strength.  M2 is the second instance of the same lesson
+  and the stronger one: sampling *correctly developed* opponent hands
+  gains points against knockers and loses them against the camper.  A
+  more truthful belief is not automatically a better one; only the
+  measurement says.
 - The cold-card sampling penalty measured flat (+0.2/−0.2 points).
 - A shaped win-probability-race equity measured *weaker* than affine
   over whole games; `GameValue::Table` won by being faithful at level

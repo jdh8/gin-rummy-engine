@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `McConfig::hand_calibration` makes the Monte Carlo search model an
+  opponent hand that has actually been played.  Sampled worlds used to
+  keep the strongest of several uniform draws, which is a much weaker
+  hand than any real opponent holds — at a twelve-card discard pile it
+  carries about 28 deadwood where a hand played since the deal carries
+  13 — so an undercut looked unlikely exactly where it is likeliest.
+  With the knob on, a sampled hand is developed against the unseen cards
+  until it reaches the deadwood measured for that point in the round.
+  It is worth roughly three points of game win share against
+  `EaaiSimpleBot` and two against `gold-paper`, costs about one against
+  `marjj-v5-surrogate` — a realistic hand is worth more against
+  opponents who knock than against one who plays for gin — and adds 2.5%
+  to a 128-sample decision.  The default is off, because this crate's
+  current strength work targets the camper; turn it on for general play
+  against ordinary opponents.
 - Public game-protocol primitives: `DealerRotation` distinguishes ordinary
   winner-deals-next play from EAAI's
   `AlternateAfterScoredRound`, `Table::dealer_rotation` passes that choice

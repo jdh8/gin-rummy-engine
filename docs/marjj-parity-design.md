@@ -150,8 +150,20 @@ shipped interface.
 
 Cost: up to 64 extra `deadwood` calls per world against today's twelve,
 so this is a real sampling cost rather than the free one first
-estimated.  Rollouts still dominate a decision; `cargo bench` with the
-knob on decides whether it can ever be a default.
+estimated — but rollouts dominate a decision, and `cargo bench` puts it
+at 2.5% for a 128-sample turn.  Latency is not what keeps this knob off.
+
+### Measured outcome
+
+The plan's M2 entry carries the numbers.  In short: it works as
+designed — sampled worlds land at the measured deadwood instead of 15
+points above it — and being right about the opponent's hand is worth
++3.2 points against `EaaiSimpleBot` and +2.0 against `gold-paper` while
+costing 1.2 against `marjj-v5-surrogate`.  The knob ships default off
+because this plan's goal is the camper, and D4's premise — that
+per-archetype hand calibration is what a posterior should be selecting
+between — is now measured as *negative* for the one archetype that
+matters.
 
 ## D4. Adaptive opponent-archetype inference (phase M3)
 
