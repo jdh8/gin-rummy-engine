@@ -55,10 +55,9 @@ pub enum GameValue {
 ///
 /// Like [`HeuristicConfig`](crate::HeuristicConfig), the struct is
 /// non-exhaustive: start from [`McConfig::default`] and adjust fields.
-/// Every default reproduces the bot's long-standing hardcoded behavior
-/// bit for bit, so [`MonteCarloBot::new`] plays exactly the game it
-/// always has; the knobs expose the search's high-leverage levers so
-/// they can be measured instead of guessed at.
+/// Every default is a *measured* setting rather than a taste: each one
+/// won a whole-game sweep against fixed opponents, and changing one is a
+/// strength change that owes the same measurement before it ships.
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[non_exhaustive]
 pub struct McConfig {
@@ -68,16 +67,25 @@ pub struct McConfig {
     pub samples: u32,
     /// The rollout knock threshold for the bot's own future self:
     /// continuations knock at residual deadwood ≤ `min(knock_limit,
-    /// this)`.  The default `u8::MAX` knocks at the first legal chance,
-    /// which prices deadwood risk correctly but leaves multi-turn
-    /// gin-hunting plans unrepresentable; lowering it makes patient
-    /// continuations expressible.
+    /// this)`.  The default 0 means a continuation banks only on gin, so
+    /// the search compares *plans* — patient meld-building against an
+    /// immediate knock — instead of pricing every line as if it ended at
+    /// the first legal knock.  `u8::MAX`, the historical setting, knocks
+    /// at the first legal chance and leaves multi-turn gin-hunting
+    /// unrepresentable; on its own it cost 11.6 points of game win share
+    /// against `marjj-v5-surrogate` (34.4% against 46.0% over 2000 games
+    /// a side).  Raising it shortens rollouts, and is the lever to reach
+    /// for when a decision budget is tight.
     pub rollout_knock_self: u8,
     /// The rollout knock threshold for the modeled opponent.  Holding
     /// *both* seats to the shipped heuristic's tuned threshold of 4
     /// measured clearly weaker (−6 and −8 points of decisive win rate on
     /// two 10 000-round seeds, −11 points over 300 games); the default
     /// `u8::MAX` keeps the urgent threat model that finding supports.
+    /// Modeling a gin-camper (0) fares no better even against one: it
+    /// cost about three points of game win share against
+    /// `marjj-v5-surrogate`, which never knocks after turn three, because
+    /// an opponent who never knocks makes every line look safe.
     pub rollout_knock_opponent: u8,
     /// How the modeled opponent decides to take the pile card.
     pub opponent_model: OpponentModel,
@@ -92,9 +100,13 @@ pub struct McConfig {
     /// rest are never worth a rollout.
     pub max_candidates: usize,
     /// Scales the sampled opponent hands' plausibility bias, in percent
-    /// of the default schedule (the best of `pile_len / 2` uniform draws
-    /// keeps the lowest-deadwood hand).  100 is the measured default; 0
-    /// samples uniformly random opponent hands.
+    /// of the base schedule (the best of `pile_len / 2` uniform draws
+    /// keeps the lowest-deadwood hand).  The default 200 doubles the
+    /// draws, worth about two points of game win share over 100 once the
+    /// bot's own continuations are patient: a real opponent has been
+    /// collecting melds all round, and pricing them as weaker than they
+    /// are makes knocking look safe exactly where it is not.  0 samples
+    /// uniformly random opponent hands.
     pub opponent_strength_percent: u32,
     /// How a mid-game round outcome is valued: [`GameValue::Table`], the
     /// default game-win value function that gives the search score
@@ -104,18 +116,17 @@ pub struct McConfig {
 }
 
 impl McConfig {
-    /// The default configuration, identical to the bot's historical
-    /// hardcoded behavior
+    /// The default configuration, every field a measured setting
     #[must_use]
     pub const fn new() -> Self {
         Self {
             samples: 128,
-            rollout_knock_self: u8::MAX,
+            rollout_knock_self: 0,
             rollout_knock_opponent: u8::MAX,
             opponent_model: OpponentModel::Eager,
             gate_z: 2.0,
             max_candidates: 4,
-            opponent_strength_percent: 100,
+            opponent_strength_percent: 200,
             game_value: GameValue::Table,
         }
     }
@@ -1291,18 +1302,18 @@ mod tests {
     }
 
     #[test]
-    fn config_default_pins_the_historical_constants() {
-        // Every default must reproduce the pre-knob hardcoded behavior
-        // bit for bit; changing one is a strength change and owes the
-        // measure-strength procedure, not just an edit here.
+    fn config_default_pins_the_measured_constants() {
+        // Every default is a setting some sweep won; changing one is a
+        // strength change and owes the measure-strength procedure, not
+        // just an edit here.
         let config = McConfig::default();
         assert_eq!(config.samples, 128);
-        assert_eq!(config.rollout_knock_self, u8::MAX);
+        assert_eq!(config.rollout_knock_self, 0);
         assert_eq!(config.rollout_knock_opponent, u8::MAX);
         assert_eq!(config.opponent_model, OpponentModel::Eager);
         assert!((config.gate_z - 2.0).abs() < f64::EPSILON);
         assert_eq!(config.max_candidates, 4);
-        assert_eq!(config.opponent_strength_percent, 100);
+        assert_eq!(config.opponent_strength_percent, 200);
         assert_eq!(config.game_value, GameValue::Table);
         // The two construction paths agree.
         assert_eq!(McConfig::new(), config);
@@ -1417,7 +1428,9 @@ mod tests {
         let mut bot = MonteCarloBot::new(StdRng::seed_from_u64(11)).samples(64);
         let rows = bot.assess(&table.view(seat));
         let pick = rows.iter().find(|r| r.recommended).expect("a flagged pick");
-        assert_eq!(pick.action, "knock");
+        // The patient default declines this legal knock; the pin is on the
+        // pick being identical in both builds, not on which move it is.
+        assert_eq!(pick.action, "discard K♠");
     }
 
     #[test]

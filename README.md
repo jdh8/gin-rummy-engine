@@ -69,6 +69,12 @@ the `gin-rummy-arena/v1` schema and reproducibility metadata. Exact-sign
 p-values also have `*_decimal` scientific-string fields; their numeric fields
 are `null`, never a false zero, when the positive value is below `f64` range.
 
+**Both panels below measure the previous Monte Carlo defaults and are being
+re-measured**: `McConfig` now defaults to patient rollout continuations
+(`rollout_knock_self: 0`) and a doubled opponent-hand plausibility bias, which
+sweeps put well above these figures.  The numbers stand until the fixed panels
+that replace them finish.
+
 The fixed EAAI-baseline panel uses the corrected protocol, pair-cluster
 intervals, and raw target-reaching scores.  Round diagnostics use seed 7;
 each game row pools seeds 7 and 8.  It used 4000 mirrored round pairs,

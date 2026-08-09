@@ -38,6 +38,11 @@ belongs in this crate.
 
 ## Measured reference results
 
+**Stale, being re-measured.**  Every figure below was measured with the
+previous Monte Carlo defaults, before `rollout_knock_self: 0` and
+`opponent_strength_percent: 200`.  Do not quote them until the fixed panels
+rerun.
+
 The fixed corrected-EAAI baseline panel reports game win shares of 59.8%
 (59.0–60.6%) for `greedy`, 54.9% (54.1–55.7%) for `mc:64`, and 59.9%
 (58.9–60.8%) for `mc:128` against `EaaiSimpleBot`.  `mc:64` beats `greedy`
@@ -96,11 +101,14 @@ Check these before merging any change; each names its guarding test.
    `improves`, `joins_a_meld`, and `greedy_layoff` in `src/heuristic.rs`
    are shared with `Sim::rollout` (and `joins_a_meld` with
    `EaaiSimpleBot`, so the modeled opponent and the real baseline cannot
-   drift).  Under `McConfig::default()` the rollout plays exactly
+   drift).  Under `SeatPolicy::default()` the rollout plays exactly
    `HeuristicBot` with `knock_threshold: u8::MAX, safety_weight: 0` on
-   both seats; the `McConfig` rollout knobs (`rollout_knock_self`,
-   `rollout_knock_opponent`, `opponent_model`) bend it per seat, and the
-   equivalence proptest pins the *default* policy.  Changing the shared
+   both seats, and the equivalence proptest pins that policy.  The
+   `McConfig` rollout knobs (`rollout_knock_self`,
+   `rollout_knock_opponent`, `opponent_model`) bend it per seat, and
+   `McConfig::default()` does bend it: the bot's own continuations knock
+   only on gin (`rollout_knock_self: 0`) while the modeled opponent still
+   knocks at the first legal chance.  Changing the shared
    functions changes both bots and shifts every Monte Carlo evaluation,
    and changing any `McConfig` default is a strength change — either way,
    re-measure afterwards (follow the `measure-strength` skill).
