@@ -190,6 +190,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (52.2–53.8%) of 12,000 games, 86.69–81.13 raw score/game.  Every exact
   pair-sweep p-value is below .001.
 
+### Fixed
+
+- Arena JSON now records `McConfig::hand_calibration`, and the strong-panel
+  validator recognizes the promoted patient-rollout defaults.  Full-panel
+  runs can therefore publish complete configuration provenance instead of
+  failing only after every measured leg has finished.
+
 ## [0.2.0] - 2026-07-17
 
 ### Added

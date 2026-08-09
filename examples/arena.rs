@@ -820,13 +820,14 @@ fn bot_configuration_json(spec: &str) -> String {
                 _ => "unknown",
             };
             format!(
-                "{{\"kind\":\"MonteCarloBot\",\"samples\":{samples},\"rollout_knock_self\":{},\"rollout_knock_opponent\":{},\"opponent_model\":{},\"gate_z\":{:?},\"max_candidates\":{},\"opponent_strength_percent\":{},\"game_value\":{}}}",
+                "{{\"kind\":\"MonteCarloBot\",\"samples\":{samples},\"rollout_knock_self\":{},\"rollout_knock_opponent\":{},\"opponent_model\":{},\"gate_z\":{:?},\"max_candidates\":{},\"opponent_strength_percent\":{},\"hand_calibration\":{},\"game_value\":{}}}",
                 config.rollout_knock_self,
                 config.rollout_knock_opponent,
                 json_string(opponent_model),
                 config.gate_z,
                 config.max_candidates,
                 config.opponent_strength_percent,
+                config.hand_calibration,
                 json_string(game_value),
             )
         }
@@ -1236,6 +1237,10 @@ mod tests {
         assert_eq!(
             value["configuration"]["max_candidates"],
             defaults.max_candidates
+        );
+        assert_eq!(
+            value["configuration"]["hand_calibration"],
+            defaults.hand_calibration
         );
     }
 

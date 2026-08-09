@@ -293,12 +293,13 @@ fn monte_carlo_configuration(samples: u64) -> Value {
     json!({
         "kind": "MonteCarloBot",
         "samples": samples,
-        "rollout_knock_self": 255,
+        "rollout_knock_self": 0,
         "rollout_knock_opponent": 255,
         "opponent_model": "eager",
         "gate_z": 2.0,
         "max_candidates": 4,
-        "opponent_strength_percent": 100,
+        "opponent_strength_percent": 200,
+        "hand_calibration": false,
         "game_value": "table"
     })
 }
@@ -1441,10 +1442,6 @@ fn markdown_report(config: &Config, matchups: &[Matchup], conformance: &Value) -
         writeln!(
             markdown,
             "An edge is declared only when both seed estimates point in the same nonzero direction and the pooled exact pair-sweep sign-test p-value remains below .05 after Holm correction across all six matchups. Everything else is **inconclusive**, never “equal.”\n"
-        )?;
-        writeln!(
-            markdown,
-            "All three candidates beat `gold-paper` over games (62.0%–67.1% candidate win share) and lost to `marjj-v5-surrogate` (29.2%–34.2%); all six Holm-adjusted p-values were below .001 and both seeds agreed in direction. `mc:128` had the highest observed share against both opponents, but the predeclared tests compare each candidate with its opponent—not candidates with one another.\n"
         )?;
     }
     game_table(&mut markdown, matchups)?;
