@@ -3,7 +3,8 @@
 Written 2026-08-09 against the completed fixed strong-opponent panel
 ([report](strong-opponents.md), [raw JSON](strong-opponents.json)).
 The companion [design document](marjj-parity-design.md) carries the
-technical designs this plan schedules.
+technical designs this plan schedules.  The M2.5 diagnostic evidence is
+retained separately as [aggregate JSON](marjj-m2.5-diagnostic.json).
 
 Throughout, "MARJJ" means `marjj-v5-surrogate`: the host-engine
 reconstruction of the later public MARJJ v5 file, measured under the
@@ -48,14 +49,20 @@ From the fixed panel, candidate game win share against MARJJ:
 | Candidate | Games won | Points/round | K/U/G (candidate) | K/U/G (MARJJ) |
 |-----------|----------:|-------------:|------------------:|--------------:|
 | `greedy`  | 29.2% (28.4–30.0%) | 7.87 vs 14.43 | 6678/32/1850 | 1310/2627/3402 |
-| `mc:64`   | 30.2% (29.4–31.0%) | 9.15 vs 13.47 | 8358/16/760  | 1361/4007/1400 |
-| `mc:128`  | 34.2% (33.4–35.0%) | 9.72 vs 13.45 | 8131/16/1002 | 1393/3758/1556 |
+| `mc:64`   | 42.4% (41.6–43.2%) | 12.60 vs 14.41 | 4219/13/4014 | 1380/1927/3913 |
+| `mc:128`  | 46.7% (45.9–47.5%) | 13.48 vs 14.24 | 3670/17/4559 | 1394/1466/4252 |
 
-The paradox that defines the problem: `mc:128` wins **57.7% of decisive
-rounds** yet only 34.2% of games.  Its wins are small knock margins; its
-losses are 25-point undercuts and gins.
+The patient default has narrowed the problem: `mc:128` wins **53.7% of
+decisive rounds** yet 46.7% of games, and trails by only 0.76 points per
+round.  It now out-gins MARJJ 4559 to 4252, but MARJJ still undercuts it
+1466 times while being undercut only 17 times.
 
-## 3. Why we lose
+## 3. Original diagnosis — now refuted
+
+The following was the hypothesis that scheduled M1 and M2, not the current
+explanation.  Both interventions later contradicted it: modeling a camper's
+knock policy hurt in M1, and modeling a developed hand hurt in M2.  M2.5
+below records what actually changes when the latter is enabled.
 
 MARJJ v5's policy, from the surrogate: take the upcard only when it
 lands in a meld and lowers deadwood; discard by minimizing `deadwood +
@@ -80,9 +87,9 @@ turns.  Two systematic errors follow:
    out is exactly right — MARJJ out-gins `mc:128` 1556 to 1002, and
    out-gins even our gin-leaning `greedy` 3402 to 1850.
 
-Both errors share one root: the rollout's opponent model — policy and
-sampled hand strength — does not match the observed opponent.  That is
-the thing to fix; everything else is a corollary.
+The proposed common root was the rollout's mismatched opponent model.  M1,
+M2, and M2.5 retain this section as the hypothesis they tested rather than
+as a conclusion.
 
 ## 4. The path
 
@@ -98,7 +105,8 @@ seed 7, confirm on seed 8, per the `measure-strength` skill).
 | M0 | Point the sweep harness at the surrogate | `examples/tune.rs`, plus the docs it invalidates | Smoke run reproduces ~34% at defaults |
 | M1 | Sweep existing `McConfig` knobs | none | Best fixed config ≥ ~42%, else re-diagnose |
 | M2 | Calibrated opponent-hand sampling | `src/mc.rs` (+ baked curve) | Cumulative ≥ ~46% — *missed: −1.2 vs MARJJ, ships off* |
-| M3 | Adaptive opponent-archetype inference (opt-in knob) | `src/mc.rs`, driver hook | ≥ 50%, lower bound ≥ 48%, guards pass |
+| M2.5 | Decompose default vs calibrated play by finish channel | benchmark-only example + aggregate JSON | Stable leading channel across seeds — *met: MARJJ gin losses* |
+| M3 | Adaptive opponent-archetype inference (opt-in knob) | `src/mc.rs`, driver hook | *blocked pending a profitable archetype arm and redesign* |
 | M4 | Flip the measured default; publish | defaults, panels, docs | Full `bench-strong.sh` + `bench-panel.sh` reruns |
 
 **M0 — harness (design §D1).**  `tune` gains `--opponent
@@ -198,6 +206,39 @@ those two axes, the next step should be a diagnostic pass over the
 rounds we lose — what actually decides them — rather than more
 machinery aimed at a diagnosis that has twice failed to hold.
 
+**M2.5 — finish-channel diagnostic.**  A dedicated benchmark observer
+replayed the default and `hand_calibration: true` `mc:128` arms against
+MARJJ for 2000 mirrored game pairs per arm on each of seeds 7 and 8.  It
+used the exact EAAI rules and scored-round dealer alternation, common
+random numbers across arms, and inspected hidden hands only outside the
+strategies around normal `Table::step` calls.  The run is diagnostic, not
+a replacement for the fixed panel.
+
+The default arm won 47.7% (46.6–48.7%) of 8000 games; calibration won
+47.0% (46.0–48.0%).  The paired delta was -0.69 points of game win share
+(95% pair-cluster interval -2.02 to +0.64; exact arm-sign p = .161), with
+seed deltas +0.4 and -1.8.  This alone reconfirms the negative pooled
+direction without promoting it to a new strength claim.  Raw score margin
+moved from -6.21 to -7.82 points/game, a -1.61 delta (-3.44 to +0.21).
+
+The point accounting supplies the diagnosis.  Calibration made 7146
+non-gin knock attempts where default made 17 770 and cut their undercut
+rate from 29.2% to 19.3%.  Avoided undercuts recovered 13.71 points/game,
+but forfeited knock wins cost 12.23.  It gained 10.90 points/game through
+2842 additional own gins while losing 14.47 through 3897 additional MARJJ
+gins.  Those MARJJ gin losses were the largest channel on both seeds
+(-13.88 and -15.07 points/game), satisfying M2.5's predeclared stability
+gate.  The same shift raised rounds with a declined legal knock from
+21 849 to 31 034 and dead hands from 1800 to 3982.
+
+So calibration does price undercut risk: it sharply reduces both attempts
+and failures.  It loses because it over-corrects into patience, replacing
+profitable knocks with longer gin races whose extra losses outweigh both
+the saved undercuts and extra own gins.  The M3 design still has no
+profitable camper leaf to infer toward, so M3 remains blocked pending a
+separate redesign that preserves undercut selectivity without wholesale
+passivity.
+
 **M3 — adaptive archetype inference (design §D4, §D5).**  The bot
 tracks, across the rounds of a game, when the opponent knocks and how
 they draw; classifies them over a small archetype set (eager / balanced
@@ -205,7 +246,10 @@ they draw; classifies them over a small archetype set (eager / balanced
 archetype's rollout policy and hand calibration.  Ships behind a new
 `McConfig` knob, default off, so the measurement compares like with
 like.  A fresh game starts at today's behavior and converges within a
-round or two of evidence — campers reveal themselves fast.
+round or two of evidence — campers reveal themselves fast.  *Do not
+implement this as written:* M2.5 found the calibrated camper branch
+trades undercuts for a still larger gin-race loss, so classification has
+no stronger MARJJ arm to select.
 
 **M4 — ship it.**  Flip the knob's default in its own measured step
 (a `McConfig` default change is a strength change by house rule),
@@ -279,11 +323,9 @@ changes:
 ## 8. Non-goals and the fallback ladder
 
 No neural networks, no CFR, no reinforcement learning in this plan.
-The gap has a specific, diagnosed cause — a mismatched opponent model
-inside an otherwise sound equity search — and the remedies above are
-deterministic, testable, and cheap.  If M3 stalls below ~45% despite
-calibrated beliefs, the next rungs in order are: per-card posterior
-sampling weighted by observed discards (a true particle filter over
-opponent hands), then offline-tuned rollout policies per archetype.
-Learned evaluation is the last resort and out of scope until the
-search-and-modeling ladder is exhausted.
+M2.5 rejected the original single-cause diagnosis: accurate hand strength
+fixes the undercut channel but overprices patience against a gin camper.
+The next design must first produce a fixed arm that retains that undercut
+selectivity without losing the gin race; inference, per-card posterior
+sampling, and offline archetype policies stay out of scope until such an
+arm exists.  Learned evaluation remains the last resort.

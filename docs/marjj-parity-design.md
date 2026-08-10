@@ -165,6 +165,22 @@ per-archetype hand calibration is what a posterior should be selecting
 between — is now measured as *negative* for the one archetype that
 matters.
 
+### M2.5 diagnosis
+
+The fixed two-arm diagnostic explains the negative result rather than
+reversing it.  Calibration cut non-gin knock attempts from 17 770 to 7146
+and their undercut rate from 29.2% to 19.3%, recovering 13.71 points/game
+from avoided undercuts.  But fewer knock wins cost 12.23 points/game, and
+the longer gin races gained 10.90 through extra own gins while losing 14.47
+through extra MARJJ gins.  The MARJJ gin channel was the largest change in
+the same direction on both seeds.  Calibration is therefore not failing to
+model undercut risk; it is over-correcting into passivity.
+
+That leaves D4 without a profitable camper arm.  Do not implement the
+posterior mixture below as written until a separate measured design keeps
+calibration's undercut selectivity without its gin-race loss.  Classification
+cannot add strength when the branch it would select is weaker.
+
 ## D4. Adaptive opponent-archetype inference (phase M3)
 
 ### Signals — all information-hygienic, all already visible

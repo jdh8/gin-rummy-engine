@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `marjj_diagnose`, a benchmark-only whole-game instrument, compares the
+  default and calibrated-hand `mc:128` arms against
+  `marjj-v5-surrogate` on mirrored common random numbers and accounts for
+  every point by finish channel.  Over 8000 games per arm on seeds 7 and
+  8, calibration moved game win share from 47.7% to 47.0% and raw score
+  margin by -1.61 points/game.  It cut the undercut rate on non-gin knocks
+  from 29.2% to 19.3%, but made 60% fewer such attempts and entered enough
+  extra gin races that additional MARJJ gins were the largest loss channel
+  on both seeds.  The compact fixed evidence is retained in
+  `docs/marjj-m2.5-diagnostic.json`; this is diagnostic evidence, not a new
+  strength panel, and no bot behavior or default changed.
 - `McConfig::hand_calibration` makes the Monte Carlo search model an
   opponent hand that has actually been played.  Sampled worlds used to
   keep the strongest of several uniform draws, which is a much weaker

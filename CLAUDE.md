@@ -31,6 +31,7 @@ belongs in this crate.
 | `examples/support/strong/` | Benchmark-only Gold paper and MARJJ v5 surrogate adaptations shared by the arena, the tuning sweep, and integration tests; never expose them through the public API or interactive bot list. |
 | `examples/baseline_report.rs` | Validates the fixed EAAI-baseline JSON legs and emits README-ready pair-aware results. |
 | `examples/strong_report.rs` | Validates the fixed strong-opponent evidence bundle and generates `docs/strong-opponents.{md,json}`; publication requires pinned passing conformance. |
+| `examples/marjj_diagnose.rs` | Replays the default and calibrated-hand `mc:128` arms against MARJJ on common random numbers and decomposes their score margin by finish channel without changing the arena schema. |
 | `examples/tune.rs` | Whole-game A/B self-play sweep for tuning the heuristic's and Monte Carlo's knobs against a fixed opponent — including the benchmark-only strong adaptations, under either dealer protocol (`--alternate-dealer`). |
 | `scripts/bench-panel.sh` | Regenerates README's corrected-EAAI baseline panel with pair-cluster intervals, exact sweep tests, and raw scores. |
 | `scripts/bench-strong.sh` | Runs the predeclared strong-opponent smoke and fixed panels without nested Monte Carlo parallelism. |

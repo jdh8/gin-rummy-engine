@@ -68,5 +68,9 @@ required-features = ["rand"]
 name = "baseline_report"
 required-features = ["rand"]
 
+[[example]]
+name = "marjj_diagnose"
+required-features = ["rand"]
+
 [profile.dev.package."*"]
 opt-level = 2
