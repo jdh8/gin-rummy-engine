@@ -4,7 +4,9 @@ Written 2026-08-09 against the completed fixed strong-opponent panel
 ([report](strong-opponents.md), [raw JSON](strong-opponents.json)).
 The companion [design document](marjj-parity-design.md) carries the
 technical designs this plan schedules.  The M2.5 diagnostic evidence is
-retained separately as [aggregate JSON](marjj-m2.5-diagnostic.json).
+retained separately as [aggregate JSON](marjj-m2.5-diagnostic.json), and
+M5's as the two raw arena legs it compared,
+[table](marjj-m5-table-arm.json) and [affine](marjj-m5-affine-arm.json).
 
 Throughout, "MARJJ" means `marjj-v5-surrogate`: the host-engine
 reconstruction of the later public MARJJ v5 file, measured under the
@@ -325,6 +327,15 @@ not run.  They only mattered had the MARJJ arm gained, and the open
 question they would also have answered — whether `GameValue::Table` still
 earns its default under the corrected protocol — is not a parity
 question.  It stays open.
+
+Both legs are retained verbatim as `gin-rummy-arena/v1` output:
+[`marjj-m5-table-arm.json`](marjj-m5-table-arm.json) and
+[`marjj-m5-affine-arm.json`](marjj-m5-affine-arm.json), each carrying its
+own reproducibility block.  They are diagnostic, not panel-grade — 2000
+pairs per seed against the panel's 3000, only two of the three opponents,
+and `git_dirty` records the uncommitted edit to this document that was in
+the tree when they ran.  Anything published from this axis needs
+`bench-strong.sh` on a clean tree.
 
 ## 5. Measurement discipline
 
