@@ -13,6 +13,18 @@ challenge winner but is not established as the championship binary; the
 target of this plan is the surrogate itself, which is the strongest
 opponent this engine can actually be measured against.
 
+**Status as of 2026-08-11: the phase ladder is closed and no phase is
+actionable.**  M0 through M2.5 and M5 are measured and recorded below;
+M3 is blocked by its own evidence; M4's publication work has already
+been executed, for the M1 arm rather than for a parity arm.  Three
+diagnoses have now been tested against the surrogate — the camper knock
+model (M1), the calibrated opponent hand (M2), and the score-aware value
+function (M5) — and all three failed, two of them after an observational
+decomposition pointed confidently at them.  What follows is a record of
+what was measured, not a schedule.  Reopening it needs a new diagnosis
+first, and the track record says to A/B the mechanism before believing
+any decomposition that motivates one.
+
 ## 1. Goal
 
 Bring the **default-configuration** `mc:128` to statistical parity with
@@ -62,7 +74,10 @@ round.  It now out-gins MARJJ 4559 to 4252, but MARJJ still undercuts it
 The following was the hypothesis that scheduled M1 and M2, not the current
 explanation.  Both interventions later contradicted it: modeling a camper's
 knock policy hurt in M1, and modeling a developed hand hurt in M2.  M2.5
-below records what actually changes when the latter is enabled.
+below records what actually changes when the latter is enabled.  Every
+count in this section was measured against the pre-M1 default, which
+knocked at the first legal chance in its own rollouts; §2's table is the
+current one.
 
 MARJJ v5's policy, from the surrogate: take the upcard only when it
 lands in a meld and lowers deadwood; discard by minimizing `deadwood +
@@ -102,12 +117,13 @@ seed 7, confirm on seed 8, per the `measure-strength` skill).
 
 | Phase | Change | Code touched | Gate (win share vs MARJJ) |
 |-------|--------|--------------|---------------------------|
-| M0 | Point the sweep harness at the surrogate | `examples/tune.rs`, plus the docs it invalidates | Smoke run reproduces ~34% at defaults |
+| M0 | Point the sweep harness at the surrogate | `examples/tune.rs`, plus the docs it invalidates | Smoke run reproduces ~34% at the then-current default — *met* |
 | M1 | Sweep existing `McConfig` knobs | none | Best fixed config ≥ ~42%, else re-diagnose |
 | M2 | Calibrated opponent-hand sampling | `src/mc.rs` (+ baked curve) | Cumulative ≥ ~46% — *missed: −1.2 vs MARJJ, ships off* |
 | M2.5 | Decompose default vs calibrated play by finish channel | benchmark-only example + aggregate JSON | Stable leading channel across seeds — *met: MARJJ gin losses* |
 | M3 | Adaptive opponent-archetype inference (opt-in knob) | `src/mc.rs`, driver hook | *blocked pending a profitable archetype arm and redesign* |
-| M4 | Flip the measured default; publish | defaults, panels, docs | Full `bench-strong.sh` + `bench-panel.sh` reruns |
+| M4 | Flip the measured default; publish | defaults, panels, docs | Full `bench-strong.sh` + `bench-panel.sh` reruns — *executed for the M1 arm; no parity arm remains to ship* |
+| M5 | Test the score-aware value function against MARJJ | none (`mca:128` already exists) | ≥ +2 points from `GameValue::Affine` — *missed: −0.3, mechanism inert* |
 
 **M0 — harness (design §D1).**  `tune` gains `--opponent
 marjj-v5-surrogate` and `--opponent gold-paper`, and — the part §D1
@@ -125,7 +141,7 @@ panel's 59.9%, which isolates the new dealer loop from the new opponent.
 
 **M1 — the free experiments (design §D2).**  Sweep, against MARJJ over
 paired whole games under `--rules eaai --alternate-dealer`:
-`--opp-knock {255, 10, 0}`, `--rollout-knock {255, 2, 0}`,
+`--opp-knock {255, 0}`, `--rollout-knock {255, 2, 0}`,
 `--opp-model {eager, meld}`, `--opp-strength {100, 200, 400}`,
 `--max-candidates {4, 6, 8}`; secondarily a `greedy` lane over
 `(knock_threshold, score_awareness)`.  Hypothesis: camper
@@ -257,6 +273,59 @@ re-run both fixed panels, regenerate the README tables from the
 scripts, update `docs/strong-opponents.md`, CHANGELOG, and the
 tripwire floors, then release per the `release` skill.
 
+*Executed, but for the M1 arm rather than a parity arm.*  548339e set
+`rollout_knock_self: 0` and `opponent_strength_percent: 200` as the
+`McConfig` defaults; 9e117ff re-ran both fixed panels, regenerated the
+README tables and `docs/strong-opponents.{md,json}`, and raised
+`MONTE_CARLO_GAME_FLOOR` to 60.9%.  The §1 guard figures above are that
+panel's.  Nothing in this list remains to be done for MARJJ parity,
+because M2 ships off and M3 never produced an arm to ship.
+
+**M5 — the score-aware value function, refuted.**  M2.5's
+`by_starting_score` decomposition places 91% of the point deficit
+against MARJJ in rounds the bot starts *ahead*: summed over finish
+channels the default arm books −45 220 points while leading, −2 577
+tied and −1 900 trailing, which is exactly its −49 697 raw margin
+numerator.  The decisive round win share is flat to 0.1 pp across all
+three states (54.40/54.43/54.32%); only the magnitude changes, from
+22.82 points per round won while leading to 27.04 while trailing.  That
+pattern implicates `GameValue::Table`, whose baked model is solved from
+symmetric greedy self-play and is concave in the bot's own score, so it
+should prefer a small knock to a gin exactly when ahead.  It is also the
+one subsystem whose adoption evidence predates the dealer-rotation
+correction — CHANGELOG records ~+0.45 points against `EaaiSimpleBot`
+under the pre-correction protocol and flags that those figures need a
+rerun.
+
+*Gate missed; the mechanism is inert.*  The arena already ships the arm,
+so the test cost no library lines: `mca:128` is `McConfig::new()` with
+`game_value = GameValue::Affine`.  At 2000 mirrored game pairs per seed
+on seeds 7 and 8 under `--rules eaai --alternate-dealer`, Affine won
+46.6% of games (3727/8000) against a matched Table anchor's 46.9%
+(3749/8000) — a **−0.3 point** delta, negative on both seeds (−0.4 and
+−0.1).  The anchor reproduces the fixed panel's 46.7%, so the harness is
+sound.  More telling than the null is that the *behavior* barely moved:
+the bot's own K/U/G went 12 592/58/12 604 to 12 167/48/12 449, shifting
+gin's share of its own wins by 0.6 points.  Removing score awareness
+altogether does not change the knock-versus-gin tradeoff the
+decomposition blamed it for.
+
+So the leading-state concentration is mostly selection, not behavior.
+The tell was available before the run and should have been read then:
+MARJJ's *own* gin share swings from 49% to 63% between the same buckets
+despite having no score term anywhere in its policy, so a common cause —
+round length, and which games survive long enough to be observed from a
+lead — explains both swings without any score-aware code.  The lesson
+for whatever reopens this: an observational decomposition over a
+scoreboard-conditioned bucket is confounded by game length, and the
+cheap A/B is worth running before the mechanism is believed.
+
+The guard legs against `EaaiSimpleBot` and `gold-paper` were deliberately
+not run.  They only mattered had the MARJJ arm gained, and the open
+question they would also have answered — whether `GameValue::Table` still
+earns its default under the corrected protocol — is not a parity
+question.  It stays open.
+
 ## 5. Measurement discipline
 
 Everything in the `measure-strength` skill applies unchanged; the
@@ -295,7 +364,13 @@ changes:
 - The cold-card sampling penalty measured flat (+0.2/−0.2 points).
 - A shaped win-probability-race equity measured *weaker* than affine
   over whole games; `GameValue::Table` won by being faithful at level
-  scores.  Do not bend the value function to this problem.
+  scores.  Do not bend the value function to this problem.  M5 closes
+  the other end of that axis: *removing* score awareness entirely is
+  worth −0.3 points against MARJJ and moves the finish mix by 0.6, so
+  the value function is neither the problem nor the remedy here.  The
+  separate question of whether `GameValue::Table` still earns its
+  default under the corrected protocol is untested and not a parity
+  question.
 - Loosening `gate_z` usually weakens the bot — deviating on noise
   plays worse than the greedy baseline.  The fix for wrong deviations
   is world realism, not a looser gate.
@@ -329,3 +404,13 @@ The next design must first produce a fixed arm that retains that undercut
 selectivity without losing the gin race; inference, per-card posterior
 sampling, and offline archetype policies stay out of scope until such an
 arm exists.  Learned evaluation remains the last resort.
+
+M5 adds a procedural non-goal.  Three mechanisms have now been named by
+a decomposition of measured play and then refuted by the cheapest
+available A/B, twice with the decomposition's own evidence still looking
+compelling afterwards.  Nothing further should be built for this problem
+on decomposition evidence alone: name the mechanism, find or build the
+smallest fixed arm that turns it off or on, and measure that arm first.
+The surrogate is 3.3 points away and has resisted every explanation
+tried; a fourth failed diagnosis is a better outcome than a large change
+justified by the third.
