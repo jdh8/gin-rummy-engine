@@ -32,10 +32,11 @@ Guards that must hold in the same measurement cycle before any default
 changes (all are non-inferiority bounds, two points under the current
 panel figures):
 
-- vs `EaaiSimpleBot`, games: `mc:128` ≥ 57.9% (now 59.9%).
-- vs `gold-paper`, games: `mc:128` ≥ 65.1% (now 67.1%).
-- `tests/strength.rs` tripwire floors keep passing untouched until the
-  final panel justifies raising them.
+- vs `EaaiSimpleBot`, games: `mc:128` ≥ 67.2% (now 69.2%).
+- vs `gold-paper`, games: `mc:128` ≥ 72.5% (now 74.5%).
+- `tests/strength.rs` keeps the greedy game floor at 55% and raises the
+  default Monte Carlo game floor to 60.9%, seven points under its current
+  fixed fixture.
 - Mean serial decision latency at defaults stays within ~2× the current
   ~10 ms average turn (`cargo bench`); analysis configs may exceed it,
   the interactive default may not.

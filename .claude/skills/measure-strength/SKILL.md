@@ -13,23 +13,23 @@ timing you observe in them is meaningless.
 ## Baseline status
 
 - Under `Rules::default()`, the standing smoke observation is that
-  `mc:128` beats the default `greedy` in roughly 64% of decisive rounds
-  and costs about 10 ms per average serial turn.  Its old 63.9%
-  (62.3–65.3) summary used the former per-play interval analysis; retain
-  it for regression orientation, not as a publishable interval.  A new
-  claim needs a pair-cluster interval from the current arena.
+  `mc:128` beats the default `greedy` in 538/988 decisive rounds (54.45%)
+  and costs about 10 ms per average serial turn.  The former default's old
+  63.9% (62.3–65.3) summary used per-play interval analysis; retain it as
+  history, not as a current or publishable interval.  A new claim needs a
+  pair-cluster interval from the current arena.
 - The ignored tripwire (`tests/strength.rs`) holds deliberately loose
   floors for `mc:128` versus `greedy` rounds and for `greedy` and default
   Monte Carlo versus `eaai` games.  A floor catches a large accident; it
   is neither an estimator nor publication evidence.
 - The fixed corrected-EAAI panel reports decisive-round/game win shares of
-  39.4%/59.8% for `greedy`, 51.5%/54.9% for `mc:64`, and 52.7%/59.9%
+  39.4%/59.8% for `greedy`, 46.1%/65.4% for `mc:64`, and 47.1%/69.2%
   for `mc:128` against `EaaiSimpleBot`.  Points/round are 8.92–8.29,
-  9.22–8.41, and 9.88–8.38; raw scores/game are 90.28–78.76,
-  86.47–79.26, and 89.75–75.99.  The game pair-cluster intervals are
-  59.0–60.6%, 54.1–55.7%, and 58.9–60.8%; exact pair-sweep p-values are
-  all below .001.  Head-to-head, `mc:64` beats `greedy` in 53.0%
-  (52.2–53.8%) of games, scoring 86.69–81.13, also p < .001.
+  11.48–8.51, and 12.29–8.36; raw scores/game are 90.28–78.76,
+  92.52–70.67, and 94.93–66.87.  The game pair-cluster intervals are
+  59.0–60.6%, 64.6–66.2%, and 68.3–70.2%; exact pair-sweep p-values are
+  all below .001.  Head-to-head, `mc:64` beats `greedy` in 63.6%
+  (62.8–64.4%) of games, scoring 92.94–71.62, also p < .001.
 
 Keep `tests/strength.rs`, the relevant `MonteCarloBot` docs, README, and the
 strong-opponent report synchronized after a new full measurement.
@@ -94,8 +94,8 @@ individual result.
    ```
 
    The checked-in README panel is the completed corrected-protocol run.  It
-   reports game win shares of 59.8% for `greedy`, 54.9% for `mc:64`, and
-   59.9% for `mc:128` against the baseline, plus 53.0% for `mc:64` against
+   reports game win shares of 59.8% for `greedy`, 65.4% for `mc:64`, and
+   69.2% for `mc:128` against the baseline, plus 63.6% for `mc:64` against
    `greedy`.  The script pins the bots, seeds and counts, so at an unchanged
    commit it reprints the same table — a rerun that differs means the numbers
    moved, not that the measurement wandered.
@@ -127,8 +127,8 @@ Keep commands, source identities, exclusions, JSON evidence, and results in
 evidence in
 [`docs/strong-opponents.json`](../../../docs/strong-opponents.json).  The
 completed fixed panel finds candidate game win shares against Gold of 62.2%
-(`greedy`), 62.0% (`mc:64`), and 67.1% (`mc:128`), all candidate edges.  The
-same candidates win 29.2%, 30.2%, and 34.2% against the MARJJ surrogate, all
+(`greedy`), 69.5% (`mc:64`), and 74.5% (`mc:128`), all candidate edges.  The
+same candidates win 29.2%, 42.4%, and 46.7% against the MARJJ surrogate, all
 opponent edges.  Both seeds agree in direction and all six pooled
 Holm-adjusted exact p-values are below .001.  Upstream claims remain context,
 never substitutes for these host-engine measurements.
@@ -175,8 +175,8 @@ board goes lopsided.  Its table is selected by both `Rules` and
 `DealerRotation`; a value function solved for winner-deals is not evidence
 for the EAAI protocol.  Historical pre-correction A/B measurements found the
 two value functions indistinguishable in rounds but separated in whole games.
-The corrected baseline panel now measures the current default at 51.5% of
-decisive rounds, 9.22 vs 8.41 points/round, and 54.9% (54.1–55.7%) of games
+The corrected baseline panel now measures the current default at 47.1% of
+decisive rounds, 12.29 vs 8.36 points/round, and 69.2% (68.3–70.2%) of games
 against `EaaiSimpleBot`, but it does not re-estimate the causal lift over the
 affine arm.  Do not quote the former +2.1/+2.7-point lifts as current evidence.
 The round tripwire and `arena --rounds` therefore neither catch a

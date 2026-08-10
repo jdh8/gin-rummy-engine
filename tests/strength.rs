@@ -16,17 +16,17 @@
 //!
 //! - `monte_carlo_beats_the_heuristic` — head-to-head round play.  The
 //!   default `HeuristicBot` is tuned for whole-game play and concedes
-//!   single rounds, so `mc:128` takes about 65% of them; the 52.5% bar
-//!   over 1000 rounds then passes with overwhelming probability, while an
-//!   even bot slips through less than 6% of the time.  Minutes.
+//!   single rounds; the current fixture realizes 538/988 decisive wins
+//!   (54.45%).  The 52.5% bar leaves 1.95 points of headroom, while an even
+//!   bot slips through less than 6% of the time.  Minutes.
 //! - `greedy_beats_eaai_baseline_on_games` and
 //!   `monte_carlo_beats_eaai_baseline_on_games` — whole-game play against
 //!   the EAAI-2021 baseline under the challenge protocol, the number this
 //!   crate is aimed at.  The round tripwire above cannot see it: both
 //!   scores stay 0–0 inside a single round, where the game-win value
 //!   function is locally linear and therefore nearly invisible.  These
-//!   corrected fixtures realize exactly 2386/4000 (59.65%) and 595/1000
-//!   (59.5%).  Their conservative 55% and 52.5% floors leave 4.65 and 7
+//!   corrected fixtures realize exactly 2386/4000 (59.65%) and 679/1000
+//!   (67.9%).  Their conservative 55% and 60.9% floors leave 4.65 and 7
 //!   percentage points of regression headroom.  Pair-cluster intervals are
 //!   printed when these ignored tests run.  Seconds and ~4 minutes.
 
@@ -43,7 +43,7 @@ use rayon::prelude::*;
 /// Golden-ratio odd constant, the arena's per-trial seed mixer
 const MIX: u64 = 0x9E37_79B9_7F4A_7C15;
 const GREEDY_GAME_FLOOR: f64 = 0.55;
-const MONTE_CARLO_GAME_FLOOR: f64 = 0.525;
+const MONTE_CARLO_GAME_FLOOR: f64 = 0.609;
 
 /// Sufficient statistics for a mirrored-pair game-win rate.
 ///
@@ -268,7 +268,7 @@ fn monte_carlo_beats_eaai_baseline_on_games() {
         100.0 * low,
         100.0 * high,
     );
-    // The corrected fixed fixture is 595/1000 (59.5%).  The smaller
+    // The corrected fixed fixture is 679/1000 (67.9%).  The smaller
     // fixture keeps a wider seven-point cushion between its observed rate
     // and this regression floor.
     assert!(

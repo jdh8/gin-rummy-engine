@@ -6,10 +6,6 @@ Each matchup used seeds 7 and 8, 4000 mirrored round pairs per seed and 3000 mir
 
 An edge is declared only when both seed estimates point in the same nonzero direction and the pooled exact pair-sweep sign-test p-value remains below .05 after Holm correction across all six matchups. Everything else is **inconclusive**, never “equal.”
 
-All three candidates beat `gold-paper` over games (62.0%–67.1% candidate win share) and lost to `marjj-v5-surrogate` (29.2%–34.2%); all six Holm-adjusted p-values were below .001 and both seeds agreed in direction. `mc:128` had the highest observed share against both opponents, but the predeclared tests compare each candidate with its opponent—not candidates with one another.
-
-All three candidates beat `gold-paper` over games (62.0%–67.1% candidate win share) and lost to `marjj-v5-surrogate` (29.2%–34.2%); all six Holm-adjusted p-values were below .001 and both seeds agreed in direction. `mc:128` had the highest observed share against both opponents, but the predeclared tests compare each candidate with its opponent—not candidates with one another.
-
 ## Game results
 
 Game win share and its 95% interval use mirrored pairs as clusters. The score margin is candidate minus opponent raw target-reaching score per game. The exact sign test counts only 2–0 pair sweeps; 1–1 splits are ties. Holm adjustment applies to the six pooled rows.
@@ -22,18 +18,18 @@ Game win share and its 95% interval use mirrored pairs as clusters. The score ma
 | `greedy` vs `marjj-v5-surrogate` | 7 | 28.8% (27.7%–29.9%) | -36.02 | 198–1472 | <0.001 | — | diagnostic |
 | `greedy` vs `marjj-v5-surrogate` | 8 | 29.7% (28.6%–30.8%) | -34.34 | 215–1435 | <0.001 | — | diagnostic |
 | `greedy` vs `marjj-v5-surrogate` | pooled | 29.2% (28.4%–30.0%) | -35.18 | 413–2907 | <0.001 | <0.001 | **opponent edge** |
-| `mc:64` vs `gold-paper` | 7 | 62.0% (60.9%–63.0%) | +17.97 | 964–246 | <0.001 | — | diagnostic |
-| `mc:64` vs `gold-paper` | 8 | 62.0% (60.9%–63.0%) | +17.29 | 957–240 | <0.001 | — | diagnostic |
-| `mc:64` vs `gold-paper` | pooled | 62.0% (61.2%–62.7%) | +17.63 | 1921–486 | <0.001 | <0.001 | **candidate edge** |
-| `mc:64` vs `marjj-v5-surrogate` | 7 | 29.2% (28.2%–30.3%) | -33.89 | 160–1405 | <0.001 | — | diagnostic |
-| `mc:64` vs `marjj-v5-surrogate` | 8 | 31.1% (30.1%–32.2%) | -31.50 | 180–1311 | <0.001 | — | diagnostic |
-| `mc:64` vs `marjj-v5-surrogate` | pooled | 30.2% (29.4%–31.0%) | -32.69 | 340–2716 | <0.001 | <0.001 | **opponent edge** |
-| `mc:128` vs `gold-paper` | 7 | 66.7% (65.6%–67.8%) | +25.25 | 1203–201 | <0.001 | — | diagnostic |
-| `mc:128` vs `gold-paper` | 8 | 67.5% (66.4%–68.5%) | +25.26 | 1220–173 | <0.001 | — | diagnostic |
-| `mc:128` vs `gold-paper` | pooled | 67.1% (66.3%–67.8%) | +25.26 | 2423–374 | <0.001 | <0.001 | **candidate edge** |
-| `mc:128` vs `marjj-v5-surrogate` | 7 | 33.7% (32.6%–34.8%) | -26.87 | 224–1200 | <0.001 | — | diagnostic |
-| `mc:128` vs `marjj-v5-surrogate` | 8 | 34.6% (33.5%–35.7%) | -25.24 | 254–1177 | <0.001 | — | diagnostic |
-| `mc:128` vs `marjj-v5-surrogate` | pooled | 34.2% (33.4%–35.0%) | -26.06 | 478–2377 | <0.001 | <0.001 | **opponent edge** |
+| `mc:64` vs `gold-paper` | 7 | 70.0% (68.9%–71.0%) | +29.82 | 1342–144 | <0.001 | — | diagnostic |
+| `mc:64` vs `gold-paper` | 8 | 69.1% (68.1%–70.1%) | +28.51 | 1285–138 | <0.001 | — | diagnostic |
+| `mc:64` vs `gold-paper` | pooled | 69.5% (68.8%–70.3%) | +29.17 | 2627–282 | <0.001 | <0.001 | **candidate edge** |
+| `mc:64` vs `marjj-v5-surrogate` | 7 | 42.2% (41.0%–43.4%) | -13.79 | 425–893 | <0.001 | — | diagnostic |
+| `mc:64` vs `marjj-v5-surrogate` | 8 | 42.5% (41.4%–43.7%) | -13.74 | 455–902 | <0.001 | — | diagnostic |
+| `mc:64` vs `marjj-v5-surrogate` | pooled | 42.4% (41.6%–43.2%) | -13.77 | 880–1795 | <0.001 | <0.001 | **opponent edge** |
+| `mc:128` vs `gold-paper` | 7 | 75.1% (74.1%–76.1%) | +37.57 | 1593–85 | <0.001 | — | diagnostic |
+| `mc:128` vs `gold-paper` | 8 | 73.9% (72.9%–74.9%) | +35.93 | 1521–86 | <0.001 | — | diagnostic |
+| `mc:128` vs `gold-paper` | pooled | 74.5% (73.8%–75.2%) | +36.75 | 3114–171 | <0.001 | <0.001 | **candidate edge** |
+| `mc:128` vs `marjj-v5-surrogate` | 7 | 46.7% (45.6%–47.9%) | -7.14 | 558–754 | <0.001 | — | diagnostic |
+| `mc:128` vs `marjj-v5-surrogate` | 8 | 46.7% (45.5%–47.8%) | -7.66 | 563–764 | <0.001 | — | diagnostic |
+| `mc:128` vs `marjj-v5-surrogate` | pooled | 46.7% (45.9%–47.5%) | -7.40 | 1121–1518 | <0.001 | <0.001 | **opponent edge** |
 
 ## Single-round diagnostics
 
@@ -43,12 +39,10 @@ These pooled single-round results diagnose tactics; they are not the game-streng
 |---|---:|---:|---:|---:|---:|---:|
 | `greedy` vs `gold-paper` | 40.2% (39.6%–40.8%) | 9.28 vs 8.22 | +1.06 | 0.1% | 3284/2658/485 | 9282/18/257 |
 | `greedy` vs `marjj-v5-surrogate` | 53.8% (53.1%–54.6%) | 7.87 vs 14.43 | -6.56 | 0.6% | 6678/32/1850 | 1310/2627/3402 |
-| `mc:64` vs `gold-paper` | 53.8% (53.2%–54.4%) | 10.15 vs 8.10 | +2.05 | 0.1% | 7720/519/364 | 6976/246/163 |
-| `mc:64` vs `marjj-v5-surrogate` | 57.4% (56.7%–58.1%) | 9.15 vs 13.47 | -4.32 | 0.6% | 8358/16/760 | 1361/4007/1400 |
-| `mc:128` vs `gold-paper` | 55.1% (54.4%–55.8%) | 10.90 vs 7.93 | +2.96 | 0.1% | 7730/644/437 | 6781/258/142 |
-| `mc:128` vs `marjj-v5-surrogate` | 57.7% (57.0%–58.4%) | 9.72 vs 13.45 | -3.73 | 0.9% | 8131/16/1002 | 1393/3758/1556 |
-
-Decisive-round win share alone is misleading here: `greedy` won only 40.2% of decisive rounds against Gold yet led by 1.06 points/round and won 62.2% of games. Conversely, candidates won 53.8%–57.7% of decisive rounds against MARJJ yet trailed by 3.73–6.56 points/round and won only 29.2%–34.2% of games.
+| `mc:64` vs `gold-paper` | 48.6% (47.9%–49.2%) | 12.13 vs 8.16 | +3.97 | 0.1% | 4303/2443/1015 | 7877/140/204 |
+| `mc:64` vs `marjj-v5-surrogate` | 53.3% (52.6%–54.0%) | 12.60 vs 14.41 | -1.81 | 3.3% | 4219/13/4014 | 1380/1927/3913 |
+| `mc:128` vs `gold-paper` | 49.5% (48.9%–50.2%) | 13.00 vs 8.01 | +4.98 | 0.1% | 3915/2834/1165 | 7723/130/212 |
+| `mc:128` vs `marjj-v5-surrogate` | 53.7% (53.0%–54.4%) | 13.48 vs 14.24 | -0.76 | 4.0% | 3670/17/4559 | 1394/1466/4252 |
 
 ## Provenance and adaptations
 
@@ -72,15 +66,13 @@ STRONG_CONFORMANCE_RECEIPT=contrib/strong-conformance/receipt.json \
 
 ## Reproducibility
 
-- Measured arena source SHA-256: `5f44b626c229306d4b0879351258a08e39f0259eea604cbd1202e84bd2f4f9ac`
+- Measured arena source SHA-256: `fa84470015c06d6e3163d86e5a44cc3bec830eecaea4d4640a8d1b996b00fd72`
 - Cargo.lock SHA-256: `a0037359bca064781c6673725500d84f538f17c71ccd73478c8f84321f6d06d6`
-- Git commit: `99bad5f4bfe14622aee3b2b07d7f9a7fb42fc489`; dirty worktree: `false`
+- Git commit: `099c38e859009f72503e25b25bf685b538630e76`; dirty worktree: `false`
 - Compiler: `rustc 1.97.1 (8bab26f4f 2026-07-14) (Fedora 1.97.1-1.fc44); binary: rustc; commit-hash: 8bab26f4f68e0e26f0bb7960be334d5b520ea452; commit-date: 2026-07-14; host: x86_64-unknown-linux-gnu; release: 1.97.1; LLVM version: 22.1.8`
 - Platform: `Linux 7.1.6-201.fc44.x86_64 #1 SMP PREEMPT_DYNAMIC Tue Aug  4 00:23:39 UTC 2026 x86_64 GNU/Linux` / `x86_64`
 - CPU: `AMD Ryzen 7 8700F 8-Core Processor`; logical threads: `16`
-- Sum of measured leg runtimes: 17334.3 seconds
+- Sum of measured leg runtimes: 8285.7 seconds
 - Upstream conformance: `passed`; receipt: `contrib/strong-conformance/receipt.json`
 - Raw machine-readable evidence: [strong-opponents.json](strong-opponents.json)
 - Report encoding: exact-sign numeric and scientific-decimal fields were recomputed after measurement solely from the validated sweep counts; no rounds or games were rerun. The raw JSON records the report-helper hashes.
-
-Runtime caveat: an accidentally retained duplicate benchmark shared the CPU during part of this panel. Contention inflated elapsed times and depressed throughput, so the 17334.3-second leg sum and raw throughput fields are provenance only, not clean speed measurements. Seeded outcomes and statistical estimates remain valid because decisions do not depend on wall time and no player timer was enforced.

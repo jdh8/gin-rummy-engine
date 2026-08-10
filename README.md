@@ -69,12 +69,6 @@ the `gin-rummy-arena/v1` schema and reproducibility metadata. Exact-sign
 p-values also have `*_decimal` scientific-string fields; their numeric fields
 are `null`, never a false zero, when the positive value is below `f64` range.
 
-**Both panels below measure the previous Monte Carlo defaults and are being
-re-measured**: `McConfig` now defaults to patient rollout continuations
-(`rollout_knock_self: 0`) and a doubled opponent-hand plausibility bias, which
-sweeps put well above these figures.  The numbers stand until the fixed panels
-that replace them finish.
-
 The fixed EAAI-baseline panel uses the corrected protocol, pair-cluster
 intervals, and raw target-reaching scores.  Round diagnostics use seed 7;
 each game row pools seeds 7 and 8.  It used 4000 mirrored round pairs,
@@ -84,13 +78,13 @@ seed for `mc:128`.  Exact pair-sweep sign-test p-values are below .001.
 | Bot vs baseline | Decisive rounds won | Points/round | Games won | Raw score/game |
 |-----------------|---------------------:|-------------:|----------:|---------------:|
 | `greedy`        | 39.4% (38.5–40.4%) | 8.92 vs 8.29 | 59.8% (59.0–60.6%) | 90.28 vs 78.76 |
-| `mc:64`         | 51.5% (50.5–52.5%) | 9.22 vs 8.41 | 54.9% (54.1–55.7%) | 86.47 vs 79.26 |
-| `mc:128`        | 52.7% (51.7–53.7%) | 9.88 vs 8.38 | 59.9% (58.9–60.8%) | 89.75 vs 75.99 |
+| `mc:64`         | 46.1% (45.2–47.1%) | 11.48 vs 8.51 | 65.4% (64.6–66.2%) | 92.52 vs 70.67 |
+| `mc:128`        | 47.1% (46.1–48.1%) | 12.29 vs 8.36 | 69.2% (68.3–70.2%) | 94.93 vs 66.87 |
 
 The heuristic still concedes decisive rounds by hunting gin while the
 baseline knocks at the first opportunity, yet wins whole games on raw score.
-`mc:64` also beats `greedy` head-to-head in 53.0% (52.2–53.8%) of 12,000
-games, 86.69–81.13 raw score/game, with exact pair-sweep p < .001.  EAAI-21
+`mc:64` also beats `greedy` head-to-head in 63.6% (62.8–64.4%) of 12,000
+games, 92.94–71.62 raw score/game, with exact pair-sweep p < .001.  EAAI-21
 entries reported roughly 55–68% against the baseline, but metrics and host
 semantics vary, so comparisons require the protocol qualifications above.
 
@@ -103,11 +97,11 @@ direction and all pooled Holm-adjusted exact p-values are below .001.
 | Candidate | Opponent | Candidate games won (pair-cluster 95% CI) | Finding |
 |-----------|----------|-------------------------------------------:|---------|
 | `greedy` | `gold-paper` | 62.2% (61.4–62.9%) | candidate edge |
-| `mc:64` | `gold-paper` | 62.0% (61.2–62.7%) | candidate edge |
-| `mc:128` | `gold-paper` | 67.1% (66.3–67.8%) | candidate edge |
+| `mc:64` | `gold-paper` | 69.5% (68.8–70.3%) | candidate edge |
+| `mc:128` | `gold-paper` | 74.5% (73.8–75.2%) | candidate edge |
 | `greedy` | `marjj-v5-surrogate` | 29.2% (28.4–30.0%) | opponent edge |
-| `mc:64` | `marjj-v5-surrogate` | 30.2% (29.4–31.0%) | opponent edge |
-| `mc:128` | `marjj-v5-surrogate` | 34.2% (33.4–35.0%) | opponent edge |
+| `mc:64` | `marjj-v5-surrogate` | 42.4% (41.6–43.2%) | opponent edge |
+| `mc:128` | `marjj-v5-surrogate` | 46.7% (45.9–47.5%) | opponent edge |
 
 These are controlled host-engine comparisons, not executions of the original
 agents or reproductions of their tournaments.  Gold's published 70–99% came

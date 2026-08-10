@@ -45,8 +45,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   is limited to meld decomposition, not full-game optimality, and the
   separately named MARJJ v5 source is not claimed to be the championship
   submission.  In the completed corrected-protocol panel, `greedy`, `mc:64`,
-  and `mc:128` won 62.2%, 62.0%, and 67.1% of games against Gold, while
-  winning 29.2%, 30.2%, and 34.2% against the MARJJ surrogate.  Both seeds
+  and `mc:128` won 62.2%, 69.5%, and 74.5% of games against Gold, while
+  winning 29.2%, 42.4%, and 46.7% against the MARJJ surrogate.  Both seeds
   agreed in direction for every matchup and all six pooled Holm-adjusted
   exact p-values were below .001.  The
   [strong-opponent report](docs/strong-opponents.md) and
@@ -119,11 +119,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   The regenerated table now reports the corrected dead-hand dealer rule,
   exact EAAI preset, pair-cluster intervals, exact pair-sweep tests, and raw
   target-reaching scores.  Against `EaaiSimpleBot`, `greedy`, `mc:64`, and
-  `mc:128` win 59.8%, 54.9%, and 59.9% of games respectively; every exact
+  `mc:128` win 59.8%, 65.4%, and 69.2% of games respectively; every exact
   pair-sweep p-value is below .001.
 
 ### Changed
 
+- `MonteCarloBot` now defaults to patient own continuations
+  (`rollout_knock_self: 0`) and draws twice as many candidate opponent
+  hands (`opponent_strength_percent: 200`).  The search therefore compares
+  knocking now with building toward gin instead of ending every modeled
+  line at the first legal knock, while pricing a developed opponent less
+  optimistically.  In the fixed corrected-protocol panels, `mc:128` wins
+  69.2% (68.3–70.2%) of games against `EaaiSimpleBot`, 74.5%
+  (73.8–75.2%) against `gold-paper`, and 46.7% (45.9–47.5%) against
+  `marjj-v5-surrogate`; the latter remains an opponent edge, so the parity
+  target is not reached.  A hard 128-sample decision rises from 24.4 to
+  28.2 ms (+15.2%) on an idle machine, and hand calibration adds another
+  2.5% when enabled.
 - `EaaiSimpleBot`'s documentation now states what the bot is and how it
   differs from the challenge framework's Java player.  It is an
   implementation of that player's published policy rather than a
@@ -139,7 +151,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `--alternate-dealer` flips only after a scored hand while a dead hand
   retains the dealer.  Bot-policy behavior is otherwise unchanged.  The
   corrected fixed panel now supersedes the earlier EAAI rates and intervals:
-  `greedy`, `mc:64`, and `mc:128` win 59.8%, 54.9%, and 59.9% of games,
+  `greedy`, `mc:64`, and `mc:128` win 59.8%, 65.4%, and 69.2% of games,
   respectively, against the baseline.
 - `MonteCarloBot` now values a decision by its probability of winning the
   **game**, not by the round points it banks.  Short of a clinch the old
@@ -184,10 +196,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   mirrored-pair clusters and exact pair-sweep sign tests.  Against
   `EaaiSimpleBot`, `greedy` wins 39.4% of decisive rounds but 59.8%
   (59.0–60.6%) of games, scoring 90.28–78.76 raw points/game; `mc:64` wins
-  51.5% of rounds and 54.9% (54.1–55.7%) of games, scoring 86.47–79.26;
-  `mc:128` wins 52.7% of rounds and 59.9% (58.9–60.8%) of games, scoring
-  89.75–75.99.  `mc:64` beats `greedy` head-to-head in 53.0%
-  (52.2–53.8%) of 12,000 games, 86.69–81.13 raw score/game.  Every exact
+  46.1% of rounds and 65.4% (64.6–66.2%) of games, scoring 92.52–70.67;
+  `mc:128` wins 47.1% of rounds and 69.2% (68.3–70.2%) of games, scoring
+  94.93–66.87.  `mc:64` beats `greedy` head-to-head in 63.6%
+  (62.8–64.4%) of 12,000 games, 92.94–71.62 raw score/game.  Every exact
   pair-sweep p-value is below .001.
 
 ### Fixed
