@@ -215,6 +215,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The declared `serde_json` development-dependency floor now matches
+  Criterion 0.8's requirement, so direct-minimal-version CI can resolve the
+  dependency graph again.
 - Arena JSON now records `McConfig::hand_calibration`, and the strong-panel
   validator recognizes the promoted patient-rollout defaults.  Full-panel
   runs can therefore publish complete configuration provenance instead of
