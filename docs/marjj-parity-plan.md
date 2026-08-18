@@ -9,7 +9,9 @@ M5's as the two raw arena legs it compared,
 [table](marjj-m5-table-arm.json) and [affine](marjj-m5-affine-arm.json).
 M6 retains the [MARJJ arm](marjj-m6-mc256-arm.json) and its
 [EAAI](marjj-m6-mc256-eaai-guard.json) and
-[Gold](marjj-m6-mc256-gold-guard.json) guards.
+[Gold](marjj-m6-mc256-gold-guard.json) guards.  The follow-up full
+sample-budget curve is retained as a
+[raw arena bundle](marjj-sample-curve.json).
 
 Throughout, "MARJJ" means `marjj-v5-surrogate`: the host-engine
 reconstruction of the later public MARJJ v5 file, measured under the
@@ -18,13 +20,15 @@ challenge winner but is not established as the championship binary; the
 target of this plan is the surrogate itself, which is the strongest
 opponent this engine can actually be measured against.
 
-**Status as of 2026-08-18: M6 identifies sample budget as the remaining
-gap.**  At diagnostic counts, `mc:256` reached 51.2% against MARJJ with
-the lower confidence bound above 50%, cleared both guard opponents, and
-cost 1.99× the hard-decision latency of `mc:128`.  The current default and
-fixed panels remain `mc:128`; promoting 256 samples is a separate default
-and publication decision.  M3 remains blocked, and the three modeled
-diagnoses tested in M1, M2, and M5 remain refuted.
+**Status as of 2026-08-18: sample budget closes the measured gap.**  At
+diagnostic counts, `mc:256` reached 51.2% against MARJJ with the lower
+confidence bound above 50%, cleared both guard opponents, and cost 1.99×
+the hard-decision latency of `mc:128`.  A follow-up curve places
+`mc:512` at 54.1% (52.6–55.5%), with both seeds above 50%.  The current
+default and fixed panels remain `mc:128`; promoting a larger sample
+budget is a separate default and publication decision.  M3 remains
+blocked, and the three modeled diagnoses tested in M1, M2, and M5 remain
+refuted.
 
 ## 1. Goal
 
@@ -366,10 +370,8 @@ against 27.38 ms for 128, or 1.99× — exactly at the approximate latency
 ceiling.  Whole-game MARJJ throughput fell from the anchor's 5.48 to
 1.81 games/s, so the larger budget is not a cheap default even though
 the isolated decision benchmark stays inside the guard.  The default
-therefore remains 128 here.  A request to promote 256 must rerun the
-fixed publication panels on a clean tree; 512 was not run because 256
-already answered the mechanism question and exhausted the latency
-budget.
+therefore remains 128 here.  A request to promote a larger budget must
+rerun the fixed publication panels on a clean tree.
 
 The three clean-tree `gin-rummy-arena/v1` legs are retained as
 [`marjj-m6-mc256-arm.json`](marjj-m6-mc256-arm.json),
@@ -377,6 +379,54 @@ The three clean-tree `gin-rummy-arena/v1` legs are retained as
 [`marjj-m6-mc256-gold-guard.json`](marjj-m6-mc256-gold-guard.json).
 They are diagnostic rather than panel-grade: 2000 pairs per seed rather
 than the publication panel's 3000.
+
+**Full sample-budget curve — follow-up.**  An explicit request for the
+analysis-only headroom extended M6 across every power of two from 16 to
+512 samples.  Each arm played 1000 mirrored game pairs on each of seeds
+7 and 8: 4000 games and 2000 independent pair clusters per budget.
+
+| Candidate | Wins | Game win share (95% pair-cluster CI) | Seeds 7 / 8 | Raw margin/game | Games/s |
+|-----------|-----:|-------------------------------------:|------------:|----------------:|--------:|
+| `mc:16`  | 1255/4000 | 31.4% (30.0–32.7%) | 30.9% / 31.9% | -32.27 | 37.07 |
+| `mc:32`  | 1506/4000 | 37.7% (36.2–39.1%) | 37.4% / 37.9% | -21.62 | 18.95 |
+| `mc:64`  | 1686/4000 | 42.2% (40.7–43.6%) | 42.1% / 42.2% | -13.99 | 10.53 |
+| `mc:128` | 1862/4000 | 46.6% (45.1–48.0%) | 45.3% / 47.8% |  -7.90 |  5.88 |
+| `mc:256` | 2018/4000 | 50.5% (49.0–51.9%) | 50.3% / 50.6% |  -0.55 |  3.29 |
+| `mc:512` | 2163/4000 | 54.1% (52.6–55.5%) | 53.9% / 54.3% |  +4.50 |  1.86 |
+
+The curve crosses parity between 128 and 256 samples.  Its 256-sample
+subset is directionally positive but inconclusive by itself (exact
+pair-sweep p = .568); M6's larger retained run supplies the 51.2%
+(50.1–52.2%, p = .027) evidence.  At 512 samples, both seeds, the raw
+score margin, the pair-cluster interval, and the exact sweep test agree
+on a candidate edge (p = 3.31e-8).  Throughput is machine-specific and
+falls to 32% of `mc:128`, so this establishes analysis strength rather
+than a cheap new default.
+
+The release tripwire ran first, then the six arena arms ran sequentially
+without `--features parallel`:
+
+```console
+cargo test --release --test strength -- --ignored
+for samples in 16 32 64 128 256 512; do
+  cargo run --release --example arena -- --games 1000 \
+    --p1 "mc:${samples}" --p2 marjj-v5-surrogate \
+    --rules eaai --alternate-dealer --seeds 7,8 --format json \
+    > "marjj-curve-mc${samples}.json"
+done
+jq -s . marjj-curve-mc{16,32,64,128,256,512}.json \
+  > docs/marjj-sample-curve.json
+```
+
+The retained bundle contains the six complete
+`gin-rummy-arena/v1` results with zero failures.  All record clean commit
+`f28309b2cbf1c8c197e7a982374f0531101c03dc`, source SHA-256
+`d0ebd3c4dcf9e6fcb22c720e3f31ba73e760b503c6c3d16bc62c7b6f288218fc`,
+and Cargo lock SHA-256
+`a0037359bca064781c6673725500d84f538f17c71ccd73478c8f84321f6d06d6`.
+Mirrored games begin from common seeded shuffle streams and reverse
+seats; orientation-dependent dead hands can still make later dealer
+sequences diverge.
 
 ## 5. Measurement discipline
 

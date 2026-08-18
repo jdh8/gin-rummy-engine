@@ -276,8 +276,11 @@ per seat, before any decision callback.
   points over the matched 128-sample anchor, while clearing the EAAI
   and Gold guards.  Its hard-decision latency was 1.99× and whole-game
   throughput was 3.0× slower, so 256 identifies search budget as the
-  gap but does not cheaply clear the default-latency constraint.  Skip
-  512 unless analysis-only strength above parity becomes a goal.
+  gap but does not cheaply clear the default-latency constraint.  A
+  follow-up 16 → 512 curve at 1000 mirrored pairs per seed placed 512 at
+  54.1% (52.6–55.5%), with both seeds and raw score margin positive;
+  whole-game throughput was 32% of 128.  The larger budget establishes
+  analysis-only strength, not a cheap interactive default.
 - **Undercut-margin knock guard in `HeuristicBot`.**  Only if the M1
   greedy lane shows fixed policies can profit; otherwise skip — the
   heuristic's job is to stay simple.

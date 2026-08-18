@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A retained powers-of-two sample-budget curve against
+  `marjj-v5-surrogate` shows game win share rising from 31.4% at
+  `mc:16`, through 46.6% at the current `mc:128` default, to 54.1%
+  (52.6–55.5%) at `mc:512`.  Both seeds and raw score margin favor the
+  512-sample arm, while whole-game throughput falls to 32% of 128.  The
+  six clean-tree `gin-rummy-arena/v1` legs and exact reproduction recipe
+  are retained under `docs/`; this is analysis-only evidence and no bot
+  behavior or default changed.
 - The retained M6 sample-budget diagnostic shows `mc:256` reaching 51.2%
   (50.1–52.2%) against `marjj-v5-surrogate`, +4.3 points over the matched
   `mc:128` anchor with both seeds agreeing.  The same arm clears the
