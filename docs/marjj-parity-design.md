@@ -272,7 +272,12 @@ per seat, before any decision callback.
   the model is right — batching absorbs much of the cost on easy
   decisions, and the `parallel` feature covers analysis use.  The
   interactive default stays 128 unless the curve says otherwise
-  cheaply.
+  cheaply.  M6 measured 256 at 51.2% (50.1–52.2%) against MARJJ, +4.3
+  points over the matched 128-sample anchor, while clearing the EAAI
+  and Gold guards.  Its hard-decision latency was 1.99× and whole-game
+  throughput was 3.0× slower, so 256 identifies search budget as the
+  gap but does not cheaply clear the default-latency constraint.  Skip
+  512 unless analysis-only strength above parity becomes a goal.
 - **Undercut-margin knock guard in `HeuristicBot`.**  Only if the M1
   greedy lane shows fixed policies can profit; otherwise skip — the
   heuristic's job is to stay simple.

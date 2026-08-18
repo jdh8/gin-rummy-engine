@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- The retained M6 sample-budget diagnostic shows `mc:256` reaching 51.2%
+  (50.1–52.2%) against `marjj-v5-surrogate`, +4.3 points over the matched
+  `mc:128` anchor with both seeds agreeing.  The same arm clears the
+  campaign guards at 73.1% against `EaaiSimpleBot` and 78.0% against
+  `gold-paper`.  A hard decision takes 54.51 ms versus 27.38 ms at 128
+  samples, exactly 1.99×, while whole-game MARJJ throughput is 3.0×
+  slower.  The three clean-tree arena legs are retained under `docs/`;
+  this is diagnostic evidence, not a new fixed panel, and no default or
+  bot behavior changed.
 - `marjj_diagnose`, a benchmark-only whole-game instrument, compares the
   default and calibrated-hand `mc:128` arms against
   `marjj-v5-surrogate` on mirrored common random numbers and accounts for

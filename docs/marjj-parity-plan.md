@@ -7,6 +7,9 @@ technical designs this plan schedules.  The M2.5 diagnostic evidence is
 retained separately as [aggregate JSON](marjj-m2.5-diagnostic.json), and
 M5's as the two raw arena legs it compared,
 [table](marjj-m5-table-arm.json) and [affine](marjj-m5-affine-arm.json).
+M6 retains the [MARJJ arm](marjj-m6-mc256-arm.json) and its
+[EAAI](marjj-m6-mc256-eaai-guard.json) and
+[Gold](marjj-m6-mc256-gold-guard.json) guards.
 
 Throughout, "MARJJ" means `marjj-v5-surrogate`: the host-engine
 reconstruction of the later public MARJJ v5 file, measured under the
@@ -15,17 +18,13 @@ challenge winner but is not established as the championship binary; the
 target of this plan is the surrogate itself, which is the strongest
 opponent this engine can actually be measured against.
 
-**Status as of 2026-08-11: the phase ladder is closed and no phase is
-actionable.**  M0 through M2.5 and M5 are measured and recorded below;
-M3 is blocked by its own evidence; M4's publication work has already
-been executed, for the M1 arm rather than for a parity arm.  Three
-diagnoses have now been tested against the surrogate — the camper knock
-model (M1), the calibrated opponent hand (M2), and the score-aware value
-function (M5) — and all three failed, two of them after an observational
-decomposition pointed confidently at them.  What follows is a record of
-what was measured, not a schedule.  Reopening it needs a new diagnosis
-first, and the track record says to A/B the mechanism before believing
-any decomposition that motivates one.
+**Status as of 2026-08-18: M6 identifies sample budget as the remaining
+gap.**  At diagnostic counts, `mc:256` reached 51.2% against MARJJ with
+the lower confidence bound above 50%, cleared both guard opponents, and
+cost 1.99× the hard-decision latency of `mc:128`.  The current default and
+fixed panels remain `mc:128`; promoting 256 samples is a separate default
+and publication decision.  M3 remains blocked, and the three modeled
+diagnoses tested in M1, M2, and M5 remain refuted.
 
 ## 1. Goal
 
@@ -124,8 +123,9 @@ seed 7, confirm on seed 8, per the `measure-strength` skill).
 | M2 | Calibrated opponent-hand sampling | `src/mc.rs` (+ baked curve) | Cumulative ≥ ~46% — *missed: −1.2 vs MARJJ, ships off* |
 | M2.5 | Decompose default vs calibrated play by finish channel | benchmark-only example + aggregate JSON | Stable leading channel across seeds — *met: MARJJ gin losses* |
 | M3 | Adaptive opponent-archetype inference (opt-in knob) | `src/mc.rs`, driver hook | *blocked pending a profitable archetype arm and redesign* |
-| M4 | Flip the measured default; publish | defaults, panels, docs | Full `bench-strong.sh` + `bench-panel.sh` reruns — *executed for the M1 arm; no parity arm remains to ship* |
+| M4 | Flip the measured default; publish | defaults, panels, docs | Full `bench-strong.sh` + `bench-panel.sh` reruns — *executed for M1; M6's default decision is open* |
 | M5 | Test the score-aware value function against MARJJ | none (`mca:128` already exists) | ≥ +2 points from `GameValue::Affine` — *missed: −0.3, mechanism inert* |
+| M6 | Double the sample budget and check latency/guards | none | ≥ +2 points, both seeds agreeing — *met: +4.3, diagnostic stretch* |
 
 **M0 — harness (design §D1).**  `tune` gains `--opponent
 marjj-v5-surrogate` and `--opponent gold-paper`, and — the part §D1
@@ -280,8 +280,9 @@ tripwire floors, then release per the `release` skill.
 `McConfig` defaults; 9e117ff re-ran both fixed panels, regenerated the
 README tables and `docs/strong-opponents.{md,json}`, and raised
 `MONTE_CARLO_GAME_FLOOR` to 60.9%.  The §1 guard figures above are that
-panel's.  Nothing in this list remains to be done for MARJJ parity,
-because M2 ships off and M3 never produced an arm to ship.
+panel's.  At that point nothing remained to be done for MARJJ parity:
+M2 shipped off and M3 never produced an arm to ship.  M6 later reopened
+the campaign on the separate sample-budget axis.
 
 **M5 — the score-aware value function, refuted.**  M2.5's
 `by_starting_score` decomposition places 91% of the point deficit
@@ -336,6 +337,46 @@ pairs per seed against the panel's 3000, only two of the three opponents,
 and `git_dirty` records the uncommitted edit to this document that was in
 the tree when they ran.  Anything published from this axis needs
 `bench-strong.sh` on a clean tree.
+
+**M6 — sample-budget diagnostic (design §D6).**  The arena already
+accepts `mc:256`, so this test added no bot code.  At 2000 mirrored game
+pairs per seed under the corrected EAAI protocol, `mc:256` won 51.2%
+(4094/8000, pair-cluster 50.1–52.2%) against MARJJ.  That is +4.3 points
+over M5's matched `mc:128` anchor, with nearly identical gains on seeds
+7 and 8 (+4.28 and +4.35).  The candidate led on both seeds (50.8% and
+51.6%), and its pooled exact pair-sweep p-value against MARJJ was .027.
+The diagnostic therefore clears both the predeclared +2-point gate and
+the plan's stretch threshold at this count.  Search budget, rather than
+another opponent-model mechanism, explains the residual gap.
+
+The finish mix moved in the expected patient-search direction:
+candidate knocks fell from 12 592 to 11 315, candidate gins rose from
+12 604 to 13 726, and MARJJ undercuts fell from 5281 to 4151.  Raw score
+was effectively tied at 82.37–82.38 points/game despite the candidate's
+game edge, so the result is not a points-only artifact.
+
+Both guards passed at the same counts.  `mc:256` won 73.1%
+(72.2–74.0%) against `EaaiSimpleBot`, above the 67.2% floor, and 78.0%
+(77.1–78.8%) against `gold-paper`, above the 72.5% floor; both seeds
+agreed for both opponents.  The release strength tripwire also passed
+before measurement.
+
+On the hard first-discard Criterion position, 256 samples took 54.51 ms
+against 27.38 ms for 128, or 1.99× — exactly at the approximate latency
+ceiling.  Whole-game MARJJ throughput fell from the anchor's 5.48 to
+1.81 games/s, so the larger budget is not a cheap default even though
+the isolated decision benchmark stays inside the guard.  The default
+therefore remains 128 here.  A request to promote 256 must rerun the
+fixed publication panels on a clean tree; 512 was not run because 256
+already answered the mechanism question and exhausted the latency
+budget.
+
+The three clean-tree `gin-rummy-arena/v1` legs are retained as
+[`marjj-m6-mc256-arm.json`](marjj-m6-mc256-arm.json),
+[`marjj-m6-mc256-eaai-guard.json`](marjj-m6-mc256-eaai-guard.json), and
+[`marjj-m6-mc256-gold-guard.json`](marjj-m6-mc256-gold-guard.json).
+They are diagnostic rather than panel-grade: 2000 pairs per seed rather
+than the publication panel's 3000.
 
 ## 5. Measurement discipline
 
