@@ -405,7 +405,8 @@ pair-sweep p = .568); M6's larger retained run supplies the 51.2%
 score margin, the pair-cluster interval, and the exact sweep test agree
 on a candidate edge (p = 3.31e-8).  Throughput is machine-specific and
 falls to 32% of `mc:128`, so this establishes analysis strength rather
-than a cheap new default.
+than a cheap new default.  This curve is plotted alongside the
+paper-profile repeat under the latter's table below.
 
 The release tripwire ran first, then the six arena arms ran sequentially
 without `--features parallel`:
@@ -446,6 +447,20 @@ paper-profile arm above because the measured source SHA-256 is identical.
 | `mc:128` | 1861/4000 | 46.5% (45.1–48.0%) | 45.6% / 47.5% |  -8.09 |  5.83 |
 | `mc:256` | 1999/4000 | 50.0% (48.5–51.4%) | 50.7% / 49.3% |  -1.80 |  3.25 |
 | `mc:512` | 2074/4000 | 51.9% (50.4–53.3%) | 50.9% / 52.9% |  +1.67 |  1.85 |
+
+Plotted together against the 50% parity rule, with samples on a doubling
+axis.  The upper line is the source profile, the lower the paper profile,
+and the flat line is parity:
+
+```mermaid
+xychart-beta
+    title "Game win share vs sample budget (MARJJ, seeds 7+8)"
+    x-axis "Samples per decision" [16, 32, 64, 128, 256, 512]
+    y-axis "Game win share (%)" 30 --> 56
+    line [31.4, 37.7, 42.2, 46.6, 50.5, 54.1]
+    line [31.3, 36.3, 40.2, 46.5, 50.0, 51.9]
+    line [50, 50, 50, 50, 50, 50]
+```
 
 Candidate win share is at or below the source-profile curve at every
 budget: the differences range from effectively zero at 128 to -2.2 points
