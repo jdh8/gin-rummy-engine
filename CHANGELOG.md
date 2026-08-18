@@ -9,14 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Two retained corrected-EAAI arena arms test the MARJJ paper's
-  `20/0.9/6` constants and an isolated `20/0.9/7` weight change against
-  `mc:128`.  Over 1000 mirrored game pairs per seed on seeds 7 and 8,
-  MARJJ won 53.48% and 53.20%, respectively, against 53.45% for the
-  matched-count `18/0.9/7` source profile; raw margins stayed within
-  0.20 points/game of the source profile.  The diagnostic evidence is
-  retained under `docs/`; no experimental profile or strength knob was
-  added to the frozen conformed surrogate.
+- A retained powers-of-two sample-budget curve tests the MARJJ paper's
+  `20/0.9/6` constants.  Candidate win share was no higher than against
+  the public v5 source profile at any budget, reaching 50.0% at `mc:256`
+  and 51.9% (50.4–53.3%) at `mc:512`, 0.5 and 2.2 points below the matched
+  source-profile arms.  The earlier `mc:128` and isolated `20/0.9/7`
+  diagnostics remain retained under `docs/`; no experimental profile or
+  strength knob was added to the frozen conformed surrogate.
 - A retained powers-of-two sample-budget curve against
   `marjj-v5-surrogate` shows game win share rising from 31.4% at
   `mc:16`, through 46.6% at the current `mc:128` default, to 54.1%

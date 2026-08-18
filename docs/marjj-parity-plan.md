@@ -11,8 +11,9 @@ M6 retains the [MARJJ arm](marjj-m6-mc256-arm.json) and its
 [EAAI](marjj-m6-mc256-eaai-guard.json) and
 [Gold](marjj-m6-mc256-gold-guard.json) guards.  The follow-up full
 sample-budget curve is retained as a
-[raw arena bundle](marjj-sample-curve.json).  The later public file's
-constants are compared with the paper-reported profile in retained
+[raw arena bundle](marjj-sample-curve.json), and its paper-profile repeat
+as a [second bundle](marjj-sample-curve-20-0.9-6.json).  The later public
+file's constants are compared with the paper-reported profile in retained
 [`20/0.9/7`](marjj-profile-20-0.9-7.json) and
 [`20/0.9/6`](marjj-profile-20-0.9-6.json) diagnostic arms.
 
@@ -431,6 +432,37 @@ Mirrored games begin from common seeded shuffle streams and reverse
 seats; orientation-dependent dead hands can still make later dealer
 sequences diverge.
 
+**Paper-profile sample-budget curve — follow-up.**  Repeating the curve
+against the paper's `20/0.9/6` constants made the opponent modestly harder
+at most sample budgets.  The protocol and counts match the source-profile
+curve exactly.  Five arms were newly run; `mc:128` reuses the exact retained
+paper-profile arm above because the measured source SHA-256 is identical.
+
+| Candidate | Wins | Game win share (95% pair-cluster CI) | Seeds 7 / 8 | Raw margin/game | Games/s |
+|-----------|-----:|-------------------------------------:|------------:|----------------:|--------:|
+| `mc:16`  | 1250/4000 | 31.3% (29.9–32.6%) | 30.9% / 31.6% | -32.18 | 37.43 |
+| `mc:32`  | 1452/4000 | 36.3% (34.9–37.7%) | 36.6% / 36.1% | -23.08 | 18.78 |
+| `mc:64`  | 1606/4000 | 40.2% (38.7–41.6%) | 39.5% / 40.9% | -16.78 | 10.46 |
+| `mc:128` | 1861/4000 | 46.5% (45.1–48.0%) | 45.6% / 47.5% |  -8.09 |  5.83 |
+| `mc:256` | 1999/4000 | 50.0% (48.5–51.4%) | 50.7% / 49.3% |  -1.80 |  3.25 |
+| `mc:512` | 2074/4000 | 51.9% (50.4–53.3%) | 50.9% / 52.9% |  +1.67 |  1.85 |
+
+Candidate win share is at or below the source-profile curve at every
+budget: the differences range from effectively zero at 128 to -2.2 points
+at 512.  The point estimate reaches parity at 256, but the seeds split and
+the exact pair-sweep test is null (p = 1.000).  At 512 both seeds, the raw
+margin, the lower confidence bound, and the exact sweep test still favor the
+candidate (p = .0129).  These common-anchor differences are consistent with
+`20/0.9/6` being slightly stronger, but do not supply a direct paired test
+between the two MARJJ profiles.
+
+The five new arms record clean protocol results with zero failures and a
+shared source SHA-256 of
+`81b6fa0e6d5595d00c7720a37b4389ef63459888de2e52e0706262d06abc1f39`.
+The working tree was deliberately dirty only for the temporary constant and
+JSON-description substitutions; the frozen benchmark adapter was restored
+to `18/0.9/7` afterward.  Throughput remains machine-specific.
+
 ## 5. Measurement discipline
 
 Everything in the `measure-strength` skill applies unchanged; the
@@ -476,8 +508,12 @@ changes:
   `20/0.9/6`; its raw margins were +7.90, +7.69, and +8.09 points/game.
   These common-anchor diagnostics do not supply a direct paired test
   between profiles, and their sub-point differences are below the run's
-  resolution.  The conformed v5 surrogate therefore stays frozen without
-  a profile knob.
+  resolution.  The later full `20/0.9/6` sample-budget curve found the
+  candidate no stronger than against `18/0.9/7` at any budget, with the
+  largest gaps at 64 (-2.0 points) and 512 (-2.2).  This is consistent with
+  the paper profile being slightly stronger away from the 128 anchor, but
+  still is not a direct profile-vs-profile paired test.  The conformed v5
+  surrogate therefore stays frozen without a profile knob.
 - A shaped win-probability-race equity measured *weaker* than affine
   over whole games; `GameValue::Table` won by being faithful at level
   scores.  Do not bend the value function to this problem.  M5 closes
