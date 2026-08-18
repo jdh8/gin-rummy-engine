@@ -11,7 +11,10 @@ M6 retains the [MARJJ arm](marjj-m6-mc256-arm.json) and its
 [EAAI](marjj-m6-mc256-eaai-guard.json) and
 [Gold](marjj-m6-mc256-gold-guard.json) guards.  The follow-up full
 sample-budget curve is retained as a
-[raw arena bundle](marjj-sample-curve.json).
+[raw arena bundle](marjj-sample-curve.json).  The later public file's
+constants are compared with the paper-reported profile in retained
+[`20/0.9/7`](marjj-profile-20-0.9-7.json) and
+[`20/0.9/6`](marjj-profile-20-0.9-6.json) diagnostic arms.
 
 Throughout, "MARJJ" means `marjj-v5-surrogate`: the host-engine
 reconstruction of the later public MARJJ v5 file, measured under the
@@ -464,6 +467,17 @@ changes:
   more truthful belief is not automatically a better one; only the
   measurement says.
 - The cold-card sampling penalty measured flat (+0.2/−0.2 points).
+- Replacing MARJJ v5's `18/0.9/7` source profile with the paper's
+  `20/0.9/6`, or isolating the weight change as `20/0.9/7`, did not make
+  the surrogate detectably stronger against `mc:128`.  Over 1000
+  mirrored game pairs on each of seeds 7 and 8 under the corrected EAAI
+  protocol, MARJJ won 53.45% (52.00–54.90%) with `18/0.9/7`, 53.20%
+  (51.78–54.62%) with `20/0.9/7`, and 53.48% (52.03–54.92%) with
+  `20/0.9/6`; its raw margins were +7.90, +7.69, and +8.09 points/game.
+  These common-anchor diagnostics do not supply a direct paired test
+  between profiles, and their sub-point differences are below the run's
+  resolution.  The conformed v5 surrogate therefore stays frozen without
+  a profile knob.
 - A shaped win-probability-race equity measured *weaker* than affine
   over whole games; `GameValue::Table` won by being faithful at level
   scores.  Do not bend the value function to this problem.  M5 closes
