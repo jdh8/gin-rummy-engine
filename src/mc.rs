@@ -570,7 +570,7 @@ impl<R: Rng> MonteCarloBot<R> {
             }
             Phase::Discard => {
                 let hand = view.hand();
-                if deadwood(hand) == 0 && view.rules().big_gin_bonus.is_some() {
+                if view.rules().big_gin_bonus.is_some() && deadwood(hand) == 0 {
                     let choice = Choice::Turn(TurnAction::BigGin(best_melds(hand)));
                     return vec![candidate("big gin".to_string(), choice)];
                 }
@@ -934,7 +934,7 @@ impl<R: Rng> Strategy for MonteCarloBot<R> {
 
     fn play_turn(&mut self, view: &View<'_>) -> TurnAction {
         let hand = view.hand();
-        if deadwood(hand) == 0 && view.rules().big_gin_bonus.is_some() {
+        if view.rules().big_gin_bonus.is_some() && deadwood(hand) == 0 {
             // Big gin scores at least as much as gin under every ruleset, and
             // is forced, so take it without a rollout (and without drawing
             // from the rng, keeping seeded play reproducible).

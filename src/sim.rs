@@ -248,7 +248,7 @@ impl Sim {
                     }
                 }
                 SimPhase::Shed => {
-                    if deadwood(hand) == 0 && self.rules.big_gin_bonus.is_some() {
+                    if self.rules.big_gin_bonus.is_some() && deadwood(hand) == 0 {
                         return self.big_gin();
                     }
                     let (card, rest) = best_shed(hand, self.taken);

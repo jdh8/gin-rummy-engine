@@ -12,8 +12,10 @@ M6 retains the [MARJJ arm](marjj-m6-mc256-arm.json) and its
 [Gold](marjj-m6-mc256-gold-guard.json) guards.  The follow-up full
 sample-budget curve is retained as a
 [raw arena bundle](marjj-sample-curve.json), and its paper-profile repeat
-as a [second bundle](marjj-sample-curve-20-0.9-6.json).  The later public
-file's constants are compared with the paper-reported profile in retained
+as a [second bundle](marjj-sample-curve-20-0.9-6.json).  A fixed
+[`mc:1024` arm](marjj-mc1024.json) records the later cache experiment.  The
+later public file's constants are compared with the paper-reported profile
+in retained
 [`20/0.9/7`](marjj-profile-20-0.9-7.json) and
 [`20/0.9/6`](marjj-profile-20-0.9-6.json) diagnostic arms.
 
@@ -432,6 +434,74 @@ and Cargo lock SHA-256
 Mirrored games begin from common seeded shuffle streams and reverse
 seats; orientation-dependent dead hands can still make later dealer
 sequences diverge.
+
+**Fixed `mc:1024` payoff confirmation — follow-up.**  The first fixed
+1024-sample measurement won 2205 of 4000 games against
+`marjj-v5-surrogate`, 55.125% (pair-cluster 95% CI 53.683–56.567%).
+Seeds 7 and 8 returned 55.00% and 55.25%; raw target-reaching scores were
+339233–316189 (+5.76/game), and the pooled exact pair-sweep p-value was
+5.99e-12.  That p-value tests `mc:1024` against MARJJ, not its incremental
+gain over `mc:512`.
+
+The point estimate is 1.05 points above the retained `mc:512` result,
+below the extrapolated 57–58%, but its confidence interval is wholly above
+parity.  The retained [`gin-rummy-arena/v1` result](marjj-mc1024.json)
+records zero failures and the complete reproducibility metadata.  Its
+throughput was 4.346 games/s, versus 1.861 games/s for the older
+`mc:512` curve.  That 2.34× ratio is a cross-run diagnostic that confounds
+sample budget with the cache.
+
+The matched hard-decision benchmarks improved 1.78× at 128 samples and
+1.23× at 1024.  The latter missed the predeclared 1.4× microbenchmark gate
+after capacity, associativity, and multiplier retuning; those extra cache
+policies and the cache itself were therefore removed.  The retained arena
+JSON belongs to that rejected, dirty-tree experiment.  Its strength result
+remains a valid fixed-1024 diagnostic because the full-key cache returned
+only raw-solver values and the pinned action traces stayed identical, but
+its source hash and throughput do not describe the final tree.
+
+The command below records the arena protocol.  On the final tree it
+reproduces the deterministic strength outcome, but not the rejected
+prototype's source hash or timing metadata.
+
+```console
+cargo run --release --example arena -- --games 1000 \
+  --p1 mc:1024 --p2 marjj-v5-surrogate \
+  --rules eaai --alternate-dealer --seeds 7,8 --format json \
+  > docs/marjj-mc1024.json
+```
+
+**Adaptive escalation sweep — stopped at the exploratory gate.**  An
+opt-in prototype gave difficult decisions more worlds up to a cap.  Seed
+7 ranked these arms over 2000 games each:
+
+| Arm | Wins | Game win share (Wilson 95% CI) | Delta vs fixed 512 |
+|-----|-----:|--------------------------------:|-------------------:|
+| `mc:512` | 1095/2000 | 54.8% (52.6–56.9%) | anchor |
+| `mc:512+1024` | 1104/2000 | 55.2% (53.0–57.4%) | +0.45 points |
+| `mc:512+2048` | 1083/2000 | 54.1% (52.0–56.3%) | -0.60 points |
+| `mc:128+2048` | 1106/2000 | 55.3% (53.1–57.5%) | +0.55 points |
+
+These are exploratory `tune` games: game index supplies common random
+numbers across arms, but each game is only seat-alternated, not replayed
+as an arena mirrored pair.  The per-arm Wilson intervals are descriptive;
+they are not pair-cluster intervals and there is no exact-sweep test.
+
+The best adaptive arm gained 0.55 points, below the predeclared +2-point
+continuation gate.  The prototype was therefore removed without seed-8
+confirmation, mirrored arena claims, or EAAI and Gold guard runs.  The
+fixed-budget API and defaults remain unchanged.  The commands below record
+the discarded prototype's measurement interface and do not run on the
+final tree.
+
+```console
+cargo run --release --example tune -- --games 2000 --seed 7 \
+  --rules eaai --alternate-dealer --opponent marjj-v5-surrogate \
+  --mc-samples 512 --mc-max-samples 0,1024,2048
+cargo run --release --example tune -- --games 2000 --seed 7 \
+  --rules eaai --alternate-dealer --opponent marjj-v5-surrogate \
+  --mc-samples 128 --mc-max-samples 2048
+```
 
 **Paper-profile sample-budget curve — follow-up.**  Repeating the curve
 against the paper's `20/0.9/6` constants made the opponent modestly harder

@@ -257,7 +257,7 @@ impl Strategy for HeuristicBot {
 
     fn play_turn(&mut self, view: &View<'_>) -> TurnAction {
         let hand = view.hand();
-        if deadwood(hand) == 0 && view.rules().big_gin_bonus.is_some() {
+        if view.rules().big_gin_bonus.is_some() && deadwood(hand) == 0 {
             return TurnAction::BigGin(best_melds(hand));
         }
 

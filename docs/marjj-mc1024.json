@@ -1,0 +1,486 @@
+{
+  "schema": "gin-rummy-arena/v1",
+  "mode": "games",
+  "paired": true,
+  "count_per_seed": 1000,
+  "failures": 0,
+  "rules": {
+    "preset": "eaai",
+    "values": {
+      "knock_limit": 10,
+      "oklahoma": null,
+      "gin_bonus": 25,
+      "big_gin_bonus": null,
+      "undercut_bonus": 25,
+      "undercut_on_tie": true,
+      "box_bonus": 0,
+      "immediate_boxes": false,
+      "game_bonus": 0,
+      "game_target": 100,
+      "shutout": {
+        "kind": "flat",
+        "bonus": 0
+      }
+    }
+  },
+  "dealer_rotation": "alternate_after_scored_round",
+  "points_metric": "raw_game_score",
+  "bots": {
+    "p1": {
+      "spec": "mc:1024",
+      "configuration": {
+        "kind": "MonteCarloBot",
+        "samples": 1024,
+        "rollout_knock_self": 0,
+        "rollout_knock_opponent": 255,
+        "opponent_model": "eager",
+        "gate_z": 2,
+        "max_candidates": 4,
+        "opponent_strength_percent": 200,
+        "hand_calibration": false,
+        "game_value": "table"
+      }
+    },
+    "p2": {
+      "spec": "marjj-v5-surrogate",
+      "configuration": {
+        "kind": "MarjjV5Surrogate",
+        "initial_future_weight": 18,
+        "discount": 0.9,
+        "future_cards": 7,
+        "tie_rng": "arena_seeded_StdRng",
+        "canonical_card_order": "C_H_S_D_then_rank",
+        "canonical_meld_order": "meld_bitset"
+      }
+    }
+  },
+  "seeds": [
+    7,
+    8
+  ],
+  "reproducibility": {
+    "source_sha256": "ea11503a3e6e06efdd04a022e851cf75f2230b6701abc4b57a650721591f91a4",
+    "source_file_count": 22,
+    "cargo_lock_sha256": "a0037359bca064781c6673725500d84f538f17c71ccd73478c8f84321f6d06d6",
+    "git_head": "851d5649f2063d88cfc426bf7239df9f59d6c76b",
+    "git_dirty": true,
+    "rustc_vv": "rustc 1.98.0 (88d9e12ae 2026-08-18)\nbinary: rustc\ncommit-hash: 88d9e12ae178fab0fb5cc050a94da85685d449ea\ncommit-date: 2026-08-18\nhost: x86_64-unknown-linux-gnu\nrelease: 1.98.0\nLLVM version: 22.1.8",
+    "os": "Linux 6.8.0-136-generic #136~22.04.1-Ubuntu SMP PREEMPT_DYNAMIC Fri Jul  3 16:29:11 UTC  x86_64 GNU/Linux",
+    "arch": "x86_64",
+    "cpu": "AMD Ryzen 9 7950X3D 16-Core Processor",
+    "logical_threads": 32
+  },
+  "runs": [
+    {
+      "seed": 7,
+      "outcome": {
+        "trials": 1000,
+        "plays": 2000,
+        "decisive": 2000,
+        "failures": 0,
+        "elapsed_seconds": 464.304502462,
+        "throughput_per_second": 4.307517996045463,
+        "players": [
+          {
+            "seat": "p1",
+            "spec": "mc:1024",
+            "wins": 1100,
+            "win_rate": 0.55,
+            "win_ci95": {
+              "method": "pair_cluster_normal",
+              "low": 0.52915448884447,
+              "high": 0.57084551115553
+            },
+            "raw_points": 170395,
+            "win_rate_moments": {
+              "clusters": 1000,
+              "numerator": 1100,
+              "denominator": 2000,
+              "numerator_sq": 1662,
+              "numerator_denominator": 2200,
+              "denominator_sq": 4000,
+              "estimate": 0.55,
+              "cluster_ci95": {
+                "low": 0.52915448884447,
+                "high": 0.57084551115553
+              }
+            },
+            "point_rate_moments": {
+              "clusters": 1000,
+              "numerator": 170395,
+              "denominator": 2000,
+              "numerator_sq": 31638885,
+              "numerator_denominator": 340790,
+              "denominator_sq": 4000,
+              "estimate": 85.1975,
+              "cluster_ci95": {
+                "low": 83.61516078700711,
+                "high": 86.7798392129929
+              }
+            },
+            "finishes": {
+              "knock": 2465,
+              "undercut": 14,
+              "gin": 3687,
+              "big_gin": 0
+            }
+          },
+          {
+            "seat": "p2",
+            "spec": "marjj-v5-surrogate",
+            "wins": 900,
+            "win_rate": 0.45,
+            "win_ci95": {
+              "method": "pair_cluster_normal",
+              "low": 0.42915448884447,
+              "high": 0.47084551115553
+            },
+            "raw_points": 159706,
+            "win_rate_moments": {
+              "clusters": 1000,
+              "numerator": 900,
+              "denominator": 2000,
+              "numerator_sq": 1262,
+              "numerator_denominator": 1800,
+              "denominator_sq": 4000,
+              "estimate": 0.45,
+              "cluster_ci95": {
+                "low": 0.42915448884447,
+                "high": 0.47084551115553
+              }
+            },
+            "point_rate_moments": {
+              "clusters": 1000,
+              "numerator": 159706,
+              "denominator": 2000,
+              "numerator_sq": 28604818,
+              "numerator_denominator": 319412,
+              "denominator_sq": 4000,
+              "estimate": 79.853,
+              "cluster_ci95": {
+                "low": 78.12699950643999,
+                "high": 81.57900049356
+              }
+            },
+            "finishes": {
+              "knock": 978,
+              "undercut": 738,
+              "gin": 3190,
+              "big_gin": 0
+            }
+          }
+        ],
+        "round_finishes": {
+          "knock": 3443,
+          "undercut": 752,
+          "gin": 6877,
+          "big_gin": 0,
+          "dead": 473
+        },
+        "comparison": {
+          "rate_difference": 0.1,
+          "paired_difference_sum": 200,
+          "paired_difference_sq_sum": 1848,
+          "normal_z": 4.701251951502326,
+          "infinite_z_direction": 0,
+          "normal_p_value": 0.0000025887145384001137,
+          "sweeps": [
+            281,
+            181
+          ],
+          "exact_sign_p_value": 0.0000037827366541514783,
+          "exact_sign_p_value_decimal": "3.782736654151483e-6",
+          "primary_test": "exact_sweep_sign",
+          "primary_p_value": 0.0000037827366541514783,
+          "primary_p_value_decimal": "3.782736654151483e-6",
+          "point_margin_moments": {
+            "clusters": 1000,
+            "numerator": 10689,
+            "denominator": 2000,
+            "numerator_sq": 9214697,
+            "numerator_denominator": 21378,
+            "denominator_sq": 4000,
+            "estimate": 5.3445,
+            "cluster_ci95": {
+              "low": 2.386660657113045,
+              "high": 8.302339342886954
+            }
+          }
+        }
+      }
+    },
+    {
+      "seed": 8,
+      "outcome": {
+        "trials": 1000,
+        "plays": 2000,
+        "decisive": 2000,
+        "failures": 0,
+        "elapsed_seconds": 456.103004887,
+        "throughput_per_second": 4.384974399577793,
+        "players": [
+          {
+            "seat": "p1",
+            "spec": "mc:1024",
+            "wins": 1105,
+            "win_rate": 0.5525,
+            "win_ci95": {
+              "method": "pair_cluster_normal",
+              "low": 0.532550574705782,
+              "high": 0.572449425294218
+            },
+            "raw_points": 168838,
+            "win_rate_moments": {
+              "clusters": 1000,
+              "numerator": 1105,
+              "denominator": 2000,
+              "numerator_sq": 1635,
+              "numerator_denominator": 2210,
+              "denominator_sq": 4000,
+              "estimate": 0.5525,
+              "cluster_ci95": {
+                "low": 0.532550574705782,
+                "high": 0.572449425294218
+              }
+            },
+            "point_rate_moments": {
+              "clusters": 1000,
+              "numerator": 168838,
+              "denominator": 2000,
+              "numerator_sq": 31042482,
+              "numerator_denominator": 337676,
+              "denominator_sq": 4000,
+              "estimate": 84.419,
+              "cluster_ci95": {
+                "low": 82.85752121805999,
+                "high": 85.98047878194001
+              }
+            },
+            "finishes": {
+              "knock": 2388,
+              "undercut": 11,
+              "gin": 3619,
+              "big_gin": 0
+            }
+          },
+          {
+            "seat": "p2",
+            "spec": "marjj-v5-surrogate",
+            "wins": 895,
+            "win_rate": 0.4475,
+            "win_ci95": {
+              "method": "pair_cluster_normal",
+              "low": 0.427550574705782,
+              "high": 0.467449425294218
+            },
+            "raw_points": 156483,
+            "win_rate_moments": {
+              "clusters": 1000,
+              "numerator": 895,
+              "denominator": 2000,
+              "numerator_sq": 1215,
+              "numerator_denominator": 1790,
+              "denominator_sq": 4000,
+              "estimate": 0.4475,
+              "cluster_ci95": {
+                "low": 0.427550574705782,
+                "high": 0.467449425294218
+              }
+            },
+            "point_rate_moments": {
+              "clusters": 1000,
+              "numerator": 156483,
+              "denominator": 2000,
+              "numerator_sq": 27440571,
+              "numerator_denominator": 312966,
+              "denominator_sq": 4000,
+              "estimate": 78.2415,
+              "cluster_ci95": {
+                "low": 76.55641335051854,
+                "high": 79.92658664948146
+              }
+            },
+            "finishes": {
+              "knock": 954,
+              "undercut": 717,
+              "gin": 3141,
+              "big_gin": 0
+            }
+          }
+        ],
+        "round_finishes": {
+          "knock": 3342,
+          "undercut": 728,
+          "gin": 6760,
+          "big_gin": 0,
+          "dead": 456
+        },
+        "comparison": {
+          "rate_difference": 0.105,
+          "paired_difference_sum": 210,
+          "paired_difference_sq_sum": 1700,
+          "normal_z": 5.158043326181722,
+          "infinite_z_direction": 0,
+          "normal_p_value": 2.500022278368265e-7,
+          "sweeps": [
+            265,
+            160
+          ],
+          "exact_sign_p_value": 3.989351243221048e-7,
+          "exact_sign_p_value_decimal": "3.989351243221051e-7",
+          "primary_test": "exact_sweep_sign",
+          "primary_p_value": 3.989351243221048e-7,
+          "primary_p_value_decimal": "3.989351243221051e-7",
+          "point_margin_moments": {
+            "clusters": 1000,
+            "numerator": 12355,
+            "denominator": 2000,
+            "numerator_sq": 8933235,
+            "numerator_denominator": 24710,
+            "denominator_sq": 4000,
+            "estimate": 6.1775,
+            "cluster_ci95": {
+              "low": 3.272105195406215,
+              "high": 9.082894804593785
+            }
+          }
+        }
+      }
+    }
+  ],
+  "pooled": {
+    "trials": 2000,
+    "plays": 4000,
+    "decisive": 4000,
+    "failures": 0,
+    "elapsed_seconds": 920.407514359,
+    "throughput_per_second": 4.345901068382436,
+    "players": [
+      {
+        "seat": "p1",
+        "spec": "mc:1024",
+        "wins": 2205,
+        "win_rate": 0.55125,
+        "win_ci95": {
+          "method": "pair_cluster_normal",
+          "low": 0.536826837636764,
+          "high": 0.565673162363236
+        },
+        "raw_points": 339233,
+        "win_rate_moments": {
+          "clusters": 2000,
+          "numerator": 2205,
+          "denominator": 4000,
+          "numerator_sq": 3297,
+          "numerator_denominator": 4410,
+          "denominator_sq": 8000,
+          "estimate": 0.55125,
+          "cluster_ci95": {
+            "low": 0.536826837636764,
+            "high": 0.565673162363236
+          }
+        },
+        "point_rate_moments": {
+          "clusters": 2000,
+          "numerator": 339233,
+          "denominator": 4000,
+          "numerator_sq": 62681367,
+          "numerator_denominator": 678466,
+          "denominator_sq": 8000,
+          "estimate": 84.80825,
+          "cluster_ci95": {
+            "low": 83.69686507170785,
+            "high": 85.91963492829215
+          }
+        },
+        "finishes": {
+          "knock": 4853,
+          "undercut": 25,
+          "gin": 7306,
+          "big_gin": 0
+        }
+      },
+      {
+        "seat": "p2",
+        "spec": "marjj-v5-surrogate",
+        "wins": 1795,
+        "win_rate": 0.44875,
+        "win_ci95": {
+          "method": "pair_cluster_normal",
+          "low": 0.434326837636764,
+          "high": 0.463173162363236
+        },
+        "raw_points": 316189,
+        "win_rate_moments": {
+          "clusters": 2000,
+          "numerator": 1795,
+          "denominator": 4000,
+          "numerator_sq": 2477,
+          "numerator_denominator": 3590,
+          "denominator_sq": 8000,
+          "estimate": 0.44875,
+          "cluster_ci95": {
+            "low": 0.434326837636764,
+            "high": 0.463173162363236
+          }
+        },
+        "point_rate_moments": {
+          "clusters": 2000,
+          "numerator": 316189,
+          "denominator": 4000,
+          "numerator_sq": 56045389,
+          "numerator_denominator": 632378,
+          "denominator_sq": 8000,
+          "estimate": 79.04725,
+          "cluster_ci95": {
+            "low": 77.84094628097846,
+            "high": 80.25355371902155
+          }
+        },
+        "finishes": {
+          "knock": 1932,
+          "undercut": 1455,
+          "gin": 6331,
+          "big_gin": 0
+        }
+      }
+    ],
+    "round_finishes": {
+      "knock": 6785,
+      "undercut": 1480,
+      "gin": 13637,
+      "big_gin": 0,
+      "dead": 929
+    },
+    "comparison": {
+      "rate_difference": 0.1025,
+      "paired_difference_sum": 410,
+      "paired_difference_sq_sum": 3548,
+      "normal_z": 6.964492076719597,
+      "infinite_z_direction": 0,
+      "normal_p_value": 3.3169276929272927e-12,
+      "sweeps": [
+        546,
+        341
+      ],
+      "exact_sign_p_value": 5.994598121834977e-12,
+      "exact_sign_p_value_decimal": "5.994598121834992e-12",
+      "primary_test": "exact_sweep_sign",
+      "primary_p_value": 5.994598121834977e-12,
+      "primary_p_value_decimal": "5.994598121834992e-12",
+      "point_margin_moments": {
+        "clusters": 2000,
+        "numerator": 23044,
+        "denominator": 4000,
+        "numerator_sq": 18147932,
+        "numerator_denominator": 46088,
+        "denominator_sq": 8000,
+        "estimate": 5.761,
+        "cluster_ci95": {
+          "low": 3.688388925071286,
+          "high": 7.833611074928713
+        }
+      }
+    }
+  }
+}

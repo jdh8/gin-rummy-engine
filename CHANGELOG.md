@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A retained dirty-tree `mc:1024` arena arm from the rejected cache
+  experiment extends the MARJJ sample-budget curve to 55.1%
+  (53.7–56.6%), with both seeds agreeing.  The cache was removed after its
+  hard 1024-sample benchmark missed the predeclared 1.4× gate.  A measured
+  adaptive-escalation prototype likewise improved the fixed-512 anchor by
+  at most 0.55 points, missing its +2-point gate, so no API or default
+  changed.
 - A retained powers-of-two sample-budget curve tests the MARJJ paper's
   `20/0.9/6` constants.  Candidate win share was no higher than against
   the public v5 source profile at any budget, reaching 50.0% at `mc:256`
@@ -159,6 +166,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Monte Carlo rollouts under rulesets without Big Gin skip an unnecessary
+  full-hand deadwood solve before every shed.  The predicate is unchanged,
+  so seeded decisions remain identical.
 - `MonteCarloBot` now defaults to patient own continuations
   (`rollout_knock_self: 0`) and draws twice as many candidate opponent
   hands (`opponent_strength_percent: 200`).  The search therefore compares
