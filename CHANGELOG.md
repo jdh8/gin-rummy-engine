@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A retained value-function comparison at the shipped 512-sample budget
+  confirms that `GameValue::Table` earns its default.  Under the
+  corrected EAAI protocol on seeds 7 and 8, the affine arm `mca:512`
+  wins 74.7% (73.8–75.6%) of games against `EaaiSimpleBot`, 79.3%
+  (78.6–80.0%) against `gold-paper`, and 52.9% (52.1–53.7%) against
+  `marjj-v5-surrogate`, where the fixed panels put the default at 74.7%,
+  80.7%, and 53.6%: a tie and two deficits, so no default changed.  The
+  three clean-tree `gin-rummy-arena/v1` legs are retained under `docs/`.
 - A retained dirty-tree `mc:1024` arena arm from the rejected cache
   experiment extends the MARJJ sample-budget curve to 55.1%
   (53.7–56.6%), with both seeds agreeing.  The cache was removed after its

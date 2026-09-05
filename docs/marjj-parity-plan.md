@@ -38,8 +38,8 @@ against `EaaiSimpleBot` and 80.7% against `gold-paper`; the tripwire's
 default-bot floor rose to 67.1%.  The curve past 512 remains flat (55.1%
 at 1024 from the retained cache experiment), so any further gain needs
 rollout quality rather than budget (§8).  The separate question of
-whether `GameValue::Table` still earns its default is being re-tested at
-the new budget (§6).
+whether `GameValue::Table` still earns its default was re-tested at the
+new budget and answered yes (§6).
 
 **Status as of 2026-08-18: sample budget closes the measured gap.**  At
 diagnostic counts, `mc:256` reached 51.2% against MARJJ with the lower
@@ -621,8 +621,11 @@ changes:
   worth −0.3 points against MARJJ and moves the finish mix by 0.6, so
   the value function is neither the problem nor the remedy here.  The
   separate question of whether `GameValue::Table` still earns its
-  default under the corrected protocol is untested and not a parity
-  question.
+  default under the corrected protocol was settled at the 512-sample
+  budget on 2026-09-06: the affine arm ties the default against
+  `EaaiSimpleBot` (74.7% each), trails it against `gold-paper` (79.3%
+  versus 80.7%) and against MARJJ (52.9% versus 53.6%), so the table
+  stays.  The three legs are `docs/marjj-m7-affine-512-*.json`.
 - Loosening `gate_z` usually weakens the bot — deviating on noise
   plays worse than the greedy baseline.  The fix for wrong deviations
   is world realism, not a looser gate.
