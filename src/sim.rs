@@ -248,10 +248,11 @@ impl Sim {
                     }
                 }
                 SimPhase::Shed => {
-                    if self.rules.big_gin_bonus.is_some() && deadwood(hand) == 0 {
+                    let melds = best_melds(hand);
+                    if self.rules.big_gin_bonus.is_some() && melds.deadwood() == 0 {
                         return self.big_gin();
                     }
-                    let (card, rest) = best_shed(hand, self.taken);
+                    let (card, rest) = best_shed(melds, self.taken);
                     let threshold = self.policies[self.turn as usize].knock_threshold;
                     if rest <= self.knock_limit.min(threshold) {
                         return self.knock(card, best_melds(hand - card.into()));

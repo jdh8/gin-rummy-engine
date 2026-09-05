@@ -289,10 +289,10 @@ impl<R: Rng> MonteCarloBot<R> {
     /// More samples play stronger and slower.  At the default of 128 the
     /// bot wins about 64% of decisive rounds against the default
     /// [`HeuristicBot`] — which is tuned for whole-game play and so concedes
-    /// single rounds — at roughly 10 ms per average turn in release builds
+    /// single rounds — at roughly 3 ms per average turn in release builds
     /// (easy decisions stop at a fraction of the budget; a hard first
     /// discard, where every shed stays plausible, runs the full count for
-    /// ~25 ms); 32 keeps a smaller edge at a quarter of the cost.  The
+    /// ~7 ms); 32 keeps a smaller edge at a quarter of the cost.  The
     /// `parallel` feature divides any of these by most of a machine's
     /// cores.
     ///

@@ -73,7 +73,7 @@ fn decisions(c: &mut Criterion) {
         });
     });
 
-    for samples in [16, 64, 128] {
+    for samples in [16, 64, 128, 256, 512] {
         c.bench_function(&format!("monte carlo turn, {samples} samples"), |b| {
             let mut bot = MonteCarloBot::new(StdRng::seed_from_u64(1)).samples(samples);
             b.iter(|| black_box(bot.play_turn(&table.view(Player::Two))));

@@ -8,27 +8,99 @@
 //! how much they could help the opponent's melds.
 
 use crate::{DrawAction, Layoff, Strategy, TurnAction, UpcardAction, View};
-use gin_rummy::{Card, Hand, Meld, Rank, Suit, best_melds, deadwood};
+use gin_rummy::{Card, Hand, Meld, Melds, Rank, Suit, best_melds, deadwood};
 
 /// The discard leaving the least deadwood, skipping the just-taken card
 ///
 /// Ties prefer shedding higher pip values, then the lowest card in hand
 /// order.  This is the knowledge-free greedy shed shared with the Monte
-/// Carlo rollout policy.
-pub(crate) fn best_shed(hand: Hand, taken: Option<Card>) -> (Card, u8) {
-    hand.iter()
-        .filter(|&card| Some(card) != taken)
-        .map(|card| (card, deadwood(hand - card.into())))
-        .min_by_key(|&(card, rest)| (rest, u8::MAX - card.rank.deadwood()))
+/// Carlo rollout policy, where it is the hottest function of all: it runs
+/// for both seats on every turn of every sampled world.  The caller
+/// passes the hand's solved arrangement so that one solve also answers
+/// its Big Gin check; see [`shed_by`] for how the candidates are priced
+/// from it.
+#[cfg(feature = "rand")]
+pub(crate) fn best_shed(melds: Melds, taken: Option<Card>) -> (Card, u8) {
+    shed_by(melds, taken, |card, rest| {
+        (rest, u8::MAX - card.rank.deadwood())
+    })
+}
+
+/// The discard minimizing `key(card, residual deadwood)`, skipping the
+/// just-taken card, with ties going to the earlier card in hand order
+///
+/// Removing a card the arrangement leaves unmelded lowers the deadwood by
+/// exactly that card's pips: the arrangement minus the card arranges the
+/// smaller hand, and a better one would, with the card put back as
+/// deadwood, beat the optimum on the full hand.  Removing a melded card
+/// can do no better than that same bound.  So the unmelded cards are
+/// priced without a solve, and a melded card gets one only when its bound
+/// could still win — which is why `key` must not decrease as the residual
+/// grows.  The result is exactly what solving every candidate returns,
+/// tie-breaks included, at a fraction of the solves.
+fn shed_by<K: Ord>(melds: Melds, taken: Option<Card>, key: impl Fn(Card, u8) -> K) -> (Card, u8) {
+    let hand = melds.hand();
+    let total = melds.deadwood();
+    let unmelded = melds.deadwood_cards();
+    // The hand position is the final tie-break, so the minimum of
+    // `(key, position)` is the first card `min_by_key` would return.
+    let mut best: Option<((K, usize), Card, u8)> = None;
+    for (position, card) in hand.iter().enumerate() {
+        if Some(card) == taken || !unmelded.contains(card) {
+            continue;
+        }
+        let rest = total - card.rank.deadwood();
+        let candidate = (key(card, rest), position);
+        if best.as_ref().is_none_or(|(held, ..)| candidate < *held) {
+            best = Some((candidate, card, rest));
+        }
+    }
+    for (position, card) in hand.iter().enumerate() {
+        if Some(card) == taken || unmelded.contains(card) {
+            continue;
+        }
+        let bound = total.saturating_sub(card.rank.deadwood());
+        if best
+            .as_ref()
+            .is_some_and(|(held, ..)| (key(card, bound), position) >= *held)
+        {
+            continue;
+        }
+        let rest = deadwood(hand - card.into());
+        let candidate = (key(card, rest), position);
+        if best.as_ref().is_none_or(|(held, ..)| candidate < *held) {
+            best = Some((candidate, card, rest));
+        }
+    }
+    best.map(|(_, card, rest)| (card, rest))
         .expect("a hand with a draw always has a legal discard")
 }
 
 /// Whether taking `top` strictly lowers deadwood after the best legal shed
 /// (which may not be `top` itself)
+///
+/// `hand` is the ten-card hand before the draw and `top` lies outside it.
+/// Only the existence of an improving shed matters, so this looks for any
+/// candidate under the mark instead of ranking them, priced by the same
+/// bound as [`shed_by`].
 pub(crate) fn improves(hand: Hand, top: Card) -> bool {
+    debug_assert!(!hand.contains(top), "the pile top is not in the hand");
     let with = hand | top.into();
-    let (_, rest) = best_shed(with, Some(top));
-    rest < deadwood(hand)
+    let melds = best_melds(with);
+    let total = melds.deadwood();
+    let unmelded = melds.deadwood_cards();
+    // The bound prices the hand without `top` too when `top` is unmelded.
+    let before = if unmelded.contains(top) {
+        total - top.rank.deadwood()
+    } else {
+        deadwood(hand)
+    };
+    let others = |cards: Hand| cards.iter().filter(move |&card| card != top);
+    others(unmelded).any(|card| total - card.rank.deadwood() < before)
+        || others(melds.melded()).any(|card| {
+            total.saturating_sub(card.rank.deadwood()) < before
+                && deadwood(with - card.into()) < before
+        })
 }
 
 /// Whether `top` would sit inside some meld of `hand` + `top`
@@ -218,21 +290,15 @@ impl HeuristicBot {
     }
 
     /// The shed minimizing `(residual deadwood, weighted danger, -pips)`
-    fn choose_shed(&self, view: &View<'_>) -> (Card, u8) {
-        let hand = view.hand();
-        let taken = view.taken_discard();
+    fn choose_shed(&self, view: &View<'_>, melds: Melds) -> (Card, u8) {
         let weight = i32::from(self.config.safety_weight);
-        hand.iter()
-            .filter(|&card| Some(card) != taken)
-            .map(|card| (card, deadwood(hand - card.into())))
-            .min_by_key(|&(card, rest)| {
-                (
-                    rest,
-                    weight * Self::danger(view, card),
-                    u8::MAX - card.rank.deadwood(),
-                )
-            })
-            .expect("an 11-card hand always has a legal discard")
+        shed_by(melds, view.taken_discard(), |card, rest| {
+            (
+                rest,
+                weight * Self::danger(view, card),
+                u8::MAX - card.rank.deadwood(),
+            )
+        })
     }
 }
 
@@ -257,11 +323,12 @@ impl Strategy for HeuristicBot {
 
     fn play_turn(&mut self, view: &View<'_>) -> TurnAction {
         let hand = view.hand();
-        if view.rules().big_gin_bonus.is_some() && deadwood(hand) == 0 {
-            return TurnAction::BigGin(best_melds(hand));
+        let melds = best_melds(hand);
+        if view.rules().big_gin_bonus.is_some() && melds.deadwood() == 0 {
+            return TurnAction::BigGin(melds);
         }
 
-        let (card, rest) = self.choose_shed(view);
+        let (card, rest) = self.choose_shed(view, melds);
         if rest <= view.knock_limit().min(self.knock_threshold(view)) {
             TurnAction::Knock {
                 discard: card,
@@ -285,18 +352,100 @@ impl Strategy for HeuristicBot {
 mod tests {
     use super::*;
     use gin_rummy::Meld;
+    use proptest::prelude::{Just, ProptestConfig, Strategy as _, prop_assert_eq, proptest};
 
     fn card(text: &str) -> Card {
         text.parse().expect("a valid card")
     }
 
+    /// [`shed_by`] as it read before the single-solve pruning: one solver
+    /// call per candidate.  The oracle the pruned version is held to.
+    fn brute_shed<K: Ord>(
+        hand: Hand,
+        taken: Option<Card>,
+        key: impl Fn(Card, u8) -> K,
+    ) -> (Card, u8) {
+        hand.iter()
+            .filter(|&card| Some(card) != taken)
+            .map(|card| (card, deadwood(hand - card.into())))
+            .min_by_key(|&(card, rest)| key(card, rest))
+            .expect("a hand with a draw always has a legal discard")
+    }
+
+    /// The rollout's key: least deadwood, then the highest pips
+    fn greedy_key(card: Card, rest: u8) -> (u8, u8) {
+        (rest, u8::MAX - card.rank.deadwood())
+    }
+
+    /// A key with a card-dependent middle term standing in for the
+    /// heuristic's danger weight, so the pruning is tested with a
+    /// tie-break that hand order alone does not settle.
+    fn salted_key(card: Card, rest: u8) -> (u8, u8, u8) {
+        (
+            rest,
+            card.rank.get().wrapping_mul(37) % 5,
+            u8::MAX - card.rank.deadwood(),
+        )
+    }
+
+    /// Shuffled decks of varying meld density: the full deck, two suits
+    /// (no sets are possible, so runs carry every meld), and the low ranks
+    /// (melds and equal-pip ties both common), so melded high cards and
+    /// ties between melded and unmelded cards all come up often.
+    fn dense_deck() -> impl proptest::strategy::Strategy<Value = Vec<Card>> {
+        let decks = [
+            Hand::ALL,
+            Hand::ALL
+                .iter()
+                .filter(|card| matches!(card.suit, Suit::Hearts | Suit::Spades))
+                .collect(),
+            Hand::ALL
+                .iter()
+                .filter(|card| card.rank.get() <= 7)
+                .collect(),
+        ];
+        (0..decks.len()).prop_flat_map(move |index| {
+            Just(decks[index].iter().collect::<Vec<Card>>()).prop_shuffle()
+        })
+    }
+
+    #[test]
+    fn pruned_shed_matches_solving_every_candidate() {
+        proptest!(
+            ProptestConfig::with_cases(4000),
+            |(deck in dense_deck(), taken in 0..12_usize)| {
+                let hand: Hand = deck[..11].iter().copied().collect();
+                // Index 11 skips nothing, the stock-draw case.
+                let taken = deck[..11].get(taken).copied();
+                let melds = best_melds(hand);
+                let expected = brute_shed(hand, taken, greedy_key);
+                prop_assert_eq!(shed_by(melds, taken, greedy_key), expected);
+                #[cfg(feature = "rand")]
+                prop_assert_eq!(best_shed(melds, taken), expected);
+                prop_assert_eq!(
+                    shed_by(melds, taken, salted_key),
+                    brute_shed(hand, taken, salted_key)
+                );
+
+                let ten: Hand = deck[..10].iter().copied().collect();
+                let top = deck[10];
+                let (_, rest) = brute_shed(ten | top.into(), Some(top), greedy_key);
+                prop_assert_eq!(improves(ten, top), rest < deadwood(ten));
+            }
+        );
+    }
+
+    #[cfg(feature = "rand")]
     #[test]
     fn best_shed_minimizes_deadwood_then_dumps_pips() {
         // ♣A♣2♣3 ♦4♦5♦6 ♥7♥8♥9 + ♠K ♠5: shedding the king keeps 5 deadwood.
         let hand: Hand = "A23.456.789.5K".parse().expect("a valid hand");
-        assert_eq!(best_shed(hand, None), (card("♠K"), 5));
+        assert_eq!(best_shed(best_melds(hand), None), (card("♠K"), 5));
         // The king may not be shed if it was just taken; the five goes.
-        assert_eq!(best_shed(hand, Some(card("♠K"))), (card("♠5"), 10));
+        assert_eq!(
+            best_shed(best_melds(hand), Some(card("♠K"))),
+            (card("♠5"), 10)
+        );
     }
 
     #[test]

@@ -14,7 +14,7 @@ timing you observe in them is meaningless.
 
 - Under `Rules::default()`, the standing smoke observation is that
   `mc:128` beats the default `greedy` in 538/988 decisive rounds (54.45%)
-  and costs about 10 ms per average serial turn.  The former default's old
+  and costs about 3 ms per average serial turn.  The former default's old
   63.9% (62.3–65.3) summary used per-play interval analysis; retain it as
   history, not as a current or publishable interval.  A new claim needs a
   pair-cluster interval from the current arena.

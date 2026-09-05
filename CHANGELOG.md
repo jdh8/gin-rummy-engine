@@ -166,9 +166,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Monte Carlo rollouts under rulesets without Big Gin skip an unnecessary
-  full-hand deadwood solve before every shed.  The predicate is unchanged,
-  so seeded decisions remain identical.
+- Every bot decides faster with identical results.  The shared greedy
+  core used to solve the deadwood of each candidate discard separately,
+  eleven solves per shed and twelve per draw decision, for both seats on
+  every turn of every sampled world.  It now solves the hand once: a card
+  the optimal arrangement leaves unmelded lowers deadwood by exactly its
+  own pips when shed, and a melded card can do no better than that bound,
+  so only the melded cards that could still win are solved, the draw test
+  stops at the first shed that beats its mark, and a ruleset's Big Gin
+  check reads the same arrangement.  Decisions are bit-identical: a
+  4000-case oracle test against the old per-candidate code, the `Sim` and
+  `Round` equivalence property, the baked value-model guard, and seeded
+  arena legs diffed against the previous build all agree, so every
+  published strength figure stands.  Measured back to back on one
+  machine, a hard 128-sample Monte Carlo decision runs 3.9× faster, a
+  1024-sample one 3.5×, a heuristic turn 5.3×, and a whole greedy round
+  2.4×, which scales the idle-machine hard decision from 27 to about
+  7 ms; whole-game arena throughput rises 3.4–3.8×.
 - `MonteCarloBot` now defaults to patient own continuations
   (`rollout_knock_self: 0`) and draws twice as many candidate opponent
   hands (`opponent_strength_percent: 200`).  The search therefore compares
