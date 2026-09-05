@@ -72,14 +72,16 @@ are `null`, never a false zero, when the positive value is below `f64` range.
 The fixed EAAI-baseline panel uses the corrected protocol, pair-cluster
 intervals, and raw target-reaching scores.  Round diagnostics use seed 7;
 each game row pools seeds 7 and 8.  It used 4000 mirrored round pairs,
-3000 game pairs per seed for `greedy` and `mc:64`, and 2000 game pairs per
-seed for `mc:128`.  Exact pair-sweep sign-test p-values are below .001.
+3000 game pairs per seed for `greedy`, `mc:64`, and `mc:128`, and 2000 game
+pairs per seed for `mc:512`, the default.  Exact pair-sweep sign-test
+p-values are below .001.
 
 | Bot vs baseline | Decisive rounds won | Points/round | Games won | Raw score/game |
 |-----------------|---------------------:|-------------:|----------:|---------------:|
 | `greedy`        | 39.4% (38.5–40.4%) | 8.92 vs 8.29 | 59.8% (59.0–60.6%) | 90.28 vs 78.76 |
 | `mc:64`         | 46.1% (45.2–47.1%) | 11.48 vs 8.51 | 65.4% (64.6–66.2%) | 92.52 vs 70.67 |
-| `mc:128`        | 47.1% (46.1–48.1%) | 12.29 vs 8.36 | 69.2% (68.3–70.2%) | 94.93 vs 66.87 |
+| `mc:128`        | 47.1% (46.1–48.1%) | 12.29 vs 8.36 | 69.0% (68.2–69.7%) | 94.80 vs 66.92 |
+| `mc:512`        | 49.8% (48.8–50.8%) | 14.30 vs 8.18 | 74.7% (73.8–75.5%) | 98.40 vs 61.01 |
 
 The heuristic still concedes decisive rounds by hunting gin while the
 baseline knocks at the first opportunity, yet wins whole games on raw score.
@@ -99,9 +101,11 @@ direction and all pooled Holm-adjusted exact p-values are below .001.
 | `greedy` | `gold-paper` | 62.2% (61.4–62.9%) | candidate edge |
 | `mc:64` | `gold-paper` | 69.5% (68.8–70.3%) | candidate edge |
 | `mc:128` | `gold-paper` | 74.5% (73.8–75.2%) | candidate edge |
+| `mc:512` | `gold-paper` | 80.7% (80.1–81.4%) | candidate edge |
 | `greedy` | `marjj-v5-surrogate` | 29.2% (28.4–30.0%) | opponent edge |
 | `mc:64` | `marjj-v5-surrogate` | 42.4% (41.6–43.2%) | opponent edge |
 | `mc:128` | `marjj-v5-surrogate` | 46.7% (45.9–47.5%) | opponent edge |
+| `mc:512` | `marjj-v5-surrogate` | 53.6% (52.7–54.4%) | candidate edge |
 
 These are controlled host-engine comparisons, not executions of the original
 agents or reproductions of their tournaments.  Gold's published 70–99% came
@@ -175,7 +179,8 @@ Writing your own bot is implementing [`Strategy`]'s four decisions against a
     --seeds 7,8 --format json
   ```
 
-  Bare `mc` and `mca` use 128 samples; use `mc:N` or `mca:N` to set an
+  Bare `mc` and `mca` use the library default of 512 samples; use `mc:N`
+  or `mca:N` to set an
   explicit budget.
 
 ## Alternatives

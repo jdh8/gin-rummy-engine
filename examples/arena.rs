@@ -174,11 +174,11 @@ fn parse_bot_spec(spec: &str) -> Result<BotSpec> {
         "greedy" => BotSpec::Greedy,
         "eaai" => BotSpec::Eaai,
         "mc" => BotSpec::MonteCarlo {
-            samples: 128,
+            samples: McConfig::new().samples,
             affine: false,
         },
         "mca" => BotSpec::MonteCarlo {
-            samples: 128,
+            samples: McConfig::new().samples,
             affine: true,
         },
         "gold-paper" => BotSpec::GoldPaper,
@@ -1214,7 +1214,7 @@ mod tests {
         let config = bot_configuration_json("mc");
         let value: serde_json::Value = serde_json::from_str(&config).expect("valid bot JSON");
         assert_eq!(value["spec"], "mc");
-        assert_eq!(value["configuration"]["samples"], 128);
+        assert_eq!(value["configuration"]["samples"], 512);
         assert_eq!(value["configuration"]["game_value"], "table");
 
         // Published evidence is only interpretable if the recorded

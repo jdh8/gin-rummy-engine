@@ -25,10 +25,14 @@
 //!   crate is aimed at.  The round tripwire above cannot see it: both
 //!   scores stay 0–0 inside a single round, where the game-win value
 //!   function is locally linear and therefore nearly invisible.  These
-//!   corrected fixtures realize exactly 2386/4000 (59.65%) and 679/1000
-//!   (67.9%).  Their conservative 55% and 60.9% floors leave 4.65 and 7
-//!   percentage points of regression headroom.  Pair-cluster intervals are
-//!   printed when these ignored tests run.  Seconds and ~4 minutes.
+//!   corrected fixtures realize exactly 2386/4000 (59.65%) and, at the
+//!   512-sample default, 741/1000 (74.1%); the 128-sample default before it
+//!   realized 679/1000 (67.9%).  Their conservative 55% and 67.1% floors
+//!   leave 4.65 and 7 percentage points of regression headroom, and the
+//!   Monte Carlo floor sits above the old default's fixture so that a
+//!   quiet fall back to 128-sample strength would trip it.  Pair-cluster
+//!   intervals are printed when these ignored tests run.  Seconds and ~4
+//!   minutes.
 
 #![cfg(feature = "rand")]
 
@@ -43,7 +47,7 @@ use rayon::prelude::*;
 /// Golden-ratio odd constant, the arena's per-trial seed mixer
 const MIX: u64 = 0x9E37_79B9_7F4A_7C15;
 const GREEDY_GAME_FLOOR: f64 = 0.55;
-const MONTE_CARLO_GAME_FLOOR: f64 = 0.609;
+const MONTE_CARLO_GAME_FLOOR: f64 = 0.671;
 
 /// Sufficient statistics for a mirrored-pair game-win rate.
 ///
@@ -268,9 +272,9 @@ fn monte_carlo_beats_eaai_baseline_on_games() {
         100.0 * low,
         100.0 * high,
     );
-    // The corrected fixed fixture is 679/1000 (67.9%).  The smaller
-    // fixture keeps a wider seven-point cushion between its observed rate
-    // and this regression floor.
+    // The corrected fixed fixture is 741/1000 (74.1%) at the 512-sample
+    // default.  The smaller fixture keeps a wider seven-point cushion
+    // between its observed rate and this regression floor.
     assert!(
         rate > MONTE_CARLO_GAME_FLOOR,
         "Monte Carlo won only {}/{games} games ({:.1}%, pair-cluster 95% CI {:.1}%–{:.1}%; floor {:.1}%)",

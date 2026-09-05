@@ -1,7 +1,7 @@
 //! Build the checked strong-opponent evidence bundle from arena JSON legs.
 //!
 //! The arena owns measurement and sufficient statistics; this helper owns
-//! the fixed six-matchup panel, Holm correction, strength declarations, and
+//! the fixed eight-matchup panel, Holm correction, strength declarations, and
 //! presentation.  It intentionally consumes JSON instead of scraping the
 //! arena's human-readable output.
 
@@ -19,7 +19,7 @@ mod arena_stats;
 
 use arena_stats::{ExactPValue, RatioMoments, SignedRatioMoments, exact_sign_p_value};
 
-const CANDIDATES: [&str; 3] = ["greedy", "mc:64", "mc:128"];
+const CANDIDATES: [&str; 4] = ["greedy", "mc:64", "mc:128", "mc:512"];
 const OPPONENTS: [&str; 2] = ["gold-paper", "marjj-v5-surrogate"];
 const SEEDS: [u64; 2] = [7, 8];
 const PUBLICATION_ROUND_PAIRS: u64 = 4_000;
@@ -100,8 +100,8 @@ fn parse_args() -> Result<Config> {
         }
     }
     ensure!(
-        inputs.len() == 12,
-        "expected 12 arena JSON legs, got {}",
+        inputs.len() == 16,
+        "expected 16 arena JSON legs, got {}",
         inputs.len()
     );
     let config = Config {
@@ -267,6 +267,7 @@ fn expected_bot_configuration(spec: &str) -> Result<Value> {
         }),
         "mc:64" => monte_carlo_configuration(64),
         "mc:128" => monte_carlo_configuration(128),
+        "mc:512" => monte_carlo_configuration(512),
         "gold-paper" => json!({
             "kind": "GoldPaperBot",
             "draw": "strict_minimum_deadwood_improvement",
@@ -899,7 +900,7 @@ fn build_matchups(
     mut grouped: BTreeMap<(String, String), Legs>,
     evidentiary: bool,
 ) -> Result<Vec<Matchup>> {
-    let mut matchups = Vec::with_capacity(6);
+    let mut matchups = Vec::with_capacity(8);
     for candidate in CANDIDATES {
         for opponent in OPPONENTS {
             let legs = grouped
@@ -1185,16 +1186,16 @@ fn build_panel(config: &Config, matchups: &[Matchup], conformance: &Value) -> Re
             "seeds": SEEDS,
             "round_pairs_per_matchup_per_seed": config.round_pairs,
             "game_pairs_per_matchup_per_seed": config.game_pairs,
-            "total_round_pairs": config.round_pairs * 12,
+            "total_round_pairs": config.round_pairs * 16,
             "total_rounds": config.round_pairs * 24,
-            "total_game_pairs": config.game_pairs * 12,
+            "total_game_pairs": config.game_pairs * 16,
             "total_games": config.game_pairs * 24,
             "optional_stopping": false,
             "seed_replacement": false,
             "dealer_rotation": "alternate_after_scored_round; dead hands retain dealer",
             "game_score": "raw target-reaching score; no deferred bonuses",
             "primary_test": "two-sided exact sign test over mirrored game-pair sweeps; split pairs are ties",
-            "multiplicity": "Holm adjustment over six pooled game-matchup p-values",
+            "multiplicity": "Holm adjustment over eight pooled game-matchup p-values",
             "edge_rule": "both seed estimates have the same nonzero direction and pooled Holm-adjusted p < .05; otherwise inconclusive"
         },
         "bot_configurations": bot_configurations()?,
@@ -1236,7 +1237,7 @@ fn game_table(markdown: &mut String, matchups: &[Matchup]) -> Result<()> {
     writeln!(markdown, "## Game results\n")?;
     writeln!(
         markdown,
-        "Game win share and its 95% interval use mirrored pairs as clusters. The score margin is candidate minus opponent raw target-reaching score per game. The exact sign test counts only 2–0 pair sweeps; 1–1 splits are ties. Holm adjustment applies to the six pooled rows.\n"
+        "Game win share and its 95% interval use mirrored pairs as clusters. The score margin is candidate minus opponent raw target-reaching score per game. The exact sign test counts only 2–0 pair sweeps; 1–1 splits are ties. Holm adjustment applies to the eight pooled rows.\n"
     )?;
     writeln!(
         markdown,
@@ -1426,7 +1427,7 @@ fn markdown_report(config: &Config, matchups: &[Matchup], conformance: &Value) -
     }
     writeln!(
         markdown,
-        "This fixed panel compares `greedy`, `mc:64`, and `mc:128` with two benchmark-only native adaptations: `gold-paper` and `marjj-v5-surrogate`. These are controlled host-engine comparisons—not executions of the original agents and not reproductions of their published tournaments.\n"
+        "This fixed panel compares `greedy`, `mc:64`, `mc:128`, and `mc:512` with two benchmark-only native adaptations: `gold-paper` and `marjj-v5-surrogate`. These are controlled host-engine comparisons—not executions of the original agents and not reproductions of their published tournaments.\n"
     )?;
     writeln!(
         markdown,
@@ -1441,7 +1442,7 @@ fn markdown_report(config: &Config, matchups: &[Matchup], conformance: &Value) -
     } else {
         writeln!(
             markdown,
-            "An edge is declared only when both seed estimates point in the same nonzero direction and the pooled exact pair-sweep sign-test p-value remains below .05 after Holm correction across all six matchups. Everything else is **inconclusive**, never “equal.”\n"
+            "An edge is declared only when both seed estimates point in the same nonzero direction and the pooled exact pair-sweep sign-test p-value remains below .05 after Holm correction across all eight matchups. Everything else is **inconclusive**, never “equal.”\n"
         )?;
     }
     game_table(&mut markdown, matchups)?;

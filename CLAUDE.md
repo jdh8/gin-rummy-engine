@@ -40,15 +40,18 @@ belongs in this crate.
 ## Measured reference results
 
 The fixed corrected-EAAI baseline panel reports game win shares of 59.8%
-(59.0–60.6%) for `greedy`, 65.4% (64.6–66.2%) for `mc:64`, and 69.2%
-(68.3–70.2%) for `mc:128` against `EaaiSimpleBot`.  `mc:64` beats `greedy`
-head-to-head at 63.6% (62.8–64.4%).  Exact mirrored-pair sweep p-values are
-below .001 for all four comparisons.
+(59.0–60.6%) for `greedy`, 65.4% (64.6–66.2%) for `mc:64`, 69.0%
+(68.2–69.7%) for `mc:128`, and 74.7% (73.8–75.5%) for `mc:512`, the
+default, against `EaaiSimpleBot`.  `mc:64` beats `greedy` head-to-head at
+63.6% (62.8–64.4%).  Exact mirrored-pair sweep p-values are below .001 for
+all five comparisons.
 
 The fixed strong panel reports candidate game win shares against `gold-paper`
-of 62.2% (`greedy`), 69.5% (`mc:64`), and 74.5% (`mc:128`); against
-`marjj-v5-surrogate` they are 29.2%, 42.4%, and 46.7%.  Every seed agrees in
-direction and every pooled Holm-adjusted exact p-value is below .001.  These
+of 62.2% (`greedy`), 69.5% (`mc:64`), 74.5% (`mc:128`), and 80.7%
+(`mc:512`); against `marjj-v5-surrogate` they are 29.2%, 42.4%, 46.7%, and
+53.6% (52.7–54.4%), so the default is the first candidate with an edge over
+the surrogate.  Every seed agrees in direction and every pooled
+Holm-adjusted exact p-value is below .001.  These
 are host-engine adaptation results, not original-agent tournament
 reproductions.  Keep the Gold and MARJJ qualifications in
 [`docs/strong-opponents.md`](docs/strong-opponents.md) attached to every use

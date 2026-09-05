@@ -44,7 +44,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-candidates=(greedy mc:64 mc:128)
+candidates=(greedy mc:64 mc:128 mc:512)
 opponents=(gold-paper marjj-v5-surrogate)
 legs=()
 

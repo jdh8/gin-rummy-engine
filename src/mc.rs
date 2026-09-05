@@ -63,7 +63,7 @@ pub enum GameValue {
 pub struct McConfig {
     /// How many worlds each decision samples; more play stronger and
     /// slower.  See [`MonteCarloBot::samples`] for the measured
-    /// strength/latency envelope of the default 128.
+    /// strength/latency envelope of the default 512.
     pub samples: u32,
     /// The rollout knock threshold for the bot's own future self:
     /// continuations knock at residual deadwood ≤ `min(knock_limit,
@@ -128,7 +128,7 @@ impl McConfig {
     #[must_use]
     pub const fn new() -> Self {
         Self {
-            samples: 128,
+            samples: 512,
             rollout_knock_self: 0,
             rollout_knock_opponent: u8::MAX,
             opponent_model: OpponentModel::Eager,
@@ -265,7 +265,7 @@ pub struct Assessment {
 }
 
 impl<R: Rng> MonteCarloBot<R> {
-    /// A bot with default strength: 128 worlds per decision
+    /// A bot with default strength: 512 worlds per decision
     pub const fn new(rng: R) -> Self {
         Self::with_config(rng, McConfig::new())
     }
@@ -286,17 +286,15 @@ impl<R: Rng> MonteCarloBot<R> {
 
     /// Set how many worlds each decision samples
     ///
-    /// More samples play stronger and slower.  At the default of 128 the
-    /// bot wins about 64% of decisive rounds against the default
-    /// [`HeuristicBot`] — which is tuned for whole-game play and so concedes
-    /// single rounds — at roughly 3 ms per average turn in release builds
-    /// (easy decisions stop at a fraction of the budget; a hard first
-    /// discard, where every shed stays plausible, runs the full count for
-    /// ~7 ms); 32 keeps a smaller edge at a quarter of the cost.  The
-    /// `parallel` feature divides any of these by most of a machine's
-    /// cores.
-    ///
-    /// [`HeuristicBot`]: crate::HeuristicBot
+    /// More samples play stronger and slower.  At the default of 512 the
+    /// bot wins 74.7% of games against the EAAI-2021 baseline and 53.6%
+    /// against the MARJJ v5 surrogate under the challenge protocol, at
+    /// roughly 11 ms per average turn in release builds (easy decisions
+    /// stop at a fraction of the budget; a hard first discard, where every
+    /// shed stays plausible, runs the full count for ~28 ms).  128 keeps
+    /// 69.0% and 46.7% at a quarter of the cost, and 64 keeps 65.4% and
+    /// 42.4% at an eighth.  The `parallel` feature divides any of these by
+    /// most of a machine's cores.
     #[must_use]
     pub const fn samples(mut self, samples: u32) -> Self {
         self.config.samples = samples;
@@ -1567,7 +1565,7 @@ mod tests {
         // strength change and owes the measure-strength procedure, not
         // just an edit here.
         let config = McConfig::default();
-        assert_eq!(config.samples, 128);
+        assert_eq!(config.samples, 512);
         assert_eq!(config.rollout_knock_self, 0);
         assert_eq!(config.rollout_knock_opponent, u8::MAX);
         assert_eq!(config.opponent_model, OpponentModel::Eager);

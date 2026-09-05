@@ -125,6 +125,10 @@ impl Arm {
 
     fn config(self) -> McConfig {
         let mut config = McConfig::default();
+        // The retained M2.5 evidence is a 128-sample diagnostic; pin the
+        // budget so the instrument stays comparable when the library
+        // default moves.
+        config.samples = 128;
         config.hand_calibration = matches!(self, Self::Calibrated);
         config
     }

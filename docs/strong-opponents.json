@@ -46,6 +46,18 @@
       "rollout_knock_self": 0,
       "samples": 128
     },
+    "mc:512": {
+      "game_value": "table",
+      "gate_z": 2.0,
+      "hand_calibration": false,
+      "kind": "MonteCarloBot",
+      "max_candidates": 4,
+      "opponent_model": "eager",
+      "opponent_strength_percent": 200,
+      "rollout_knock_opponent": 255,
+      "rollout_knock_self": 0,
+      "samples": 512
+    },
     "mc:64": {
       "game_value": "table",
       "gate_z": 2.0,
@@ -125,7 +137,7 @@
             ]
           },
           "decisive": 12000,
-          "elapsed_seconds": 0.980503842,
+          "elapsed_seconds": 1.302537997,
           "failures": 0,
           "players": [
             {
@@ -225,20 +237,20 @@
             "knock": 89248,
             "undercut": 17496
           },
-          "throughput_per_second": 12238.605792224933,
+          "throughput_per_second": 9212.78306478456,
           "trials": 6000
         },
         "reproducibility": {
           "arch": "x86_64",
           "cargo_lock_sha256": "a0037359bca064781c6673725500d84f538f17c71ccd73478c8f84321f6d06d6",
           "cpu": "AMD Ryzen 7 8700F 8-Core Processor",
-          "git_dirty": false,
-          "git_head": "099c38e859009f72503e25b25bf685b538630e76",
+          "git_dirty": true,
+          "git_head": "527087a6c142b89a7abd0a3abca006fe5456acfa",
           "logical_threads": 16,
-          "os": "Linux 7.1.6-201.fc44.x86_64 #1 SMP PREEMPT_DYNAMIC Tue Aug  4 00:23:39 UTC 2026 x86_64 GNU/Linux",
-          "rustc_vv": "rustc 1.97.1 (8bab26f4f 2026-07-14) (Fedora 1.97.1-1.fc44)\nbinary: rustc\ncommit-hash: 8bab26f4f68e0e26f0bb7960be334d5b520ea452\ncommit-date: 2026-07-14\nhost: x86_64-unknown-linux-gnu\nrelease: 1.97.1\nLLVM version: 22.1.8",
+          "os": "Linux 7.1.10-200.fc44.x86_64 #1 SMP PREEMPT_DYNAMIC Sun Aug 23 16:15:11 UTC 2026 x86_64 GNU/Linux",
+          "rustc_vv": "rustc 1.98.0 (88d9e12ae 2026-08-18) (Fedora 1.98.0-1.fc44)\nbinary: rustc\ncommit-hash: 88d9e12ae178fab0fb5cc050a94da85685d449ea\ncommit-date: 2026-08-18\nhost: x86_64-unknown-linux-gnu\nrelease: 1.98.0\nLLVM version: 22.1.8",
           "source_file_count": 21,
-          "source_sha256": "fa84470015c06d6e3163d86e5a44cc3bec830eecaea4d4640a8d1b996b00fd72"
+          "source_sha256": "73af79c4efa94be66f447c526462840480c22098aa36e32197616aa8936bb0e3"
         },
         "rules": {
           "preset": "eaai",
@@ -293,7 +305,7 @@
                 ]
               },
               "decisive": 6000,
-              "elapsed_seconds": 0.493603346,
+              "elapsed_seconds": 0.672690635,
               "failures": 0,
               "players": [
                 {
@@ -393,7 +405,7 @@
                 "knock": 44739,
                 "undercut": 8762
               },
-              "throughput_per_second": 12155.509172743736,
+              "throughput_per_second": 8919.404682956527,
               "trials": 3000
             },
             "seed": 7
@@ -431,7 +443,7 @@
                 ]
               },
               "decisive": 6000,
-              "elapsed_seconds": 0.486898526,
+              "elapsed_seconds": 0.629843222,
               "failures": 0,
               "players": [
                 {
@@ -531,7 +543,7 @@
                 "knock": 44509,
                 "undercut": 8734
               },
-              "throughput_per_second": 12322.896208562355,
+              "throughput_per_second": 9526.180151542538,
               "trials": 3000
             },
             "seed": 8
@@ -546,8 +558,8 @@
       "inference": {
         "declaration": "candidate edge",
         "declaration_suppressed": false,
-        "pooled_holm_adjusted_p_value": 1.416291281081976e-215,
-        "pooled_holm_adjusted_p_value_decimal": "1.416291281082046e-215",
+        "pooled_holm_adjusted_p_value": 1.8883883747759793e-215,
+        "pooled_holm_adjusted_p_value_decimal": "1.888388374776073e-215",
         "pooled_raw_exact_sign_p_value": 4.720970936939931e-216,
         "pooled_raw_exact_sign_p_value_decimal": "4.720970936940119e-216",
         "seed_directions": [
@@ -617,7 +629,7 @@
             ]
           },
           "decisive": 15984,
-          "elapsed_seconds": 0.139733821,
+          "elapsed_seconds": 0.216018931,
           "failures": 0,
           "players": [
             {
@@ -717,20 +729,20 @@
             "knock": 12566,
             "undercut": 2676
           },
-          "throughput_per_second": 114503.41717915234,
+          "throughput_per_second": 74067.58253053293,
           "trials": 8000
         },
         "reproducibility": {
           "arch": "x86_64",
           "cargo_lock_sha256": "a0037359bca064781c6673725500d84f538f17c71ccd73478c8f84321f6d06d6",
           "cpu": "AMD Ryzen 7 8700F 8-Core Processor",
-          "git_dirty": false,
-          "git_head": "099c38e859009f72503e25b25bf685b538630e76",
+          "git_dirty": true,
+          "git_head": "527087a6c142b89a7abd0a3abca006fe5456acfa",
           "logical_threads": 16,
-          "os": "Linux 7.1.6-201.fc44.x86_64 #1 SMP PREEMPT_DYNAMIC Tue Aug  4 00:23:39 UTC 2026 x86_64 GNU/Linux",
-          "rustc_vv": "rustc 1.97.1 (8bab26f4f 2026-07-14) (Fedora 1.97.1-1.fc44)\nbinary: rustc\ncommit-hash: 8bab26f4f68e0e26f0bb7960be334d5b520ea452\ncommit-date: 2026-07-14\nhost: x86_64-unknown-linux-gnu\nrelease: 1.97.1\nLLVM version: 22.1.8",
+          "os": "Linux 7.1.10-200.fc44.x86_64 #1 SMP PREEMPT_DYNAMIC Sun Aug 23 16:15:11 UTC 2026 x86_64 GNU/Linux",
+          "rustc_vv": "rustc 1.98.0 (88d9e12ae 2026-08-18) (Fedora 1.98.0-1.fc44)\nbinary: rustc\ncommit-hash: 88d9e12ae178fab0fb5cc050a94da85685d449ea\ncommit-date: 2026-08-18\nhost: x86_64-unknown-linux-gnu\nrelease: 1.98.0\nLLVM version: 22.1.8",
           "source_file_count": 21,
-          "source_sha256": "fa84470015c06d6e3163d86e5a44cc3bec830eecaea4d4640a8d1b996b00fd72"
+          "source_sha256": "73af79c4efa94be66f447c526462840480c22098aa36e32197616aa8936bb0e3"
         },
         "rules": {
           "preset": "eaai",
@@ -785,7 +797,7 @@
                 ]
               },
               "decisive": 7995,
-              "elapsed_seconds": 0.070040269,
+              "elapsed_seconds": 0.110667047,
               "failures": 0,
               "players": [
                 {
@@ -885,7 +897,7 @@
                 "knock": 6270,
                 "undercut": 1341
               },
-              "throughput_per_second": 114220.00677924296,
+              "throughput_per_second": 72288.90818781854,
               "trials": 4000
             },
             "seed": 7
@@ -923,7 +935,7 @@
                 ]
               },
               "decisive": 7989,
-              "elapsed_seconds": 0.069692032,
+              "elapsed_seconds": 0.105339804,
               "failures": 0,
               "players": [
                 {
@@ -1023,7 +1035,7 @@
                 "knock": 6296,
                 "undercut": 1335
               },
-              "throughput_per_second": 114790.74107065784,
+              "throughput_per_second": 75944.7017767377,
               "trials": 4000
             },
             "seed": 8
@@ -1100,7 +1112,7 @@
             ]
           },
           "decisive": 12000,
-          "elapsed_seconds": 22.621569422,
+          "elapsed_seconds": 35.09190076,
           "failures": 0,
           "players": [
             {
@@ -1200,20 +1212,20 @@
             "knock": 29505,
             "undercut": 11197
           },
-          "throughput_per_second": 530.4671738791793,
+          "throughput_per_second": 341.95924814874576,
           "trials": 6000
         },
         "reproducibility": {
           "arch": "x86_64",
           "cargo_lock_sha256": "a0037359bca064781c6673725500d84f538f17c71ccd73478c8f84321f6d06d6",
           "cpu": "AMD Ryzen 7 8700F 8-Core Processor",
-          "git_dirty": false,
-          "git_head": "099c38e859009f72503e25b25bf685b538630e76",
+          "git_dirty": true,
+          "git_head": "527087a6c142b89a7abd0a3abca006fe5456acfa",
           "logical_threads": 16,
-          "os": "Linux 7.1.6-201.fc44.x86_64 #1 SMP PREEMPT_DYNAMIC Tue Aug  4 00:23:39 UTC 2026 x86_64 GNU/Linux",
-          "rustc_vv": "rustc 1.97.1 (8bab26f4f 2026-07-14) (Fedora 1.97.1-1.fc44)\nbinary: rustc\ncommit-hash: 8bab26f4f68e0e26f0bb7960be334d5b520ea452\ncommit-date: 2026-07-14\nhost: x86_64-unknown-linux-gnu\nrelease: 1.97.1\nLLVM version: 22.1.8",
+          "os": "Linux 7.1.10-200.fc44.x86_64 #1 SMP PREEMPT_DYNAMIC Sun Aug 23 16:15:11 UTC 2026 x86_64 GNU/Linux",
+          "rustc_vv": "rustc 1.98.0 (88d9e12ae 2026-08-18) (Fedora 1.98.0-1.fc44)\nbinary: rustc\ncommit-hash: 88d9e12ae178fab0fb5cc050a94da85685d449ea\ncommit-date: 2026-08-18\nhost: x86_64-unknown-linux-gnu\nrelease: 1.98.0\nLLVM version: 22.1.8",
           "source_file_count": 21,
-          "source_sha256": "fa84470015c06d6e3163d86e5a44cc3bec830eecaea4d4640a8d1b996b00fd72"
+          "source_sha256": "73af79c4efa94be66f447c526462840480c22098aa36e32197616aa8936bb0e3"
         },
         "rules": {
           "preset": "eaai",
@@ -1268,7 +1280,7 @@
                 ]
               },
               "decisive": 6000,
-              "elapsed_seconds": 11.446754383,
+              "elapsed_seconds": 17.850955821,
               "failures": 0,
               "players": [
                 {
@@ -1368,7 +1380,7 @@
                 "knock": 14758,
                 "undercut": 5659
               },
-              "throughput_per_second": 524.166047356692,
+              "throughput_per_second": 336.1164556209116,
               "trials": 3000
             },
             "seed": 7
@@ -1406,7 +1418,7 @@
                 ]
               },
               "decisive": 6000,
-              "elapsed_seconds": 11.174812279,
+              "elapsed_seconds": 17.240940099,
               "failures": 0,
               "players": [
                 {
@@ -1506,7 +1518,7 @@
                 "knock": 14747,
                 "undercut": 5538
               },
-              "throughput_per_second": 536.9217710507189,
+              "throughput_per_second": 348.00886526762014,
               "trials": 3000
             },
             "seed": 8
@@ -1522,7 +1534,7 @@
         "declaration": "opponent edge",
         "declaration_suppressed": false,
         "pooled_holm_adjusted_p_value": null,
-        "pooled_holm_adjusted_p_value_decimal": "2.679458127111942e-459",
+        "pooled_holm_adjusted_p_value_decimal": "3.349322658890067e-459",
         "pooled_raw_exact_sign_p_value": null,
         "pooled_raw_exact_sign_p_value_decimal": "6.698645317781290e-460",
         "seed_directions": [
@@ -1593,7 +1605,7 @@
             ]
           },
           "decisive": 15899,
-          "elapsed_seconds": 4.85085751,
+          "elapsed_seconds": 7.763036989,
           "failures": 0,
           "players": [
             {
@@ -1693,20 +1705,20 @@
             "knock": 7988,
             "undercut": 2659
           },
-          "throughput_per_second": 3298.3858971359477,
+          "throughput_per_second": 2061.049048545246,
           "trials": 8000
         },
         "reproducibility": {
           "arch": "x86_64",
           "cargo_lock_sha256": "a0037359bca064781c6673725500d84f538f17c71ccd73478c8f84321f6d06d6",
           "cpu": "AMD Ryzen 7 8700F 8-Core Processor",
-          "git_dirty": false,
-          "git_head": "099c38e859009f72503e25b25bf685b538630e76",
+          "git_dirty": true,
+          "git_head": "527087a6c142b89a7abd0a3abca006fe5456acfa",
           "logical_threads": 16,
-          "os": "Linux 7.1.6-201.fc44.x86_64 #1 SMP PREEMPT_DYNAMIC Tue Aug  4 00:23:39 UTC 2026 x86_64 GNU/Linux",
-          "rustc_vv": "rustc 1.97.1 (8bab26f4f 2026-07-14) (Fedora 1.97.1-1.fc44)\nbinary: rustc\ncommit-hash: 8bab26f4f68e0e26f0bb7960be334d5b520ea452\ncommit-date: 2026-07-14\nhost: x86_64-unknown-linux-gnu\nrelease: 1.97.1\nLLVM version: 22.1.8",
+          "os": "Linux 7.1.10-200.fc44.x86_64 #1 SMP PREEMPT_DYNAMIC Sun Aug 23 16:15:11 UTC 2026 x86_64 GNU/Linux",
+          "rustc_vv": "rustc 1.98.0 (88d9e12ae 2026-08-18) (Fedora 1.98.0-1.fc44)\nbinary: rustc\ncommit-hash: 88d9e12ae178fab0fb5cc050a94da85685d449ea\ncommit-date: 2026-08-18\nhost: x86_64-unknown-linux-gnu\nrelease: 1.98.0\nLLVM version: 22.1.8",
           "source_file_count": 21,
-          "source_sha256": "fa84470015c06d6e3163d86e5a44cc3bec830eecaea4d4640a8d1b996b00fd72"
+          "source_sha256": "73af79c4efa94be66f447c526462840480c22098aa36e32197616aa8936bb0e3"
         },
         "rules": {
           "preset": "eaai",
@@ -1761,7 +1773,7 @@
                 ]
               },
               "decisive": 7948,
-              "elapsed_seconds": 2.396423983,
+              "elapsed_seconds": 3.947842404,
               "failures": 0,
               "players": [
                 {
@@ -1861,7 +1873,7 @@
                 "knock": 3998,
                 "undercut": 1298
               },
-              "throughput_per_second": 3338.307435057914,
+              "throughput_per_second": 2026.4233425058471,
               "trials": 4000
             },
             "seed": 7
@@ -1899,7 +1911,7 @@
                 ]
               },
               "decisive": 7951,
-              "elapsed_seconds": 2.454430917,
+              "elapsed_seconds": 3.815191375,
               "failures": 0,
               "players": [
                 {
@@ -1999,7 +2011,7 @@
                 "knock": 3990,
                 "undercut": 1361
               },
-              "throughput_per_second": 3259.4113546199274,
+              "throughput_per_second": 2096.8803956787096,
               "trials": 4000
             },
             "seed": 8
@@ -2081,7 +2093,7 @@
             ]
           },
           "decisive": 12000,
-          "elapsed_seconds": 1299.836819821,
+          "elapsed_seconds": 653.055429491,
           "failures": 0,
           "players": [
             {
@@ -2181,20 +2193,20 @@
             "knock": 76211,
             "undercut": 14611
           },
-          "throughput_per_second": 9.231928052055425,
+          "throughput_per_second": 18.37516305369815,
           "trials": 6000
         },
         "reproducibility": {
           "arch": "x86_64",
           "cargo_lock_sha256": "a0037359bca064781c6673725500d84f538f17c71ccd73478c8f84321f6d06d6",
           "cpu": "AMD Ryzen 7 8700F 8-Core Processor",
-          "git_dirty": false,
-          "git_head": "099c38e859009f72503e25b25bf685b538630e76",
+          "git_dirty": true,
+          "git_head": "527087a6c142b89a7abd0a3abca006fe5456acfa",
           "logical_threads": 16,
-          "os": "Linux 7.1.6-201.fc44.x86_64 #1 SMP PREEMPT_DYNAMIC Tue Aug  4 00:23:39 UTC 2026 x86_64 GNU/Linux",
-          "rustc_vv": "rustc 1.97.1 (8bab26f4f 2026-07-14) (Fedora 1.97.1-1.fc44)\nbinary: rustc\ncommit-hash: 8bab26f4f68e0e26f0bb7960be334d5b520ea452\ncommit-date: 2026-07-14\nhost: x86_64-unknown-linux-gnu\nrelease: 1.97.1\nLLVM version: 22.1.8",
+          "os": "Linux 7.1.10-200.fc44.x86_64 #1 SMP PREEMPT_DYNAMIC Sun Aug 23 16:15:11 UTC 2026 x86_64 GNU/Linux",
+          "rustc_vv": "rustc 1.98.0 (88d9e12ae 2026-08-18) (Fedora 1.98.0-1.fc44)\nbinary: rustc\ncommit-hash: 88d9e12ae178fab0fb5cc050a94da85685d449ea\ncommit-date: 2026-08-18\nhost: x86_64-unknown-linux-gnu\nrelease: 1.98.0\nLLVM version: 22.1.8",
           "source_file_count": 21,
-          "source_sha256": "fa84470015c06d6e3163d86e5a44cc3bec830eecaea4d4640a8d1b996b00fd72"
+          "source_sha256": "73af79c4efa94be66f447c526462840480c22098aa36e32197616aa8936bb0e3"
         },
         "rules": {
           "preset": "eaai",
@@ -2249,7 +2261,7 @@
                 ]
               },
               "decisive": 6000,
-              "elapsed_seconds": 648.786772388,
+              "elapsed_seconds": 327.01327716,
               "failures": 0,
               "players": [
                 {
@@ -2349,7 +2361,7 @@
                 "knock": 38085,
                 "undercut": 7339
               },
-              "throughput_per_second": 9.248030717265864,
+              "throughput_per_second": 18.347878875463337,
               "trials": 3000
             },
             "seed": 7
@@ -2387,7 +2399,7 @@
                 ]
               },
               "decisive": 6000,
-              "elapsed_seconds": 651.050044993,
+              "elapsed_seconds": 326.042149121,
               "failures": 0,
               "players": [
                 {
@@ -2487,7 +2499,7 @@
                 "knock": 38126,
                 "undercut": 7272
               },
-              "throughput_per_second": 9.21588139981545,
+              "throughput_per_second": 18.402528679729976,
               "trials": 3000
             },
             "seed": 8
@@ -2503,7 +2515,7 @@
         "declaration": "candidate edge",
         "declaration_suppressed": false,
         "pooled_holm_adjusted_p_value": null,
-        "pooled_holm_adjusted_p_value_decimal": "7.752439399897535e-475",
+        "pooled_holm_adjusted_p_value_decimal": "9.302927279877673e-475",
         "pooled_raw_exact_sign_p_value": null,
         "pooled_raw_exact_sign_p_value_decimal": "1.550487879979613e-475",
         "seed_directions": [
@@ -2579,7 +2591,7 @@
             ]
           },
           "decisive": 15982,
-          "elapsed_seconds": 213.613747839,
+          "elapsed_seconds": 107.929906849,
           "failures": 0,
           "players": [
             {
@@ -2679,20 +2691,20 @@
             "knock": 12180,
             "undercut": 2583
           },
-          "throughput_per_second": 74.90154618727605,
+          "throughput_per_second": 148.244360317895,
           "trials": 8000
         },
         "reproducibility": {
           "arch": "x86_64",
           "cargo_lock_sha256": "a0037359bca064781c6673725500d84f538f17c71ccd73478c8f84321f6d06d6",
           "cpu": "AMD Ryzen 7 8700F 8-Core Processor",
-          "git_dirty": false,
-          "git_head": "099c38e859009f72503e25b25bf685b538630e76",
+          "git_dirty": true,
+          "git_head": "527087a6c142b89a7abd0a3abca006fe5456acfa",
           "logical_threads": 16,
-          "os": "Linux 7.1.6-201.fc44.x86_64 #1 SMP PREEMPT_DYNAMIC Tue Aug  4 00:23:39 UTC 2026 x86_64 GNU/Linux",
-          "rustc_vv": "rustc 1.97.1 (8bab26f4f 2026-07-14) (Fedora 1.97.1-1.fc44)\nbinary: rustc\ncommit-hash: 8bab26f4f68e0e26f0bb7960be334d5b520ea452\ncommit-date: 2026-07-14\nhost: x86_64-unknown-linux-gnu\nrelease: 1.97.1\nLLVM version: 22.1.8",
+          "os": "Linux 7.1.10-200.fc44.x86_64 #1 SMP PREEMPT_DYNAMIC Sun Aug 23 16:15:11 UTC 2026 x86_64 GNU/Linux",
+          "rustc_vv": "rustc 1.98.0 (88d9e12ae 2026-08-18) (Fedora 1.98.0-1.fc44)\nbinary: rustc\ncommit-hash: 88d9e12ae178fab0fb5cc050a94da85685d449ea\ncommit-date: 2026-08-18\nhost: x86_64-unknown-linux-gnu\nrelease: 1.98.0\nLLVM version: 22.1.8",
           "source_file_count": 21,
-          "source_sha256": "fa84470015c06d6e3163d86e5a44cc3bec830eecaea4d4640a8d1b996b00fd72"
+          "source_sha256": "73af79c4efa94be66f447c526462840480c22098aa36e32197616aa8936bb0e3"
         },
         "rules": {
           "preset": "eaai",
@@ -2747,7 +2759,7 @@
                 ]
               },
               "decisive": 7992,
-              "elapsed_seconds": 107.346050714,
+              "elapsed_seconds": 53.226728545,
               "failures": 0,
               "players": [
                 {
@@ -2847,7 +2859,7 @@
                 "knock": 6042,
                 "undercut": 1330
               },
-              "throughput_per_second": 74.52533136327712,
+              "throughput_per_second": 150.3004264715702,
               "trials": 4000
             },
             "seed": 7
@@ -2885,7 +2897,7 @@
                 ]
               },
               "decisive": 7990,
-              "elapsed_seconds": 106.267694535,
+              "elapsed_seconds": 54.703173434,
               "failures": 0,
               "players": [
                 {
@@ -2985,7 +2997,7 @@
                 "knock": 6138,
                 "undercut": 1253
               },
-              "throughput_per_second": 75.28158049354448,
+              "throughput_per_second": 146.24380082175838,
               "trials": 4000
             },
             "seed": 8
@@ -3068,7 +3080,7 @@
             ]
           },
           "decisive": 12000,
-          "elapsed_seconds": 1173.199400709,
+          "elapsed_seconds": 630.252274747,
           "failures": 0,
           "players": [
             {
@@ -3168,20 +3180,20 @@
             "knock": 27785,
             "undercut": 9834
           },
-          "throughput_per_second": 10.228440274302931,
+          "throughput_per_second": 19.039994746257943,
           "trials": 6000
         },
         "reproducibility": {
           "arch": "x86_64",
           "cargo_lock_sha256": "a0037359bca064781c6673725500d84f538f17c71ccd73478c8f84321f6d06d6",
           "cpu": "AMD Ryzen 7 8700F 8-Core Processor",
-          "git_dirty": false,
-          "git_head": "099c38e859009f72503e25b25bf685b538630e76",
+          "git_dirty": true,
+          "git_head": "527087a6c142b89a7abd0a3abca006fe5456acfa",
           "logical_threads": 16,
-          "os": "Linux 7.1.6-201.fc44.x86_64 #1 SMP PREEMPT_DYNAMIC Tue Aug  4 00:23:39 UTC 2026 x86_64 GNU/Linux",
-          "rustc_vv": "rustc 1.97.1 (8bab26f4f 2026-07-14) (Fedora 1.97.1-1.fc44)\nbinary: rustc\ncommit-hash: 8bab26f4f68e0e26f0bb7960be334d5b520ea452\ncommit-date: 2026-07-14\nhost: x86_64-unknown-linux-gnu\nrelease: 1.97.1\nLLVM version: 22.1.8",
+          "os": "Linux 7.1.10-200.fc44.x86_64 #1 SMP PREEMPT_DYNAMIC Sun Aug 23 16:15:11 UTC 2026 x86_64 GNU/Linux",
+          "rustc_vv": "rustc 1.98.0 (88d9e12ae 2026-08-18) (Fedora 1.98.0-1.fc44)\nbinary: rustc\ncommit-hash: 88d9e12ae178fab0fb5cc050a94da85685d449ea\ncommit-date: 2026-08-18\nhost: x86_64-unknown-linux-gnu\nrelease: 1.98.0\nLLVM version: 22.1.8",
           "source_file_count": 21,
-          "source_sha256": "fa84470015c06d6e3163d86e5a44cc3bec830eecaea4d4640a8d1b996b00fd72"
+          "source_sha256": "73af79c4efa94be66f447c526462840480c22098aa36e32197616aa8936bb0e3"
         },
         "rules": {
           "preset": "eaai",
@@ -3236,7 +3248,7 @@
                 ]
               },
               "decisive": 6000,
-              "elapsed_seconds": 586.71061284,
+              "elapsed_seconds": 317.058346133,
               "failures": 0,
               "players": [
                 {
@@ -3336,7 +3348,7 @@
                 "knock": 14064,
                 "undercut": 4884
               },
-              "throughput_per_second": 10.2265066775539,
+              "throughput_per_second": 18.92396170351281,
               "trials": 3000
             },
             "seed": 7
@@ -3374,7 +3386,7 @@
                 ]
               },
               "decisive": 6000,
-              "elapsed_seconds": 586.488785069,
+              "elapsed_seconds": 313.193924233,
               "failures": 0,
               "players": [
                 {
@@ -3474,7 +3486,7 @@
                 "knock": 13721,
                 "undercut": 4950
               },
-              "throughput_per_second": 10.230374651229017,
+              "throughput_per_second": 19.15745975817945,
               "trials": 3000
             },
             "seed": 8
@@ -3489,8 +3501,8 @@
       "inference": {
         "declaration": "opponent edge",
         "declaration_suppressed": false,
-        "pooled_holm_adjusted_p_value": 5.681909676470769e-71,
-        "pooled_holm_adjusted_p_value_decimal": "5.681909676470791e-71",
+        "pooled_holm_adjusted_p_value": 8.522864514706116e-71,
+        "pooled_holm_adjusted_p_value_decimal": "8.522864514706150e-71",
         "pooled_raw_exact_sign_p_value": 2.840954838235379e-71,
         "pooled_raw_exact_sign_p_value_decimal": "2.840954838235390e-71",
         "seed_directions": [
@@ -3567,7 +3579,7 @@
             ]
           },
           "decisive": 15466,
-          "elapsed_seconds": 255.992867849,
+          "elapsed_seconds": 133.955623036,
           "failures": 0,
           "players": [
             {
@@ -3667,20 +3679,20 @@
             "knock": 5599,
             "undercut": 1940
           },
-          "throughput_per_second": 62.50174129631519,
+          "throughput_per_second": 119.44254102494877,
           "trials": 8000
         },
         "reproducibility": {
           "arch": "x86_64",
           "cargo_lock_sha256": "a0037359bca064781c6673725500d84f538f17c71ccd73478c8f84321f6d06d6",
           "cpu": "AMD Ryzen 7 8700F 8-Core Processor",
-          "git_dirty": false,
-          "git_head": "099c38e859009f72503e25b25bf685b538630e76",
+          "git_dirty": true,
+          "git_head": "527087a6c142b89a7abd0a3abca006fe5456acfa",
           "logical_threads": 16,
-          "os": "Linux 7.1.6-201.fc44.x86_64 #1 SMP PREEMPT_DYNAMIC Tue Aug  4 00:23:39 UTC 2026 x86_64 GNU/Linux",
-          "rustc_vv": "rustc 1.97.1 (8bab26f4f 2026-07-14) (Fedora 1.97.1-1.fc44)\nbinary: rustc\ncommit-hash: 8bab26f4f68e0e26f0bb7960be334d5b520ea452\ncommit-date: 2026-07-14\nhost: x86_64-unknown-linux-gnu\nrelease: 1.97.1\nLLVM version: 22.1.8",
+          "os": "Linux 7.1.10-200.fc44.x86_64 #1 SMP PREEMPT_DYNAMIC Sun Aug 23 16:15:11 UTC 2026 x86_64 GNU/Linux",
+          "rustc_vv": "rustc 1.98.0 (88d9e12ae 2026-08-18) (Fedora 1.98.0-1.fc44)\nbinary: rustc\ncommit-hash: 88d9e12ae178fab0fb5cc050a94da85685d449ea\ncommit-date: 2026-08-18\nhost: x86_64-unknown-linux-gnu\nrelease: 1.98.0\nLLVM version: 22.1.8",
           "source_file_count": 21,
-          "source_sha256": "fa84470015c06d6e3163d86e5a44cc3bec830eecaea4d4640a8d1b996b00fd72"
+          "source_sha256": "73af79c4efa94be66f447c526462840480c22098aa36e32197616aa8936bb0e3"
         },
         "rules": {
           "preset": "eaai",
@@ -3735,7 +3747,7 @@
                 ]
               },
               "decisive": 7744,
-              "elapsed_seconds": 128.806235067,
+              "elapsed_seconds": 65.851869147,
               "failures": 0,
               "players": [
                 {
@@ -3835,7 +3847,7 @@
                 "knock": 2847,
                 "undercut": 951
               },
-              "throughput_per_second": 62.10879462348008,
+              "throughput_per_second": 121.48478249177312,
               "trials": 4000
             },
             "seed": 7
@@ -3873,7 +3885,7 @@
                 ]
               },
               "decisive": 7722,
-              "elapsed_seconds": 127.186627831,
+              "elapsed_seconds": 68.103749939,
               "failures": 0,
               "players": [
                 {
@@ -3973,7 +3985,7 @@
                 "knock": 2752,
                 "undercut": 989
               },
-              "throughput_per_second": 62.89969422438064,
+              "throughput_per_second": 117.46783410848212,
               "trials": 4000
             },
             "seed": 8
@@ -4055,7 +4067,7 @@
             ]
           },
           "decisive": 12000,
-          "elapsed_seconds": 2315.292959726,
+          "elapsed_seconds": 1156.043483227,
           "failures": 0,
           "players": [
             {
@@ -4155,20 +4167,20 @@
             "knock": 70256,
             "undercut": 15745
           },
-          "throughput_per_second": 5.18292942134637,
+          "throughput_per_second": 10.38023238235208,
           "trials": 6000
         },
         "reproducibility": {
           "arch": "x86_64",
           "cargo_lock_sha256": "a0037359bca064781c6673725500d84f538f17c71ccd73478c8f84321f6d06d6",
           "cpu": "AMD Ryzen 7 8700F 8-Core Processor",
-          "git_dirty": false,
-          "git_head": "099c38e859009f72503e25b25bf685b538630e76",
+          "git_dirty": true,
+          "git_head": "527087a6c142b89a7abd0a3abca006fe5456acfa",
           "logical_threads": 16,
-          "os": "Linux 7.1.6-201.fc44.x86_64 #1 SMP PREEMPT_DYNAMIC Tue Aug  4 00:23:39 UTC 2026 x86_64 GNU/Linux",
-          "rustc_vv": "rustc 1.97.1 (8bab26f4f 2026-07-14) (Fedora 1.97.1-1.fc44)\nbinary: rustc\ncommit-hash: 8bab26f4f68e0e26f0bb7960be334d5b520ea452\ncommit-date: 2026-07-14\nhost: x86_64-unknown-linux-gnu\nrelease: 1.97.1\nLLVM version: 22.1.8",
+          "os": "Linux 7.1.10-200.fc44.x86_64 #1 SMP PREEMPT_DYNAMIC Sun Aug 23 16:15:11 UTC 2026 x86_64 GNU/Linux",
+          "rustc_vv": "rustc 1.98.0 (88d9e12ae 2026-08-18) (Fedora 1.98.0-1.fc44)\nbinary: rustc\ncommit-hash: 88d9e12ae178fab0fb5cc050a94da85685d449ea\ncommit-date: 2026-08-18\nhost: x86_64-unknown-linux-gnu\nrelease: 1.98.0\nLLVM version: 22.1.8",
           "source_file_count": 21,
-          "source_sha256": "fa84470015c06d6e3163d86e5a44cc3bec830eecaea4d4640a8d1b996b00fd72"
+          "source_sha256": "73af79c4efa94be66f447c526462840480c22098aa36e32197616aa8936bb0e3"
         },
         "rules": {
           "preset": "eaai",
@@ -4223,7 +4235,7 @@
                 ]
               },
               "decisive": 6000,
-              "elapsed_seconds": 1156.063735995,
+              "elapsed_seconds": 576.287907038,
               "failures": 0,
               "players": [
                 {
@@ -4323,7 +4335,7 @@
                 "knock": 35160,
                 "undercut": 7852
               },
-              "throughput_per_second": 5.190025266933856,
+              "throughput_per_second": 10.411462615689356,
               "trials": 3000
             },
             "seed": 7
@@ -4361,7 +4373,7 @@
                 ]
               },
               "decisive": 6000,
-              "elapsed_seconds": 1159.229220981,
+              "elapsed_seconds": 579.755571839,
               "failures": 0,
               "players": [
                 {
@@ -4461,7 +4473,7 @@
                 "knock": 35096,
                 "undercut": 7893
               },
-              "throughput_per_second": 5.175852964543534,
+              "throughput_per_second": 10.349189022828778,
               "trials": 3000
             },
             "seed": 8
@@ -4477,7 +4489,7 @@
         "declaration": "candidate edge",
         "declaration_suppressed": false,
         "pooled_holm_adjusted_p_value": null,
-        "pooled_holm_adjusted_p_value_decimal": "3.149105327221092e-698",
+        "pooled_holm_adjusted_p_value_decimal": "3.673956215091622e-698",
         "pooled_raw_exact_sign_p_value": null,
         "pooled_raw_exact_sign_p_value_decimal": "5.248508878702369e-699",
         "seed_directions": [
@@ -4553,7 +4565,7 @@
             ]
           },
           "decisive": 15979,
-          "elapsed_seconds": 400.794274532,
+          "elapsed_seconds": 197.502789318,
           "failures": 0,
           "players": [
             {
@@ -4653,20 +4665,20 @@
             "knock": 11638,
             "undercut": 2964
           },
-          "throughput_per_second": 39.9207299522502,
+          "throughput_per_second": 81.01151409177487,
           "trials": 8000
         },
         "reproducibility": {
           "arch": "x86_64",
           "cargo_lock_sha256": "a0037359bca064781c6673725500d84f538f17c71ccd73478c8f84321f6d06d6",
           "cpu": "AMD Ryzen 7 8700F 8-Core Processor",
-          "git_dirty": false,
-          "git_head": "099c38e859009f72503e25b25bf685b538630e76",
+          "git_dirty": true,
+          "git_head": "527087a6c142b89a7abd0a3abca006fe5456acfa",
           "logical_threads": 16,
-          "os": "Linux 7.1.6-201.fc44.x86_64 #1 SMP PREEMPT_DYNAMIC Tue Aug  4 00:23:39 UTC 2026 x86_64 GNU/Linux",
-          "rustc_vv": "rustc 1.97.1 (8bab26f4f 2026-07-14) (Fedora 1.97.1-1.fc44)\nbinary: rustc\ncommit-hash: 8bab26f4f68e0e26f0bb7960be334d5b520ea452\ncommit-date: 2026-07-14\nhost: x86_64-unknown-linux-gnu\nrelease: 1.97.1\nLLVM version: 22.1.8",
+          "os": "Linux 7.1.10-200.fc44.x86_64 #1 SMP PREEMPT_DYNAMIC Sun Aug 23 16:15:11 UTC 2026 x86_64 GNU/Linux",
+          "rustc_vv": "rustc 1.98.0 (88d9e12ae 2026-08-18) (Fedora 1.98.0-1.fc44)\nbinary: rustc\ncommit-hash: 88d9e12ae178fab0fb5cc050a94da85685d449ea\ncommit-date: 2026-08-18\nhost: x86_64-unknown-linux-gnu\nrelease: 1.98.0\nLLVM version: 22.1.8",
           "source_file_count": 21,
-          "source_sha256": "fa84470015c06d6e3163d86e5a44cc3bec830eecaea4d4640a8d1b996b00fd72"
+          "source_sha256": "73af79c4efa94be66f447c526462840480c22098aa36e32197616aa8936bb0e3"
         },
         "rules": {
           "preset": "eaai",
@@ -4721,7 +4733,7 @@
                 ]
               },
               "decisive": 7989,
-              "elapsed_seconds": 199.302732405,
+              "elapsed_seconds": 98.665769556,
               "failures": 0,
               "players": [
                 {
@@ -4821,7 +4833,7 @@
                 "knock": 5783,
                 "undercut": 1506
               },
-              "throughput_per_second": 40.13994140202415,
+              "throughput_per_second": 81.08181830436561,
               "trials": 4000
             },
             "seed": 7
@@ -4859,7 +4871,7 @@
                 ]
               },
               "decisive": 7990,
-              "elapsed_seconds": 201.491539187,
+              "elapsed_seconds": 98.837015712,
               "failures": 0,
               "players": [
                 {
@@ -4959,7 +4971,7 @@
                 "knock": 5855,
                 "undercut": 1458
               },
-              "throughput_per_second": 39.70390038350628,
+              "throughput_per_second": 80.94133500864802,
               "trials": 4000
             },
             "seed": 8
@@ -5042,7 +5054,7 @@
             ]
           },
           "decisive": 12000,
-          "elapsed_seconds": 2126.177305494,
+          "elapsed_seconds": 1103.788786894,
           "failures": 0,
           "players": [
             {
@@ -5142,20 +5154,20 @@
             "knock": 25227,
             "undercut": 7919
           },
-          "throughput_per_second": 5.643931937845559,
+          "throughput_per_second": 10.871645139435897,
           "trials": 6000
         },
         "reproducibility": {
           "arch": "x86_64",
           "cargo_lock_sha256": "a0037359bca064781c6673725500d84f538f17c71ccd73478c8f84321f6d06d6",
           "cpu": "AMD Ryzen 7 8700F 8-Core Processor",
-          "git_dirty": false,
-          "git_head": "099c38e859009f72503e25b25bf685b538630e76",
+          "git_dirty": true,
+          "git_head": "527087a6c142b89a7abd0a3abca006fe5456acfa",
           "logical_threads": 16,
-          "os": "Linux 7.1.6-201.fc44.x86_64 #1 SMP PREEMPT_DYNAMIC Tue Aug  4 00:23:39 UTC 2026 x86_64 GNU/Linux",
-          "rustc_vv": "rustc 1.97.1 (8bab26f4f 2026-07-14) (Fedora 1.97.1-1.fc44)\nbinary: rustc\ncommit-hash: 8bab26f4f68e0e26f0bb7960be334d5b520ea452\ncommit-date: 2026-07-14\nhost: x86_64-unknown-linux-gnu\nrelease: 1.97.1\nLLVM version: 22.1.8",
+          "os": "Linux 7.1.10-200.fc44.x86_64 #1 SMP PREEMPT_DYNAMIC Sun Aug 23 16:15:11 UTC 2026 x86_64 GNU/Linux",
+          "rustc_vv": "rustc 1.98.0 (88d9e12ae 2026-08-18) (Fedora 1.98.0-1.fc44)\nbinary: rustc\ncommit-hash: 88d9e12ae178fab0fb5cc050a94da85685d449ea\ncommit-date: 2026-08-18\nhost: x86_64-unknown-linux-gnu\nrelease: 1.98.0\nLLVM version: 22.1.8",
           "source_file_count": 21,
-          "source_sha256": "fa84470015c06d6e3163d86e5a44cc3bec830eecaea4d4640a8d1b996b00fd72"
+          "source_sha256": "73af79c4efa94be66f447c526462840480c22098aa36e32197616aa8936bb0e3"
         },
         "rules": {
           "preset": "eaai",
@@ -5210,7 +5222,7 @@
                 ]
               },
               "decisive": 6000,
-              "elapsed_seconds": 1067.505739207,
+              "elapsed_seconds": 557.659607202,
               "failures": 0,
               "players": [
                 {
@@ -5310,7 +5322,7 @@
                 "knock": 12729,
                 "undercut": 3976
               },
-              "throughput_per_second": 5.620578681344719,
+              "throughput_per_second": 10.759251562264634,
               "trials": 3000
             },
             "seed": 7
@@ -5348,7 +5360,7 @@
                 ]
               },
               "decisive": 6000,
-              "elapsed_seconds": 1058.671563477,
+              "elapsed_seconds": 546.129175862,
               "failures": 0,
               "players": [
                 {
@@ -5448,7 +5460,7 @@
                 "knock": 12498,
                 "undercut": 3943
               },
-              "throughput_per_second": 5.6674800825802585,
+              "throughput_per_second": 10.986411759689844,
               "trials": 3000
             },
             "seed": 8
@@ -5541,7 +5553,7 @@
             ]
           },
           "decisive": 15358,
-          "elapsed_seconds": 472.152991534,
+          "elapsed_seconds": 245.136712756,
           "failures": 0,
           "players": [
             {
@@ -5641,20 +5653,20 @@
             "knock": 5064,
             "undercut": 1483
           },
-          "throughput_per_second": 33.88732103129718,
+          "throughput_per_second": 65.26970122148046,
           "trials": 8000
         },
         "reproducibility": {
           "arch": "x86_64",
           "cargo_lock_sha256": "a0037359bca064781c6673725500d84f538f17c71ccd73478c8f84321f6d06d6",
           "cpu": "AMD Ryzen 7 8700F 8-Core Processor",
-          "git_dirty": false,
-          "git_head": "099c38e859009f72503e25b25bf685b538630e76",
+          "git_dirty": true,
+          "git_head": "527087a6c142b89a7abd0a3abca006fe5456acfa",
           "logical_threads": 16,
-          "os": "Linux 7.1.6-201.fc44.x86_64 #1 SMP PREEMPT_DYNAMIC Tue Aug  4 00:23:39 UTC 2026 x86_64 GNU/Linux",
-          "rustc_vv": "rustc 1.97.1 (8bab26f4f 2026-07-14) (Fedora 1.97.1-1.fc44)\nbinary: rustc\ncommit-hash: 8bab26f4f68e0e26f0bb7960be334d5b520ea452\ncommit-date: 2026-07-14\nhost: x86_64-unknown-linux-gnu\nrelease: 1.97.1\nLLVM version: 22.1.8",
+          "os": "Linux 7.1.10-200.fc44.x86_64 #1 SMP PREEMPT_DYNAMIC Sun Aug 23 16:15:11 UTC 2026 x86_64 GNU/Linux",
+          "rustc_vv": "rustc 1.98.0 (88d9e12ae 2026-08-18) (Fedora 1.98.0-1.fc44)\nbinary: rustc\ncommit-hash: 88d9e12ae178fab0fb5cc050a94da85685d449ea\ncommit-date: 2026-08-18\nhost: x86_64-unknown-linux-gnu\nrelease: 1.98.0\nLLVM version: 22.1.8",
           "source_file_count": 21,
-          "source_sha256": "fa84470015c06d6e3163d86e5a44cc3bec830eecaea4d4640a8d1b996b00fd72"
+          "source_sha256": "73af79c4efa94be66f447c526462840480c22098aa36e32197616aa8936bb0e3"
         },
         "rules": {
           "preset": "eaai",
@@ -5709,7 +5721,7 @@
                 ]
               },
               "decisive": 7678,
-              "elapsed_seconds": 235.240994505,
+              "elapsed_seconds": 121.40966819,
               "failures": 0,
               "players": [
                 {
@@ -5809,7 +5821,7 @@
                 "knock": 2529,
                 "undercut": 729
               },
-              "throughput_per_second": 34.00767802752152,
+              "throughput_per_second": 65.8926106896232,
               "trials": 4000
             },
             "seed": 7
@@ -5847,7 +5859,7 @@
                 ]
               },
               "decisive": 7680,
-              "elapsed_seconds": 236.911991509,
+              "elapsed_seconds": 123.727040076,
               "failures": 0,
               "players": [
                 {
@@ -5947,7 +5959,1981 @@
                 "knock": 2535,
                 "undercut": 754
               },
-              "throughput_per_second": 33.76781373135386,
+              "throughput_per_second": 64.65846103718279,
+              "trials": 4000
+            },
+            "seed": 8
+          }
+        ],
+        "schema": "gin-rummy-arena/v1",
+        "seeds": [
+          7,
+          8
+        ]
+      }
+    },
+    {
+      "candidate": "mc:512",
+      "games": {
+        "bots": {
+          "p1": {
+            "configuration": {
+              "game_value": "table",
+              "gate_z": 2.0,
+              "hand_calibration": false,
+              "kind": "MonteCarloBot",
+              "max_candidates": 4,
+              "opponent_model": "eager",
+              "opponent_strength_percent": 200,
+              "rollout_knock_opponent": 255,
+              "rollout_knock_self": 0,
+              "samples": 512
+            },
+            "spec": "mc:512"
+          },
+          "p2": {
+            "configuration": {
+              "draw": "strict_minimum_deadwood_improvement",
+              "kind": "GoldPaperBot",
+              "knock_threshold": 10,
+              "knock_ties": "RLCard_S_H_D_C",
+              "ordinary_ties": "highest_pip_then_RLCard_S_H_D_C",
+              "score_or_history_dependent": false
+            },
+            "spec": "gold-paper"
+          }
+        },
+        "count_per_seed": 3000,
+        "dealer_rotation": "alternate_after_scored_round",
+        "failures": 0,
+        "mode": "games",
+        "paired": true,
+        "points_metric": "raw_game_score",
+        "pooled": {
+          "comparison": {
+            "exact_sign_p_value": null,
+            "exact_sign_p_value_decimal": "8.033606435938072e-967",
+            "infinite_z_direction": 0,
+            "normal_p_value": 0,
+            "normal_z": 91.35864599144344,
+            "paired_difference_sq_sum": 15568,
+            "paired_difference_sum": 7372,
+            "point_margin_moments": {
+              "cluster_ci95": {
+                "high": 48.25268360318935,
+                "low": 46.40848306347733
+              },
+              "clusters": 6000,
+              "denominator": 12000,
+              "denominator_sq": 24000,
+              "estimate": 47.33058333333334,
+              "numerator": 567967,
+              "numerator_denominator": 1135934,
+              "numerator_sq": 85630911
+            },
+            "primary_p_value": null,
+            "primary_p_value_decimal": "8.033606435938072e-967",
+            "primary_test": "exact_sweep_sign",
+            "rate_difference": 0.614333333333333,
+            "sweeps": [
+              3789,
+              103
+            ]
+          },
+          "decisive": 12000,
+          "elapsed_seconds": 3448.679258422,
+          "failures": 0,
+          "players": [
+            {
+              "finishes": {
+                "big_gin": 0,
+                "gin": 7101,
+                "knock": 22221,
+                "undercut": 16000
+              },
+              "point_rate_moments": {
+                "cluster_ci95": {
+                  "high": 102.68947093131872,
+                  "low": 101.75919573534793
+                },
+                "clusters": 6000,
+                "denominator": 12000,
+                "denominator_sq": 24000,
+                "estimate": 102.22433333333332,
+                "numerator": 1226692,
+                "numerator_denominator": 2453384,
+                "numerator_sq": 258904050
+              },
+              "raw_points": 1226692,
+              "seat": "p1",
+              "spec": "mc:512",
+              "win_ci95": {
+                "high": 0.813756592120718,
+                "low": 0.800576741212615,
+                "method": "pair_cluster_normal"
+              },
+              "win_rate": 0.807166666666667,
+              "win_rate_moments": {
+                "cluster_ci95": {
+                  "high": 0.813756592120718,
+                  "low": 0.800576741212615
+                },
+                "clusters": 6000,
+                "denominator": 12000,
+                "denominator_sq": 24000,
+                "estimate": 0.8071666666666667,
+                "numerator": 9686,
+                "numerator_denominator": 19372,
+                "numerator_sq": 17264
+              },
+              "wins": 9686
+            },
+            {
+              "finishes": {
+                "big_gin": 0,
+                "gin": 1105,
+                "knock": 38733,
+                "undercut": 537
+              },
+              "point_rate_moments": {
+                "cluster_ci95": {
+                  "high": 55.49845933703536,
+                  "low": 54.28904066296464
+                },
+                "clusters": 6000,
+                "denominator": 12000,
+                "denominator_sq": 24000,
+                "estimate": 54.89375,
+                "numerator": 658725,
+                "numerator_denominator": 1317450,
+                "numerator_sq": 86024527
+              },
+              "raw_points": 658725,
+              "seat": "p2",
+              "spec": "gold-paper",
+              "win_ci95": {
+                "high": 0.199423258787385,
+                "low": 0.186243407879282,
+                "method": "pair_cluster_normal"
+              },
+              "win_rate": 0.192833333333333,
+              "win_rate_moments": {
+                "cluster_ci95": {
+                  "high": 0.199423258787385,
+                  "low": 0.186243407879282
+                },
+                "clusters": 6000,
+                "denominator": 12000,
+                "denominator_sq": 24000,
+                "estimate": 0.19283333333333333,
+                "numerator": 2314,
+                "numerator_denominator": 4628,
+                "numerator_sq": 2520
+              },
+              "wins": 2314
+            }
+          ],
+          "plays": 12000,
+          "round_finishes": {
+            "big_gin": 0,
+            "dead": 62,
+            "gin": 8206,
+            "knock": 60954,
+            "undercut": 16537
+          },
+          "throughput_per_second": 3.4795929400204058,
+          "trials": 6000
+        },
+        "reproducibility": {
+          "arch": "x86_64",
+          "cargo_lock_sha256": "a0037359bca064781c6673725500d84f538f17c71ccd73478c8f84321f6d06d6",
+          "cpu": "AMD Ryzen 7 8700F 8-Core Processor",
+          "git_dirty": true,
+          "git_head": "527087a6c142b89a7abd0a3abca006fe5456acfa",
+          "logical_threads": 16,
+          "os": "Linux 7.1.10-200.fc44.x86_64 #1 SMP PREEMPT_DYNAMIC Sun Aug 23 16:15:11 UTC 2026 x86_64 GNU/Linux",
+          "rustc_vv": "rustc 1.98.0 (88d9e12ae 2026-08-18) (Fedora 1.98.0-1.fc44)\nbinary: rustc\ncommit-hash: 88d9e12ae178fab0fb5cc050a94da85685d449ea\ncommit-date: 2026-08-18\nhost: x86_64-unknown-linux-gnu\nrelease: 1.98.0\nLLVM version: 22.1.8",
+          "source_file_count": 21,
+          "source_sha256": "73af79c4efa94be66f447c526462840480c22098aa36e32197616aa8936bb0e3"
+        },
+        "rules": {
+          "preset": "eaai",
+          "values": {
+            "big_gin_bonus": null,
+            "box_bonus": 0,
+            "game_bonus": 0,
+            "game_target": 100,
+            "gin_bonus": 25,
+            "immediate_boxes": false,
+            "knock_limit": 10,
+            "oklahoma": null,
+            "shutout": {
+              "bonus": 0,
+              "kind": "flat"
+            },
+            "undercut_bonus": 25,
+            "undercut_on_tie": true
+          }
+        },
+        "runs": [
+          {
+            "outcome": {
+              "comparison": {
+                "exact_sign_p_value": null,
+                "exact_sign_p_value_decimal": "9.187380825244858e-493",
+                "infinite_z_direction": 0,
+                "normal_p_value": 0,
+                "normal_z": 65.43056241876477,
+                "paired_difference_sq_sum": 7760,
+                "paired_difference_sum": 3700,
+                "point_margin_moments": {
+                  "cluster_ci95": {
+                    "high": 49.084928411005315,
+                    "low": 46.49773825566136
+                  },
+                  "clusters": 3000,
+                  "denominator": 6000,
+                  "denominator_sq": 12000,
+                  "estimate": 47.791333333333334,
+                  "numerator": 286748,
+                  "numerator_denominator": 573496,
+                  "numerator_sq": 43084392
+                },
+                "primary_p_value": null,
+                "primary_p_value_decimal": "9.187380825244858e-493",
+                "primary_test": "exact_sweep_sign",
+                "rate_difference": 0.616666666666667,
+                "sweeps": [
+                  1895,
+                  45
+                ]
+              },
+              "decisive": 6000,
+              "elapsed_seconds": 1672.289192191,
+              "failures": 0,
+              "players": [
+                {
+                  "finishes": {
+                    "big_gin": 0,
+                    "gin": 3567,
+                    "knock": 11098,
+                    "undercut": 7980
+                  },
+                  "point_rate_moments": {
+                    "cluster_ci95": {
+                      "high": 103.17176580675103,
+                      "low": 101.8665675265823
+                    },
+                    "clusters": 3000,
+                    "denominator": 6000,
+                    "denominator_sq": 12000,
+                    "estimate": 102.51916666666666,
+                    "numerator": 615115,
+                    "numerator_denominator": 1230230,
+                    "numerator_sq": 130111839
+                  },
+                  "raw_points": 615115,
+                  "seat": "p1",
+                  "spec": "mc:512",
+                  "win_ci95": {
+                    "high": 0.81756958793658,
+                    "low": 0.799097078730087,
+                    "method": "pair_cluster_normal"
+                  },
+                  "win_rate": 0.808333333333333,
+                  "win_rate_moments": {
+                    "cluster_ci95": {
+                      "high": 0.81756958793658,
+                      "low": 0.799097078730087
+                    },
+                    "clusters": 3000,
+                    "denominator": 6000,
+                    "denominator_sq": 12000,
+                    "estimate": 0.8083333333333333,
+                    "numerator": 4850,
+                    "numerator_denominator": 9700,
+                    "numerator_sq": 8640
+                  },
+                  "wins": 4850
+                },
+                {
+                  "finishes": {
+                    "big_gin": 0,
+                    "gin": 524,
+                    "knock": 19330,
+                    "undercut": 258
+                  },
+                  "point_rate_moments": {
+                    "cluster_ci95": {
+                      "high": 55.58328957602953,
+                      "low": 53.872377090637144
+                    },
+                    "clusters": 3000,
+                    "denominator": 6000,
+                    "denominator_sq": 12000,
+                    "estimate": 54.727833333333336,
+                    "numerator": 328367,
+                    "numerator_denominator": 656734,
+                    "numerator_sq": 42797161
+                  },
+                  "raw_points": 328367,
+                  "seat": "p2",
+                  "spec": "gold-paper",
+                  "win_ci95": {
+                    "high": 0.200902921269913,
+                    "low": 0.18243041206342,
+                    "method": "pair_cluster_normal"
+                  },
+                  "win_rate": 0.191666666666667,
+                  "win_rate_moments": {
+                    "cluster_ci95": {
+                      "high": 0.200902921269913,
+                      "low": 0.18243041206342
+                    },
+                    "clusters": 3000,
+                    "denominator": 6000,
+                    "denominator_sq": 12000,
+                    "estimate": 0.19166666666666668,
+                    "numerator": 1150,
+                    "numerator_denominator": 2300,
+                    "numerator_sq": 1240
+                  },
+                  "wins": 1150
+                }
+              ],
+              "plays": 6000,
+              "round_finishes": {
+                "big_gin": 0,
+                "dead": 28,
+                "gin": 4091,
+                "knock": 30428,
+                "undercut": 8238
+              },
+              "throughput_per_second": 3.587896177298688,
+              "trials": 3000
+            },
+            "seed": 7
+          },
+          {
+            "outcome": {
+              "comparison": {
+                "exact_sign_p_value": null,
+                "exact_sign_p_value_decimal": "6.444544894960528e-476",
+                "infinite_z_direction": 0,
+                "normal_p_value": 0,
+                "normal_z": 63.78060368700783,
+                "paired_difference_sq_sum": 7808,
+                "paired_difference_sum": 3672,
+                "point_margin_moments": {
+                  "cluster_ci95": {
+                    "high": 48.184257377952584,
+                    "low": 45.55540928871408
+                  },
+                  "clusters": 3000,
+                  "denominator": 6000,
+                  "denominator_sq": 12000,
+                  "estimate": 46.86983333333333,
+                  "numerator": 281219,
+                  "numerator_denominator": 562438,
+                  "numerator_sq": 42546519
+                },
+                "primary_p_value": null,
+                "primary_p_value_decimal": "6.444544894960528e-476",
+                "primary_test": "exact_sweep_sign",
+                "rate_difference": 0.612,
+                "sweeps": [
+                  1894,
+                  58
+                ]
+              },
+              "decisive": 6000,
+              "elapsed_seconds": 1776.39006173,
+              "failures": 0,
+              "players": [
+                {
+                  "finishes": {
+                    "big_gin": 0,
+                    "gin": 3534,
+                    "knock": 11123,
+                    "undercut": 8020
+                  },
+                  "point_rate_moments": {
+                    "cluster_ci95": {
+                      "high": 102.59240865639602,
+                      "low": 101.266591343604
+                    },
+                    "clusters": 3000,
+                    "denominator": 6000,
+                    "denominator_sq": 12000,
+                    "estimate": 101.9295,
+                    "numerator": 611577,
+                    "numerator_denominator": 1223154,
+                    "numerator_sq": 128792211
+                  },
+                  "raw_points": 611577,
+                  "seat": "p1",
+                  "spec": "mc:512",
+                  "win_ci95": {
+                    "high": 0.81540348578297,
+                    "low": 0.79659651421703,
+                    "method": "pair_cluster_normal"
+                  },
+                  "win_rate": 0.806,
+                  "win_rate_moments": {
+                    "cluster_ci95": {
+                      "high": 0.81540348578297,
+                      "low": 0.79659651421703
+                    },
+                    "clusters": 3000,
+                    "denominator": 6000,
+                    "denominator_sq": 12000,
+                    "estimate": 0.806,
+                    "numerator": 4836,
+                    "numerator_denominator": 9672,
+                    "numerator_sq": 8624
+                  },
+                  "wins": 4836
+                },
+                {
+                  "finishes": {
+                    "big_gin": 0,
+                    "gin": 581,
+                    "knock": 19403,
+                    "undercut": 279
+                  },
+                  "point_rate_moments": {
+                    "cluster_ci95": {
+                      "high": 55.9146880021564,
+                      "low": 54.20464533117693
+                    },
+                    "clusters": 3000,
+                    "denominator": 6000,
+                    "denominator_sq": 12000,
+                    "estimate": 55.059666666666665,
+                    "numerator": 330358,
+                    "numerator_denominator": 660716,
+                    "numerator_sq": 43227366
+                  },
+                  "raw_points": 330358,
+                  "seat": "p2",
+                  "spec": "gold-paper",
+                  "win_ci95": {
+                    "high": 0.20340348578297,
+                    "low": 0.18459651421703,
+                    "method": "pair_cluster_normal"
+                  },
+                  "win_rate": 0.194,
+                  "win_rate_moments": {
+                    "cluster_ci95": {
+                      "high": 0.20340348578297,
+                      "low": 0.18459651421703
+                    },
+                    "clusters": 3000,
+                    "denominator": 6000,
+                    "denominator_sq": 12000,
+                    "estimate": 0.194,
+                    "numerator": 1164,
+                    "numerator_denominator": 2328,
+                    "numerator_sq": 1280
+                  },
+                  "wins": 1164
+                }
+              ],
+              "plays": 6000,
+              "round_finishes": {
+                "big_gin": 0,
+                "dead": 34,
+                "gin": 4115,
+                "knock": 30526,
+                "undercut": 8299
+              },
+              "throughput_per_second": 3.377636550249943,
+              "trials": 3000
+            },
+            "seed": 8
+          }
+        ],
+        "schema": "gin-rummy-arena/v1",
+        "seeds": [
+          7,
+          8
+        ]
+      },
+      "inference": {
+        "declaration": "candidate edge",
+        "declaration_suppressed": false,
+        "pooled_holm_adjusted_p_value": null,
+        "pooled_holm_adjusted_p_value_decimal": "6.426885148748728e-966",
+        "pooled_raw_exact_sign_p_value": null,
+        "pooled_raw_exact_sign_p_value_decimal": "8.033606435938072e-967",
+        "seed_directions": [
+          1,
+          1
+        ]
+      },
+      "opponent": "gold-paper",
+      "rounds": {
+        "bots": {
+          "p1": {
+            "configuration": {
+              "game_value": "table",
+              "gate_z": 2.0,
+              "hand_calibration": false,
+              "kind": "MonteCarloBot",
+              "max_candidates": 4,
+              "opponent_model": "eager",
+              "opponent_strength_percent": 200,
+              "rollout_knock_opponent": 255,
+              "rollout_knock_self": 0,
+              "samples": 512
+            },
+            "spec": "mc:512"
+          },
+          "p2": {
+            "configuration": {
+              "draw": "strict_minimum_deadwood_improvement",
+              "kind": "GoldPaperBot",
+              "knock_threshold": 10,
+              "knock_ties": "RLCard_S_H_D_C",
+              "ordinary_ties": "highest_pip_then_RLCard_S_H_D_C",
+              "score_or_history_dependent": false
+            },
+            "spec": "gold-paper"
+          }
+        },
+        "count_per_seed": 4000,
+        "dealer_rotation": "alternate_after_scored_round",
+        "failures": 0,
+        "mode": "rounds",
+        "paired": true,
+        "points_metric": "round_points",
+        "pooled": {
+          "comparison": {
+            "exact_sign_p_value": 9.571462571720002e-8,
+            "exact_sign_p_value_decimal": "9.571462571720019e-8",
+            "infinite_z_direction": 0,
+            "normal_p_value": 1.1558297980372049e-7,
+            "normal_z": 5.300727195528481,
+            "paired_difference_sq_sum": 12600,
+            "paired_difference_sum": 594,
+            "point_margin_moments": {
+              "cluster_ci95": {
+                "high": 7.472121442036325,
+                "low": 6.807753557963675
+              },
+              "clusters": 8000,
+              "denominator": 16000,
+              "denominator_sq": 32000,
+              "estimate": 7.1399375,
+              "numerator": 114239,
+              "numerator_denominator": 228478,
+              "numerator_sq": 8983747
+            },
+            "primary_p_value": 9.571462571720002e-8,
+            "primary_p_value_decimal": "9.571462571720019e-8",
+            "primary_test": "exact_sweep_sign",
+            "rate_difference": 0.037162162162162,
+            "sweeps": [
+              1723,
+              1423
+            ]
+          },
+          "decisive": 15984,
+          "elapsed_seconds": 648.228460605,
+          "failures": 0,
+          "players": [
+            {
+              "finishes": {
+                "big_gin": 0,
+                "gin": 1542,
+                "knock": 3392,
+                "undercut": 3355
+              },
+              "point_rate_moments": {
+                "cluster_ci95": {
+                  "high": 15.125769281247477,
+                  "low": 14.647980718752525
+                },
+                "clusters": 8000,
+                "denominator": 16000,
+                "denominator_sq": 32000,
+                "estimate": 14.886875,
+                "numerator": 238190,
+                "numerator_denominator": 476380,
+                "numerator_sq": 10894448
+              },
+              "raw_points": 238190,
+              "seat": "p1",
+              "spec": "mc:512",
+              "win_ci95": {
+                "high": 0.525451492394825,
+                "low": 0.511710669767337,
+                "method": "pair_cluster_normal"
+              },
+              "win_rate": 0.518581081081081,
+              "win_rate_moments": {
+                "cluster_ci95": {
+                  "high": 0.525451492394825,
+                  "low": 0.511710669767337
+                },
+                "clusters": 8000,
+                "denominator": 15984,
+                "denominator_sq": 31952,
+                "estimate": 0.518581081081081,
+                "numerator": 8289,
+                "numerator_denominator": 16573,
+                "numerator_sq": 11735
+              },
+              "wins": 8289
+            },
+            {
+              "finishes": {
+                "big_gin": 0,
+                "gin": 222,
+                "knock": 7390,
+                "undercut": 83
+              },
+              "point_rate_moments": {
+                "cluster_ci95": {
+                  "high": 7.913983134488751,
+                  "low": 7.579891865511248
+                },
+                "clusters": 8000,
+                "denominator": 16000,
+                "denominator_sq": 32000,
+                "estimate": 7.7469375,
+                "numerator": 123951,
+                "numerator_denominator": 247902,
+                "numerator_sq": 3779757
+              },
+              "raw_points": 123951,
+              "seat": "p2",
+              "spec": "gold-paper",
+              "win_ci95": {
+                "high": 0.488289330232663,
+                "low": 0.474548507605175,
+                "method": "pair_cluster_normal"
+              },
+              "win_rate": 0.481418918918919,
+              "win_rate_moments": {
+                "cluster_ci95": {
+                  "high": 0.488289330232663,
+                  "low": 0.474548507605175
+                },
+                "clusters": 8000,
+                "denominator": 15984,
+                "denominator_sq": 31952,
+                "estimate": 0.4814189189189189,
+                "numerator": 7695,
+                "numerator_denominator": 15379,
+                "numerator_sq": 10541
+              },
+              "wins": 7695
+            }
+          ],
+          "plays": 16000,
+          "round_finishes": {
+            "big_gin": 0,
+            "dead": 16,
+            "gin": 1764,
+            "knock": 10782,
+            "undercut": 3438
+          },
+          "throughput_per_second": 24.682655841841616,
+          "trials": 8000
+        },
+        "reproducibility": {
+          "arch": "x86_64",
+          "cargo_lock_sha256": "a0037359bca064781c6673725500d84f538f17c71ccd73478c8f84321f6d06d6",
+          "cpu": "AMD Ryzen 7 8700F 8-Core Processor",
+          "git_dirty": true,
+          "git_head": "527087a6c142b89a7abd0a3abca006fe5456acfa",
+          "logical_threads": 16,
+          "os": "Linux 7.1.10-200.fc44.x86_64 #1 SMP PREEMPT_DYNAMIC Sun Aug 23 16:15:11 UTC 2026 x86_64 GNU/Linux",
+          "rustc_vv": "rustc 1.98.0 (88d9e12ae 2026-08-18) (Fedora 1.98.0-1.fc44)\nbinary: rustc\ncommit-hash: 88d9e12ae178fab0fb5cc050a94da85685d449ea\ncommit-date: 2026-08-18\nhost: x86_64-unknown-linux-gnu\nrelease: 1.98.0\nLLVM version: 22.1.8",
+          "source_file_count": 21,
+          "source_sha256": "73af79c4efa94be66f447c526462840480c22098aa36e32197616aa8936bb0e3"
+        },
+        "rules": {
+          "preset": "eaai",
+          "values": {
+            "big_gin_bonus": null,
+            "box_bonus": 0,
+            "game_bonus": 0,
+            "game_target": 100,
+            "gin_bonus": 25,
+            "immediate_boxes": false,
+            "knock_limit": 10,
+            "oklahoma": null,
+            "shutout": {
+              "bonus": 0,
+              "kind": "flat"
+            },
+            "undercut_bonus": 25,
+            "undercut_on_tie": true
+          }
+        },
+        "runs": [
+          {
+            "outcome": {
+              "comparison": {
+                "exact_sign_p_value": 2.3330466047555504e-6,
+                "exact_sign_p_value_decimal": "2.333046604755553e-6",
+                "infinite_z_direction": 0,
+                "normal_p_value": 2.4600577952800993e-6,
+                "normal_z": 4.711651597654406,
+                "paired_difference_sq_sum": 6233,
+                "paired_difference_sum": 371,
+                "point_margin_moments": {
+                  "cluster_ci95": {
+                    "high": 7.82454904011978,
+                    "low": 6.89445095988022
+                  },
+                  "clusters": 4000,
+                  "denominator": 8000,
+                  "denominator_sq": 16000,
+                  "estimate": 7.3595,
+                  "numerator": 58876,
+                  "numerator_denominator": 117752,
+                  "numerator_sq": 4468704
+                },
+                "primary_p_value": 2.3330466047555504e-6,
+                "primary_p_value_decimal": "2.333046604755553e-6",
+                "primary_test": "exact_sweep_sign",
+                "rate_difference": 0.046450482033304,
+                "sweeps": [
+                  871,
+                  684
+                ]
+              },
+              "decisive": 7987,
+              "elapsed_seconds": 324.026392323,
+              "failures": 0,
+              "players": [
+                {
+                  "finishes": {
+                    "big_gin": 0,
+                    "gin": 783,
+                    "knock": 1695,
+                    "undercut": 1701
+                  },
+                  "point_rate_moments": {
+                    "cluster_ci95": {
+                      "high": 15.436048150656204,
+                      "low": 14.767451849343797
+                    },
+                    "clusters": 4000,
+                    "denominator": 8000,
+                    "denominator_sq": 16000,
+                    "estimate": 15.10175,
+                    "numerator": 120814,
+                    "numerator_denominator": 241628,
+                    "numerator_sq": 5510352
+                  },
+                  "raw_points": 120814,
+                  "seat": "p1",
+                  "spec": "mc:512",
+                  "win_ci95": {
+                    "high": 0.532886426569842,
+                    "low": 0.513564055463462,
+                    "method": "pair_cluster_normal"
+                  },
+                  "win_rate": 0.523225241016652,
+                  "win_rate_moments": {
+                    "cluster_ci95": {
+                      "high": 0.532886426569842,
+                      "low": 0.513564055463462
+                    },
+                    "clusters": 4000,
+                    "denominator": 7987,
+                    "denominator_sq": 15961,
+                    "estimate": 0.523225241016652,
+                    "numerator": 4179,
+                    "numerator_denominator": 8353,
+                    "numerator_sq": 5921
+                  },
+                  "wins": 4179
+                },
+                {
+                  "finishes": {
+                    "big_gin": 0,
+                    "gin": 112,
+                    "knock": 3662,
+                    "undercut": 34
+                  },
+                  "point_rate_moments": {
+                    "cluster_ci95": {
+                      "high": 7.976989732899067,
+                      "low": 7.507510267100933
+                    },
+                    "clusters": 4000,
+                    "denominator": 8000,
+                    "denominator_sq": 16000,
+                    "estimate": 7.74225,
+                    "numerator": 61938,
+                    "numerator_denominator": 123876,
+                    "numerator_sq": 1876846
+                  },
+                  "raw_points": 61938,
+                  "seat": "p2",
+                  "spec": "gold-paper",
+                  "win_ci95": {
+                    "high": 0.486435944536538,
+                    "low": 0.467113573430158,
+                    "method": "pair_cluster_normal"
+                  },
+                  "win_rate": 0.476774758983348,
+                  "win_rate_moments": {
+                    "cluster_ci95": {
+                      "high": 0.486435944536538,
+                      "low": 0.467113573430158
+                    },
+                    "clusters": 4000,
+                    "denominator": 7987,
+                    "denominator_sq": 15961,
+                    "estimate": 0.4767747589833479,
+                    "numerator": 3808,
+                    "numerator_denominator": 7608,
+                    "numerator_sq": 5176
+                  },
+                  "wins": 3808
+                }
+              ],
+              "plays": 8000,
+              "round_finishes": {
+                "big_gin": 0,
+                "dead": 13,
+                "gin": 895,
+                "knock": 5357,
+                "undercut": 1735
+              },
+              "throughput_per_second": 24.689346885130707,
+              "trials": 4000
+            },
+            "seed": 7
+          },
+          {
+            "outcome": {
+              "comparison": {
+                "exact_sign_p_value": 0.004970758954693758,
+                "exact_sign_p_value_decimal": "4.970758954693761e-3",
+                "infinite_z_direction": 0,
+                "normal_p_value": 0.005156521740276717,
+                "normal_z": 2.797097224324936,
+                "paired_difference_sq_sum": 6367,
+                "paired_difference_sum": 223,
+                "point_margin_moments": {
+                  "cluster_ci95": {
+                    "high": 7.394797429976134,
+                    "low": 6.445952570023866
+                  },
+                  "clusters": 4000,
+                  "denominator": 8000,
+                  "denominator_sq": 16000,
+                  "estimate": 6.920375,
+                  "numerator": 55363,
+                  "numerator_denominator": 110726,
+                  "numerator_sq": 4515043
+                },
+                "primary_p_value": 0.004970758954693758,
+                "primary_p_value_decimal": "4.970758954693761e-3",
+                "primary_test": "exact_sweep_sign",
+                "rate_difference": 0.027885457046392,
+                "sweeps": [
+                  852,
+                  739
+                ]
+              },
+              "decisive": 7997,
+              "elapsed_seconds": 324.202065242,
+              "failures": 0,
+              "players": [
+                {
+                  "finishes": {
+                    "big_gin": 0,
+                    "gin": 759,
+                    "knock": 1697,
+                    "undercut": 1654
+                  },
+                  "point_rate_moments": {
+                    "cluster_ci95": {
+                      "high": 15.013271873070778,
+                      "low": 14.330728126929223
+                    },
+                    "clusters": 4000,
+                    "denominator": 8000,
+                    "denominator_sq": 16000,
+                    "estimate": 14.672,
+                    "numerator": 117376,
+                    "numerator_denominator": 234752,
+                    "numerator_sq": 5384096
+                  },
+                  "raw_points": 117376,
+                  "seat": "p1",
+                  "spec": "mc:512",
+                  "win_ci95": {
+                    "high": 0.523712633143409,
+                    "low": 0.504172823902983,
+                    "method": "pair_cluster_normal"
+                  },
+                  "win_rate": 0.513942728523196,
+                  "win_rate_moments": {
+                    "cluster_ci95": {
+                      "high": 0.523712633143409,
+                      "low": 0.504172823902983
+                    },
+                    "clusters": 4000,
+                    "denominator": 7997,
+                    "denominator_sq": 15991,
+                    "estimate": 0.5139427285231962,
+                    "numerator": 4110,
+                    "numerator_denominator": 8220,
+                    "numerator_sq": 5814
+                  },
+                  "wins": 4110
+                },
+                {
+                  "finishes": {
+                    "big_gin": 0,
+                    "gin": 110,
+                    "knock": 3728,
+                    "undercut": 49
+                  },
+                  "point_rate_moments": {
+                    "cluster_ci95": {
+                      "high": 7.989381487189611,
+                      "low": 7.513868512810388
+                    },
+                    "clusters": 4000,
+                    "denominator": 8000,
+                    "denominator_sq": 16000,
+                    "estimate": 7.751625,
+                    "numerator": 62013,
+                    "numerator_denominator": 124026,
+                    "numerator_sq": 1902911
+                  },
+                  "raw_points": 62013,
+                  "seat": "p2",
+                  "spec": "gold-paper",
+                  "win_ci95": {
+                    "high": 0.495827176097017,
+                    "low": 0.476287366856591,
+                    "method": "pair_cluster_normal"
+                  },
+                  "win_rate": 0.486057271476804,
+                  "win_rate_moments": {
+                    "cluster_ci95": {
+                      "high": 0.495827176097017,
+                      "low": 0.476287366856591
+                    },
+                    "clusters": 4000,
+                    "denominator": 7997,
+                    "denominator_sq": 15991,
+                    "estimate": 0.4860572714768038,
+                    "numerator": 3887,
+                    "numerator_denominator": 7771,
+                    "numerator_sq": 5365
+                  },
+                  "wins": 3887
+                }
+              ],
+              "plays": 8000,
+              "round_finishes": {
+                "big_gin": 0,
+                "dead": 3,
+                "gin": 869,
+                "knock": 5425,
+                "undercut": 1703
+              },
+              "throughput_per_second": 24.67596865562351,
+              "trials": 4000
+            },
+            "seed": 8
+          }
+        ],
+        "schema": "gin-rummy-arena/v1",
+        "seeds": [
+          7,
+          8
+        ]
+      }
+    },
+    {
+      "candidate": "mc:512",
+      "games": {
+        "bots": {
+          "p1": {
+            "configuration": {
+              "game_value": "table",
+              "gate_z": 2.0,
+              "hand_calibration": false,
+              "kind": "MonteCarloBot",
+              "max_candidates": 4,
+              "opponent_model": "eager",
+              "opponent_strength_percent": 200,
+              "rollout_knock_opponent": 255,
+              "rollout_knock_self": 0,
+              "samples": 512
+            },
+            "spec": "mc:512"
+          },
+          "p2": {
+            "configuration": {
+              "canonical_card_order": "C_H_S_D_then_rank",
+              "canonical_meld_order": "meld_bitset",
+              "discount": 0.9,
+              "future_cards": 7,
+              "initial_future_weight": 18,
+              "kind": "MarjjV5Surrogate",
+              "tie_rng": "arena_seeded_StdRng"
+            },
+            "spec": "marjj-v5-surrogate"
+          }
+        },
+        "count_per_seed": 3000,
+        "dealer_rotation": "alternate_after_scored_round",
+        "failures": 0,
+        "mode": "games",
+        "paired": true,
+        "points_metric": "raw_game_score",
+        "pooled": {
+          "comparison": {
+            "exact_sign_p_value": 4.613381741768218e-17,
+            "exact_sign_p_value_decimal": "4.613381741768222e-17",
+            "infinite_z_direction": 0,
+            "normal_p_value": 3.049230004669479e-17,
+            "normal_z": 8.446075169842528,
+            "paired_difference_sq_sum": 10392,
+            "paired_difference_sum": 856,
+            "point_margin_moments": {
+              "cluster_ci95": {
+                "high": 4.984559489455942,
+                "low": 2.622607177210726
+              },
+              "clusters": 6000,
+              "denominator": 12000,
+              "denominator_sq": 24000,
+              "estimate": 3.8035833333333335,
+              "numerator": 45643,
+              "numerator_denominator": 91286,
+              "numerator_sq": 52618143
+            },
+            "primary_p_value": 4.613381741768218e-17,
+            "primary_p_value_decimal": "4.613381741768222e-17",
+            "primary_test": "exact_sweep_sign",
+            "rate_difference": 0.071333333333333,
+            "sweeps": [
+              1513,
+              1085
+            ]
+          },
+          "decisive": 12000,
+          "elapsed_seconds": 3434.711753846,
+          "failures": 0,
+          "players": [
+            {
+              "finishes": {
+                "big_gin": 0,
+                "gin": 21178,
+                "knock": 15872,
+                "undercut": 99
+              },
+              "point_rate_moments": {
+                "cluster_ci95": {
+                  "high": 84.41795449691419,
+                  "low": 83.15487883641913
+                },
+                "clusters": 6000,
+                "denominator": 12000,
+                "denominator_sq": 24000,
+                "estimate": 83.78641666666667,
+                "numerator": 1005437,
+                "numerator_denominator": 2010874,
+                "numerator_sq": 183431707
+              },
+              "raw_points": 1005437,
+              "seat": "p1",
+              "spec": "mc:512",
+              "win_ci95": {
+                "high": 0.543943489363708,
+                "low": 0.527389843969626,
+                "method": "pair_cluster_normal"
+              },
+              "win_rate": 0.535666666666667,
+              "win_rate_moments": {
+                "cluster_ci95": {
+                  "high": 0.543943489363708,
+                  "low": 0.527389843969626
+                },
+                "clusters": 6000,
+                "denominator": 12000,
+                "denominator_sq": 24000,
+                "estimate": 0.5356666666666666,
+                "numerator": 6428,
+                "numerator_denominator": 12856,
+                "numerator_sq": 9454
+              },
+              "wins": 6428
+            },
+            {
+              "finishes": {
+                "big_gin": 0,
+                "gin": 18737,
+                "knock": 5940,
+                "undercut": 4915
+              },
+              "point_rate_moments": {
+                "cluster_ci95": {
+                  "high": 80.67878784773798,
+                  "low": 79.28687881892868
+                },
+                "clusters": 6000,
+                "denominator": 12000,
+                "denominator_sq": 24000,
+                "estimate": 79.98283333333333,
+                "numerator": 959794,
+                "numerator_denominator": 1919588,
+                "numerator_sq": 171686722
+              },
+              "raw_points": 959794,
+              "seat": "p2",
+              "spec": "marjj-v5-surrogate",
+              "win_ci95": {
+                "high": 0.472610156030374,
+                "low": 0.456056510636292,
+                "method": "pair_cluster_normal"
+              },
+              "win_rate": 0.464333333333333,
+              "win_rate_moments": {
+                "cluster_ci95": {
+                  "high": 0.472610156030374,
+                  "low": 0.456056510636292
+                },
+                "clusters": 6000,
+                "denominator": 12000,
+                "denominator_sq": 24000,
+                "estimate": 0.4643333333333333,
+                "numerator": 5572,
+                "numerator_denominator": 11144,
+                "numerator_sq": 7742
+              },
+              "wins": 5572
+            }
+          ],
+          "plays": 12000,
+          "round_finishes": {
+            "big_gin": 0,
+            "dead": 2744,
+            "gin": 39915,
+            "knock": 21812,
+            "undercut": 5014
+          },
+          "throughput_per_second": 3.493742957196645,
+          "trials": 6000
+        },
+        "reproducibility": {
+          "arch": "x86_64",
+          "cargo_lock_sha256": "a0037359bca064781c6673725500d84f538f17c71ccd73478c8f84321f6d06d6",
+          "cpu": "AMD Ryzen 7 8700F 8-Core Processor",
+          "git_dirty": true,
+          "git_head": "527087a6c142b89a7abd0a3abca006fe5456acfa",
+          "logical_threads": 16,
+          "os": "Linux 7.1.10-200.fc44.x86_64 #1 SMP PREEMPT_DYNAMIC Sun Aug 23 16:15:11 UTC 2026 x86_64 GNU/Linux",
+          "rustc_vv": "rustc 1.98.0 (88d9e12ae 2026-08-18) (Fedora 1.98.0-1.fc44)\nbinary: rustc\ncommit-hash: 88d9e12ae178fab0fb5cc050a94da85685d449ea\ncommit-date: 2026-08-18\nhost: x86_64-unknown-linux-gnu\nrelease: 1.98.0\nLLVM version: 22.1.8",
+          "source_file_count": 21,
+          "source_sha256": "73af79c4efa94be66f447c526462840480c22098aa36e32197616aa8936bb0e3"
+        },
+        "rules": {
+          "preset": "eaai",
+          "values": {
+            "big_gin_bonus": null,
+            "box_bonus": 0,
+            "game_bonus": 0,
+            "game_target": 100,
+            "gin_bonus": 25,
+            "immediate_boxes": false,
+            "knock_limit": 10,
+            "oklahoma": null,
+            "shutout": {
+              "bonus": 0,
+              "kind": "flat"
+            },
+            "undercut_bonus": 25,
+            "undercut_on_tie": true
+          }
+        },
+        "runs": [
+          {
+            "outcome": {
+              "comparison": {
+                "exact_sign_p_value": 7.259305277364291e-12,
+                "exact_sign_p_value_decimal": "7.259305277364311e-12",
+                "infinite_z_direction": 0,
+                "normal_p_value": 4.769841161413539e-12,
+                "normal_z": 6.913140185110545,
+                "paired_difference_sq_sum": 5144,
+                "paired_difference_sum": 492,
+                "point_margin_moments": {
+                  "cluster_ci95": {
+                    "high": 5.700965232520749,
+                    "low": 2.389368100812585
+                  },
+                  "clusters": 3000,
+                  "denominator": 6000,
+                  "denominator_sq": 12000,
+                  "estimate": 4.045166666666667,
+                  "numerator": 24271,
+                  "numerator_denominator": 48542,
+                  "numerator_sq": 25880237
+                },
+                "primary_p_value": 7.259305277364291e-12,
+                "primary_p_value_decimal": "7.259305277364311e-12",
+                "primary_test": "exact_sweep_sign",
+                "rate_difference": 0.082,
+                "sweeps": [
+                  766,
+                  520
+                ]
+              },
+              "decisive": 6000,
+              "elapsed_seconds": 1703.22076775,
+              "failures": 0,
+              "players": [
+                {
+                  "finishes": {
+                    "big_gin": 0,
+                    "gin": 10599,
+                    "knock": 7927,
+                    "undercut": 55
+                  },
+                  "point_rate_moments": {
+                    "cluster_ci95": {
+                      "high": 84.72013901820985,
+                      "low": 82.92152764845682
+                    },
+                    "clusters": 3000,
+                    "denominator": 6000,
+                    "denominator_sq": 12000,
+                    "estimate": 83.82083333333334,
+                    "numerator": 502925,
+                    "numerator_denominator": 1005850,
+                    "numerator_sq": 91887539
+                  },
+                  "raw_points": 502925,
+                  "seat": "p1",
+                  "spec": "mc:512",
+                  "win_ci95": {
+                    "high": 0.552624239903753,
+                    "low": 0.529375760096247,
+                    "method": "pair_cluster_normal"
+                  },
+                  "win_rate": 0.541,
+                  "win_rate_moments": {
+                    "cluster_ci95": {
+                      "high": 0.552624239903753,
+                      "low": 0.529375760096247
+                    },
+                    "clusters": 3000,
+                    "denominator": 6000,
+                    "denominator_sq": 12000,
+                    "estimate": 0.541,
+                    "numerator": 3246,
+                    "numerator_denominator": 6492,
+                    "numerator_sq": 4778
+                  },
+                  "wins": 3246
+                },
+                {
+                  "finishes": {
+                    "big_gin": 0,
+                    "gin": 9330,
+                    "knock": 3035,
+                    "undercut": 2427
+                  },
+                  "point_rate_moments": {
+                    "cluster_ci95": {
+                      "high": 80.75025744084655,
+                      "low": 78.80107589248676
+                    },
+                    "clusters": 3000,
+                    "denominator": 6000,
+                    "denominator_sq": 12000,
+                    "estimate": 79.77566666666667,
+                    "numerator": 478654,
+                    "numerator_denominator": 957308,
+                    "numerator_sq": 85267838
+                  },
+                  "raw_points": 478654,
+                  "seat": "p2",
+                  "spec": "marjj-v5-surrogate",
+                  "win_ci95": {
+                    "high": 0.470624239903753,
+                    "low": 0.447375760096247,
+                    "method": "pair_cluster_normal"
+                  },
+                  "win_rate": 0.459,
+                  "win_rate_moments": {
+                    "cluster_ci95": {
+                      "high": 0.470624239903753,
+                      "low": 0.447375760096247
+                    },
+                    "clusters": 3000,
+                    "denominator": 6000,
+                    "denominator_sq": 12000,
+                    "estimate": 0.459,
+                    "numerator": 2754,
+                    "numerator_denominator": 5508,
+                    "numerator_sq": 3794
+                  },
+                  "wins": 2754
+                }
+              ],
+              "plays": 6000,
+              "round_finishes": {
+                "big_gin": 0,
+                "dead": 1372,
+                "gin": 19929,
+                "knock": 10962,
+                "undercut": 2482
+              },
+              "throughput_per_second": 3.522737694142938,
+              "trials": 3000
+            },
+            "seed": 7
+          },
+          {
+            "outcome": {
+              "comparison": {
+                "exact_sign_p_value": 5.595277004764242e-7,
+                "exact_sign_p_value_decimal": "5.595277004764245e-7",
+                "infinite_z_direction": 0,
+                "normal_p_value": 4.5410309291775243e-7,
+                "normal_z": 5.045070554985836,
+                "paired_difference_sq_sum": 5248,
+                "paired_difference_sum": 364,
+                "point_margin_moments": {
+                  "cluster_ci95": {
+                    "high": 5.246615810113255,
+                    "low": 1.877384189886745
+                  },
+                  "clusters": 3000,
+                  "denominator": 6000,
+                  "denominator_sq": 12000,
+                  "estimate": 3.562,
+                  "numerator": 21372,
+                  "numerator_denominator": 42744,
+                  "numerator_sq": 26737906
+                },
+                "primary_p_value": 5.595277004764242e-7,
+                "primary_p_value_decimal": "5.595277004764245e-7",
+                "primary_test": "exact_sweep_sign",
+                "rate_difference": 0.060666666666667,
+                "sweeps": [
+                  747,
+                  565
+                ]
+              },
+              "decisive": 6000,
+              "elapsed_seconds": 1731.490981656,
+              "failures": 0,
+              "players": [
+                {
+                  "finishes": {
+                    "big_gin": 0,
+                    "gin": 10579,
+                    "knock": 7945,
+                    "undercut": 44
+                  },
+                  "point_rate_moments": {
+                    "cluster_ci95": {
+                      "high": 84.63905826002897,
+                      "low": 82.864941739971
+                    },
+                    "clusters": 3000,
+                    "denominator": 6000,
+                    "denominator_sq": 12000,
+                    "estimate": 83.752,
+                    "numerator": 502512,
+                    "numerator_denominator": 1005024,
+                    "numerator_sq": 91544168
+                  },
+                  "raw_points": 502512,
+                  "seat": "p1",
+                  "spec": "mc:512",
+                  "win_ci95": {
+                    "high": 0.54211777374608,
+                    "low": 0.518548892920587,
+                    "method": "pair_cluster_normal"
+                  },
+                  "win_rate": 0.530333333333333,
+                  "win_rate_moments": {
+                    "cluster_ci95": {
+                      "high": 0.54211777374608,
+                      "low": 0.518548892920587
+                    },
+                    "clusters": 3000,
+                    "denominator": 6000,
+                    "denominator_sq": 12000,
+                    "estimate": 0.5303333333333333,
+                    "numerator": 3182,
+                    "numerator_denominator": 6364,
+                    "numerator_sq": 4676
+                  },
+                  "wins": 3182
+                },
+                {
+                  "finishes": {
+                    "big_gin": 0,
+                    "gin": 9407,
+                    "knock": 2905,
+                    "undercut": 2488
+                  },
+                  "point_rate_moments": {
+                    "cluster_ci95": {
+                      "high": 81.1838795823658,
+                      "low": 79.19612041763419
+                    },
+                    "clusters": 3000,
+                    "denominator": 6000,
+                    "denominator_sq": 12000,
+                    "estimate": 80.19,
+                    "numerator": 481140,
+                    "numerator_denominator": 962280,
+                    "numerator_sq": 86418884
+                  },
+                  "raw_points": 481140,
+                  "seat": "p2",
+                  "spec": "marjj-v5-surrogate",
+                  "win_ci95": {
+                    "high": 0.481451107079413,
+                    "low": 0.45788222625392,
+                    "method": "pair_cluster_normal"
+                  },
+                  "win_rate": 0.469666666666667,
+                  "win_rate_moments": {
+                    "cluster_ci95": {
+                      "high": 0.481451107079413,
+                      "low": 0.45788222625392
+                    },
+                    "clusters": 3000,
+                    "denominator": 6000,
+                    "denominator_sq": 12000,
+                    "estimate": 0.4696666666666667,
+                    "numerator": 2818,
+                    "numerator_denominator": 5636,
+                    "numerator_sq": 3948
+                  },
+                  "wins": 2818
+                }
+              ],
+              "plays": 6000,
+              "round_finishes": {
+                "big_gin": 0,
+                "dead": 1372,
+                "gin": 19986,
+                "knock": 10850,
+                "undercut": 2532
+              },
+              "throughput_per_second": 3.4652216289694984,
+              "trials": 3000
+            },
+            "seed": 8
+          }
+        ],
+        "schema": "gin-rummy-arena/v1",
+        "seeds": [
+          7,
+          8
+        ]
+      },
+      "inference": {
+        "declaration": "candidate edge",
+        "declaration_suppressed": false,
+        "pooled_holm_adjusted_p_value": 9.226763483536453e-17,
+        "pooled_holm_adjusted_p_value_decimal": "9.226763483536462e-17",
+        "pooled_raw_exact_sign_p_value": 4.613381741768218e-17,
+        "pooled_raw_exact_sign_p_value_decimal": "4.613381741768222e-17",
+        "seed_directions": [
+          1,
+          1
+        ]
+      },
+      "opponent": "marjj-v5-surrogate",
+      "rounds": {
+        "bots": {
+          "p1": {
+            "configuration": {
+              "game_value": "table",
+              "gate_z": 2.0,
+              "hand_calibration": false,
+              "kind": "MonteCarloBot",
+              "max_candidates": 4,
+              "opponent_model": "eager",
+              "opponent_strength_percent": 200,
+              "rollout_knock_opponent": 255,
+              "rollout_knock_self": 0,
+              "samples": 512
+            },
+            "spec": "mc:512"
+          },
+          "p2": {
+            "configuration": {
+              "canonical_card_order": "C_H_S_D_then_rank",
+              "canonical_meld_order": "meld_bitset",
+              "discount": 0.9,
+              "future_cards": 7,
+              "initial_future_weight": 18,
+              "kind": "MarjjV5Surrogate",
+              "tie_rng": "arena_seeded_StdRng"
+            },
+            "spec": "marjj-v5-surrogate"
+          }
+        },
+        "count_per_seed": 4000,
+        "dealer_rotation": "alternate_after_scored_round",
+        "failures": 0,
+        "mode": "rounds",
+        "paired": true,
+        "points_metric": "round_points",
+        "pooled": {
+          "comparison": {
+            "exact_sign_p_value": 8.828383762251219e-41,
+            "exact_sign_p_value_decimal": "8.828383762251274e-41",
+            "infinite_z_direction": 0,
+            "normal_p_value": 7.080914469971044e-44,
+            "normal_z": 13.89500191718044,
+            "paired_difference_sq_sum": 12957,
+            "paired_difference_sum": 1563,
+            "point_margin_moments": {
+              "cluster_ci95": {
+                "high": 1.459354315530464,
+                "low": 0.590895684469536
+              },
+              "clusters": 8000,
+              "denominator": 16000,
+              "denominator_sq": 32000,
+              "estimate": 1.025125,
+              "numerator": 16402,
+              "numerator_denominator": 32804,
+              "numerator_sq": 12597162
+            },
+            "primary_p_value": 8.828383762251219e-41,
+            "primary_p_value_decimal": "8.828383762251274e-41",
+            "primary_test": "exact_sweep_sign",
+            "rate_difference": 0.102176897430869,
+            "sweeps": [
+              1912,
+              1172
+            ]
+          },
+          "decisive": 15297,
+          "elapsed_seconds": 817.008733859,
+          "failures": 0,
+          "players": [
+            {
+              "finishes": {
+                "big_gin": 0,
+                "gin": 5439,
+                "knock": 2967,
+                "undercut": 24
+              },
+              "point_rate_moments": {
+                "cluster_ci95": {
+                  "high": 15.207574878051997,
+                  "low": 14.721425121948004
+                },
+                "clusters": 8000,
+                "denominator": 16000,
+                "denominator_sq": 32000,
+                "estimate": 14.9645,
+                "numerator": 239432,
+                "numerator_denominator": 478864,
+                "numerator_sq": 11102854
+              },
+              "raw_points": 239432,
+              "seat": "p1",
+              "spec": "mc:512",
+              "win_ci95": {
+                "high": 0.558293866001026,
+                "low": 0.543883031429843,
+                "method": "pair_cluster_normal"
+              },
+              "win_rate": 0.551088448715434,
+              "win_rate_moments": {
+                "cluster_ci95": {
+                  "high": 0.558293866001026,
+                  "low": 0.543883031429843
+                },
+                "clusters": 8000,
+                "denominator": 15297,
+                "denominator_sq": 29973,
+                "estimate": 0.5510884487154344,
+                "numerator": 8430,
+                "numerator_denominator": 16508,
+                "numerator_sq": 12254
+              },
+              "wins": 8430
+            },
+            {
+              "finishes": {
+                "big_gin": 0,
+                "gin": 4715,
+                "knock": 1344,
+                "undercut": 808
+              },
+              "point_rate_moments": {
+                "cluster_ci95": {
+                  "high": 14.18724024650498,
+                  "low": 13.69150975349502
+                },
+                "clusters": 8000,
+                "denominator": 16000,
+                "denominator_sq": 32000,
+                "estimate": 13.939375,
+                "numerator": 223030,
+                "numerator_denominator": 446060,
+                "numerator_sq": 10311392
+              },
+              "raw_points": 223030,
+              "seat": "p2",
+              "spec": "marjj-v5-surrogate",
+              "win_ci95": {
+                "high": 0.456116968570157,
+                "low": 0.441706133998974,
+                "method": "pair_cluster_normal"
+              },
+              "win_rate": 0.448911551284566,
+              "win_rate_moments": {
+                "cluster_ci95": {
+                  "high": 0.456116968570157,
+                  "low": 0.441706133998974
+                },
+                "clusters": 8000,
+                "denominator": 15297,
+                "denominator_sq": 29973,
+                "estimate": 0.4489115512845656,
+                "numerator": 6867,
+                "numerator_denominator": 13465,
+                "numerator_sq": 9211
+              },
+              "wins": 6867
+            }
+          ],
+          "plays": 16000,
+          "round_finishes": {
+            "big_gin": 0,
+            "dead": 703,
+            "gin": 10154,
+            "knock": 4311,
+            "undercut": 832
+          },
+          "throughput_per_second": 19.583633977114,
+          "trials": 8000
+        },
+        "reproducibility": {
+          "arch": "x86_64",
+          "cargo_lock_sha256": "a0037359bca064781c6673725500d84f538f17c71ccd73478c8f84321f6d06d6",
+          "cpu": "AMD Ryzen 7 8700F 8-Core Processor",
+          "git_dirty": true,
+          "git_head": "527087a6c142b89a7abd0a3abca006fe5456acfa",
+          "logical_threads": 16,
+          "os": "Linux 7.1.10-200.fc44.x86_64 #1 SMP PREEMPT_DYNAMIC Sun Aug 23 16:15:11 UTC 2026 x86_64 GNU/Linux",
+          "rustc_vv": "rustc 1.98.0 (88d9e12ae 2026-08-18) (Fedora 1.98.0-1.fc44)\nbinary: rustc\ncommit-hash: 88d9e12ae178fab0fb5cc050a94da85685d449ea\ncommit-date: 2026-08-18\nhost: x86_64-unknown-linux-gnu\nrelease: 1.98.0\nLLVM version: 22.1.8",
+          "source_file_count": 21,
+          "source_sha256": "73af79c4efa94be66f447c526462840480c22098aa36e32197616aa8936bb0e3"
+        },
+        "rules": {
+          "preset": "eaai",
+          "values": {
+            "big_gin_bonus": null,
+            "box_bonus": 0,
+            "game_bonus": 0,
+            "game_target": 100,
+            "gin_bonus": 25,
+            "immediate_boxes": false,
+            "knock_limit": 10,
+            "oklahoma": null,
+            "shutout": {
+              "bonus": 0,
+              "kind": "flat"
+            },
+            "undercut_bonus": 25,
+            "undercut_on_tie": true
+          }
+        },
+        "runs": [
+          {
+            "outcome": {
+              "comparison": {
+                "exact_sign_p_value": 1.944709685458077e-21,
+                "exact_sign_p_value_decimal": "1.944709685458088e-21",
+                "infinite_z_direction": 0,
+                "normal_p_value": 7.634656220340853e-22,
+                "normal_z": 9.606553270624998,
+                "paired_difference_sq_sum": 6368,
+                "paired_difference_sum": 758,
+                "point_margin_moments": {
+                  "cluster_ci95": {
+                    "high": 1.522768984338846,
+                    "low": 0.304981015661154
+                  },
+                  "clusters": 4000,
+                  "denominator": 8000,
+                  "denominator_sq": 16000,
+                  "estimate": 0.913875,
+                  "numerator": 7311,
+                  "numerator_denominator": 14622,
+                  "numerator_sq": 6188443
+                },
+                "primary_p_value": 1.944709685458077e-21,
+                "primary_p_value_decimal": "1.944709685458088e-21",
+                "primary_test": "exact_sweep_sign",
+                "rate_difference": 0.09924063891071,
+                "sweeps": [
+                  941,
+                  572
+                ]
+              },
+              "decisive": 7638,
+              "elapsed_seconds": 412.036680321,
+              "failures": 0,
+              "players": [
+                {
+                  "finishes": {
+                    "big_gin": 0,
+                    "gin": 2679,
+                    "knock": 1508,
+                    "undercut": 11
+                  },
+                  "point_rate_moments": {
+                    "cluster_ci95": {
+                      "high": 15.252005100251983,
+                      "low": 14.569244899748014
+                    },
+                    "clusters": 4000,
+                    "denominator": 8000,
+                    "denominator_sq": 16000,
+                    "estimate": 14.910625,
+                    "numerator": 119285,
+                    "numerator_denominator": 238570,
+                    "numerator_sq": 5498273
+                  },
+                  "raw_points": 119285,
+                  "seat": "p1",
+                  "spec": "mc:512",
+                  "win_ci95": {
+                    "high": 0.559739383481845,
+                    "low": 0.539501255428865,
+                    "method": "pair_cluster_normal"
+                  },
+                  "win_rate": 0.549620319455355,
+                  "win_rate_moments": {
+                    "cluster_ci95": {
+                      "high": 0.559739383481845,
+                      "low": 0.539501255428865
+                    },
+                    "clusters": 4000,
+                    "denominator": 7638,
+                    "denominator_sq": 14960,
+                    "estimate": 0.5496203194553548,
+                    "numerator": 4198,
+                    "numerator_denominator": 8228,
+                    "numerator_sq": 6080
+                  },
+                  "wins": 4198
+                },
+                {
+                  "finishes": {
+                    "big_gin": 0,
+                    "gin": 2384,
+                    "knock": 671,
+                    "undercut": 385
+                  },
+                  "point_rate_moments": {
+                    "cluster_ci95": {
+                      "high": 14.344873238815117,
+                      "low": 13.648626761184886
+                    },
+                    "clusters": 4000,
+                    "denominator": 8000,
+                    "denominator_sq": 16000,
+                    "estimate": 13.99675,
+                    "numerator": 111974,
+                    "numerator_denominator": 223948,
+                    "numerator_sq": 5153028
+                  },
+                  "raw_points": 111974,
+                  "seat": "p2",
+                  "spec": "marjj-v5-surrogate",
+                  "win_ci95": {
+                    "high": 0.460498744571135,
+                    "low": 0.440260616518155,
+                    "method": "pair_cluster_normal"
+                  },
+                  "win_rate": 0.450379680544645,
+                  "win_rate_moments": {
+                    "cluster_ci95": {
+                      "high": 0.460498744571135,
+                      "low": 0.440260616518155
+                    },
+                    "clusters": 4000,
+                    "denominator": 7638,
+                    "denominator_sq": 14960,
+                    "estimate": 0.4503796805446452,
+                    "numerator": 3440,
+                    "numerator_denominator": 6732,
+                    "numerator_sq": 4584
+                  },
+                  "wins": 3440
+                }
+              ],
+              "plays": 8000,
+              "round_finishes": {
+                "big_gin": 0,
+                "dead": 362,
+                "gin": 5063,
+                "knock": 2179,
+                "undercut": 396
+              },
+              "throughput_per_second": 19.415747146024827,
+              "trials": 4000
+            },
+            "seed": 7
+          },
+          {
+            "outcome": {
+              "comparison": {
+                "exact_sign_p_value": 6.690763668596591e-21,
+                "exact_sign_p_value_decimal": "6.690763668596627e-21",
+                "infinite_z_direction": 0,
+                "normal_p_value": 1.0360799897918101e-23,
+                "normal_z": 10.0400909735744,
+                "paired_difference_sq_sum": 6589,
+                "paired_difference_sum": 805,
+                "point_margin_moments": {
+                  "cluster_ci95": {
+                    "high": 1.755680281730051,
+                    "low": 0.517069718269949
+                  },
+                  "clusters": 4000,
+                  "denominator": 8000,
+                  "denominator_sq": 16000,
+                  "estimate": 1.136375,
+                  "numerator": 9091,
+                  "numerator_denominator": 18182,
+                  "numerator_sq": 6408719
+                },
+                "primary_p_value": 6.690763668596591e-21,
+                "primary_p_value_decimal": "6.690763668596627e-21",
+                "primary_test": "exact_sweep_sign",
+                "rate_difference": 0.105105105105105,
+                "sweeps": [
+                  971,
+                  600
+                ]
+              },
+              "decisive": 7659,
+              "elapsed_seconds": 404.972045268,
+              "failures": 0,
+              "players": [
+                {
+                  "finishes": {
+                    "big_gin": 0,
+                    "gin": 2760,
+                    "knock": 1459,
+                    "undercut": 13
+                  },
+                  "point_rate_moments": {
+                    "cluster_ci95": {
+                      "high": 15.364532747351488,
+                      "low": 14.672217252648514
+                    },
+                    "clusters": 4000,
+                    "denominator": 8000,
+                    "denominator_sq": 16000,
+                    "estimate": 15.018375,
+                    "numerator": 120147,
+                    "numerator_denominator": 240294,
+                    "numerator_sq": 5604581
+                  },
+                  "raw_points": 120147,
+                  "seat": "p1",
+                  "spec": "mc:512",
+                  "win_ci95": {
+                    "high": 0.562813846379187,
+                    "low": 0.542291258725918,
+                    "method": "pair_cluster_normal"
+                  },
+                  "win_rate": 0.552552552552553,
+                  "win_rate_moments": {
+                    "cluster_ci95": {
+                      "high": 0.562813846379187,
+                      "low": 0.542291258725918
+                    },
+                    "clusters": 4000,
+                    "denominator": 7659,
+                    "denominator_sq": 15013,
+                    "estimate": 0.5525525525525525,
+                    "numerator": 4232,
+                    "numerator_denominator": 8280,
+                    "numerator_sq": 6174
+                  },
+                  "wins": 4232
+                },
+                {
+                  "finishes": {
+                    "big_gin": 0,
+                    "gin": 2331,
+                    "knock": 673,
+                    "undercut": 423
+                  },
+                  "point_rate_moments": {
+                    "cluster_ci95": {
+                      "high": 14.234963643912344,
+                      "low": 13.529036356087657
+                    },
+                    "clusters": 4000,
+                    "denominator": 8000,
+                    "denominator_sq": 16000,
+                    "estimate": 13.882,
+                    "numerator": 111056,
+                    "numerator_denominator": 222112,
+                    "numerator_sq": 5158364
+                  },
+                  "raw_points": 111056,
+                  "seat": "p2",
+                  "spec": "marjj-v5-surrogate",
+                  "win_ci95": {
+                    "high": 0.457708741274082,
+                    "low": 0.437186153620813,
+                    "method": "pair_cluster_normal"
+                  },
+                  "win_rate": 0.447447447447447,
+                  "win_rate_moments": {
+                    "cluster_ci95": {
+                      "high": 0.457708741274082,
+                      "low": 0.437186153620813
+                    },
+                    "clusters": 4000,
+                    "denominator": 7659,
+                    "denominator_sq": 15013,
+                    "estimate": 0.44744744744744747,
+                    "numerator": 3427,
+                    "numerator_denominator": 6733,
+                    "numerator_sq": 4627
+                  },
+                  "wins": 3427
+                }
+              ],
+              "plays": 8000,
+              "round_finishes": {
+                "big_gin": 0,
+                "dead": 341,
+                "gin": 5091,
+                "knock": 2132,
+                "undercut": 436
+              },
+              "throughput_per_second": 19.754449951491857,
               "trials": 4000
             },
             "seed": 8
@@ -5965,13 +7951,14 @@
     "candidates": [
       "greedy",
       "mc:64",
-      "mc:128"
+      "mc:128",
+      "mc:512"
     ],
     "dealer_rotation": "alternate_after_scored_round; dead hands retain dealer",
     "edge_rule": "both seed estimates have the same nonzero direction and pooled Holm-adjusted p < .05; otherwise inconclusive",
     "game_pairs_per_matchup_per_seed": 3000,
     "game_score": "raw target-reaching score; no deferred bonuses",
-    "multiplicity": "Holm adjustment over six pooled game-matchup p-values",
+    "multiplicity": "Holm adjustment over eight pooled game-matchup p-values",
     "opponents": [
       "gold-paper",
       "marjj-v5-surrogate"
@@ -5984,9 +7971,9 @@
       7,
       8
     ],
-    "total_game_pairs": 36000,
+    "total_game_pairs": 48000,
     "total_games": 72000,
-    "total_round_pairs": 48000,
+    "total_round_pairs": 64000,
     "total_rounds": 96000
   },
   "provenance": {
@@ -6011,7 +7998,7 @@
   },
   "report_generation": {
     "helper": "examples/strong_report.rs",
-    "helper_sha256": "107ef1b8b1628bb9c4735af79cd50641ef966321d249785e0a8d59e21a1076a5",
+    "helper_sha256": "098ca513f41f3489986476bd4b7a5bc7ba18f6f746c372f9085d658b8210df2e",
     "p_value_normalization": "Exact-sign numeric and scientific-decimal fields were recomputed solely from validated sweep counts in the embedded arena inputs; no rounds or games were rerun. All non-p-value sufficient statistics and measurement metadata are preserved from those inputs.",
     "statistics_helper": "examples/support/arena_stats.rs",
     "statistics_helper_sha256": "d840416b2fc375790bcbb248e86d40f23c5f7fc1bedab777036d1860bd06cdfa"
@@ -6020,18 +8007,18 @@
     "arch": "x86_64",
     "cargo_lock_sha256": "a0037359bca064781c6673725500d84f538f17c71ccd73478c8f84321f6d06d6",
     "cpu": "AMD Ryzen 7 8700F 8-Core Processor",
-    "git_dirty": false,
-    "git_head": "099c38e859009f72503e25b25bf685b538630e76",
+    "git_dirty": true,
+    "git_head": "527087a6c142b89a7abd0a3abca006fe5456acfa",
     "logical_threads": 16,
-    "os": "Linux 7.1.6-201.fc44.x86_64 #1 SMP PREEMPT_DYNAMIC Tue Aug  4 00:23:39 UTC 2026 x86_64 GNU/Linux",
-    "rustc_vv": "rustc 1.97.1 (8bab26f4f 2026-07-14) (Fedora 1.97.1-1.fc44)\nbinary: rustc\ncommit-hash: 8bab26f4f68e0e26f0bb7960be334d5b520ea452\ncommit-date: 2026-07-14\nhost: x86_64-unknown-linux-gnu\nrelease: 1.97.1\nLLVM version: 22.1.8",
+    "os": "Linux 7.1.10-200.fc44.x86_64 #1 SMP PREEMPT_DYNAMIC Sun Aug 23 16:15:11 UTC 2026 x86_64 GNU/Linux",
+    "rustc_vv": "rustc 1.98.0 (88d9e12ae 2026-08-18) (Fedora 1.98.0-1.fc44)\nbinary: rustc\ncommit-hash: 88d9e12ae178fab0fb5cc050a94da85685d449ea\ncommit-date: 2026-08-18\nhost: x86_64-unknown-linux-gnu\nrelease: 1.98.0\nLLVM version: 22.1.8",
     "source_file_count": 21,
-    "source_sha256": "fa84470015c06d6e3163d86e5a44cc3bec830eecaea4d4640a8d1b996b00fd72"
+    "source_sha256": "73af79c4efa94be66f447c526462840480c22098aa36e32197616aa8936bb0e3"
   },
   "schema": "gin-rummy-strong-opponents/v1",
-  "total_measured_runtime_seconds": 8285.653032099,
+  "total_measured_runtime_seconds": 12620.666707727001,
   "upstream_conformance": {
-    "arena_source_sha256": "fa84470015c06d6e3163d86e5a44cc3bec830eecaea4d4640a8d1b996b00fd72",
+    "arena_source_sha256": "73af79c4efa94be66f447c526462840480c22098aa36e32197616aa8936bb0e3",
     "native_conformance_source_sha256": "cf0cef54c7d90643a826468b27794085656cfad706f29cda019f2a2f20afc88a",
     "publication_eligible": true,
     "receipt": {

@@ -79,8 +79,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   fields, and source/environment reproducibility metadata.  Exact sign-test
   p-values are retained in log space and include a canonical decimal string;
   the numeric field is `null`, never a false zero, below `f64` range.  Bare
-  `mc` and `mca` now mean 128 samples; `mc:N` and `mca:N` remain explicit
-  overrides.
+  `mc` and `mca` now mean the library default of 512 samples; `mc:N` and
+  `mca:N` remain explicit overrides.
 - Benchmark-only strong-opponent adaptations and source-conformance checks
   cover the 2026 Gold Standard Agent paper policy (`gold-paper`) and a
   public MARJJ v5 host surrogate (`marjj-v5-surrogate`).  Gold's exactness
@@ -166,6 +166,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `MonteCarloBot` samples 512 worlds per decision by default, up from
+  128, and the arena's bare `mc` and `mca` follow the library default.
+  The single-solve shed below made a 512-sample decision cost what a
+  128-sample one did — a hard first discard at 56.0 versus 55.3 ms under
+  the same machine load, about 28 ms on an idle machine — so the budget
+  the retained sample-budget curve found decisive is now what ships.  In
+  the regenerated fixed panels the default wins 74.7% (73.8–75.5%) of
+  games against `EaaiSimpleBot`, 80.7% (80.1–81.4%) against
+  `gold-paper`, and 53.6% (52.7–54.4%) against `marjj-v5-surrogate`, a
+  candidate edge on both seeds with a Holm-adjusted exact p-value below
+  .001: the parity plan's stretch target, reached by the default
+  configuration rather than an analysis setting.  Every earlier panel row
+  reproduced exactly; `mc:128` moved from 69.2% to 69.0% only because its
+  game legs grew from 2000 to 3000 pairs per seed.  Both panels carry
+  four candidates now, so `scripts/bench-panel.sh` reads `GAME_PAIRS_512`
+  and `baseline_report` takes `--game-pairs-512` in place of the 128
+  spellings, and `strong_report` expects sixteen legs with Holm
+  correction over eight matchups.  The default-bot game tripwire realizes
+  741/1000 against the baseline, and its floor rises from 60.9% to 67.1%
+  so that a quiet fall back to 128-sample strength would trip it.
 - Every bot decides faster with identical results.  The shared greedy
   core used to solve the deadwood of each candidate discard separately,
   eleven solves per shed and twelve per draw decision, for both seats on

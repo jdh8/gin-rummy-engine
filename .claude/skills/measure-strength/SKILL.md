@@ -23,13 +23,14 @@ timing you observe in them is meaningless.
   Monte Carlo versus `eaai` games.  A floor catches a large accident; it
   is neither an estimator nor publication evidence.
 - The fixed corrected-EAAI panel reports decisive-round/game win shares of
-  39.4%/59.8% for `greedy`, 46.1%/65.4% for `mc:64`, and 47.1%/69.2%
-  for `mc:128` against `EaaiSimpleBot`.  Points/round are 8.92–8.29,
-  11.48–8.51, and 12.29–8.36; raw scores/game are 90.28–78.76,
-  92.52–70.67, and 94.93–66.87.  The game pair-cluster intervals are
-  59.0–60.6%, 64.6–66.2%, and 68.3–70.2%; exact pair-sweep p-values are
-  all below .001.  Head-to-head, `mc:64` beats `greedy` in 63.6%
-  (62.8–64.4%) of games, scoring 92.94–71.62, also p < .001.
+  39.4%/59.8% for `greedy`, 46.1%/65.4% for `mc:64`, 47.1%/69.0% for
+  `mc:128`, and 49.8%/74.7% for `mc:512`, the default, against
+  `EaaiSimpleBot`.  Points/round are 8.92–8.29, 11.48–8.51, 12.29–8.36,
+  and 14.30–8.18; raw scores/game are 90.28–78.76, 92.52–70.67,
+  94.80–66.92, and 98.40–61.01.  The game pair-cluster intervals are
+  59.0–60.6%, 64.6–66.2%, 68.2–69.7%, and 73.8–75.5%; exact pair-sweep
+  p-values are all below .001.  Head-to-head, `mc:64` beats `greedy` in
+  63.6% (62.8–64.4%) of games, scoring 92.94–71.62, also p < .001.
 
 Keep `tests/strength.rs`, the relevant `MonteCarloBot` docs, README, and the
 strong-opponent report synchronized after a new full measurement.
@@ -72,8 +73,9 @@ individual result.
    `--seeds 7,8` emits per-seed and pooled estimates in one run.
    `--format json` emits schema `gin-rummy-arena/v1`, including raw score,
    finish attribution, sufficient cluster moments, primary test fields,
-   and reproducibility metadata.  Bare `mc` and `mca` mean 128 samples;
-   spell out `mc:128` or `mca:128` in a published command.
+   and reproducibility metadata.  Bare `mc` and `mca` mean the library
+   default of 512 samples; spell out `mc:512` or `mca:512` in a published
+   command.
 
 3. To compare old versus new code, run the *same* command (same explicit
    `--seeds` and count) on both revisions and compare.  The shuffle stream
@@ -94,13 +96,13 @@ individual result.
    ```
 
    The checked-in README panel is the completed corrected-protocol run.  It
-   reports game win shares of 59.8% for `greedy`, 65.4% for `mc:64`, and
-   69.2% for `mc:128` against the baseline, plus 63.6% for `mc:64` against
-   `greedy`.  The script pins the bots, seeds and counts, so at an unchanged
+   reports game win shares of 59.8% for `greedy`, 65.4% for `mc:64`, 69.0%
+   for `mc:128`, and 74.7% for `mc:512` against the baseline, plus 63.6%
+   for `mc:64` against `greedy`.  The script pins the bots, seeds and counts, so at an unchanged
    commit it reprints the same table — a rerun that differs means the numbers
    moved, not that the measurement wandered.
    Shrink it for a dry run: `ROUND_PAIRS=20 GAME_PAIRS=20
-   GAME_PAIRS_128=20 scripts/bench-panel.sh`.
+   GAME_PAIRS_512=20 scripts/bench-panel.sh`.
 
 ## Strong-opponent panel
 
@@ -127,10 +129,11 @@ Keep commands, source identities, exclusions, JSON evidence, and results in
 evidence in
 [`docs/strong-opponents.json`](../../../docs/strong-opponents.json).  The
 completed fixed panel finds candidate game win shares against Gold of 62.2%
-(`greedy`), 69.5% (`mc:64`), and 74.5% (`mc:128`), all candidate edges.  The
-same candidates win 29.2%, 42.4%, and 46.7% against the MARJJ surrogate, all
-opponent edges.  Both seeds agree in direction and all six pooled
-Holm-adjusted exact p-values are below .001.  Upstream claims remain context,
+(`greedy`), 69.5% (`mc:64`), 74.5% (`mc:128`), and 80.7% (`mc:512`), all
+candidate edges.  The same candidates win 29.2%, 42.4%, 46.7%, and 53.6%
+against the MARJJ surrogate: opponent edges for the first three and a
+candidate edge for the `mc:512` default.  Both seeds agree in direction and
+all eight pooled Holm-adjusted exact p-values are below .001.  Upstream claims remain context,
 never substitutes for these host-engine measurements.
 
 ## Reading the numbers
@@ -175,10 +178,10 @@ board goes lopsided.  Its table is selected by both `Rules` and
 `DealerRotation`; a value function solved for winner-deals is not evidence
 for the EAAI protocol.  Historical pre-correction A/B measurements found the
 two value functions indistinguishable in rounds but separated in whole games.
-The corrected baseline panel now measures the current default at 47.1% of
-decisive rounds, 12.29 vs 8.36 points/round, and 69.2% (68.3–70.2%) of games
-against `EaaiSimpleBot`, but it does not re-estimate the causal lift over the
-affine arm.  Do not quote the former +2.1/+2.7-point lifts as current evidence.
+The corrected baseline panel now measures the current `mc:512` default at
+49.8% of decisive rounds, 14.30 vs 8.18 points/round, and 74.7%
+(73.8–75.5%) of games against `EaaiSimpleBot`, but it does not re-estimate
+the causal lift over the affine arm.  Do not quote the former +2.1/+2.7-point lifts as current evidence.
 The round tripwire and `arena --rounds` therefore neither catch a
 score-aware regression nor credit an improvement.
 

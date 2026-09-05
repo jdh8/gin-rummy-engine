@@ -8,13 +8,14 @@
 # EAAI rules and scored-hand-only dealer rotation.
 #
 # Full fixed panel:
-#   - greedy/mc:64: 4000 round pairs at seed 7, then 3000 game pairs at
-#     each of seeds 7 and 8;
-#   - mc:128: 4000 round pairs, then 2000 game pairs at each game seed;
+#   - greedy/mc:64/mc:128: 4000 round pairs at seed 7, then 3000 game
+#     pairs at each of seeds 7 and 8;
+#   - mc:512, the default: 4000 round pairs, then 2000 game pairs at each
+#     game seed;
 #   - mc:64 vs greedy: 3000 game pairs at each game seed.
 #
 # Shrink it for a smoke test without changing the panel shape:
-#   ROUND_PAIRS=20 GAME_PAIRS=20 GAME_PAIRS_128=20 scripts/bench-panel.sh
+#   ROUND_PAIRS=20 GAME_PAIRS=20 GAME_PAIRS_512=20 scripts/bench-panel.sh
 #
 # Never add --features parallel: in-decision parallelism would fight the
 # arena's trial-level fan-out for the same rayon pool.
@@ -23,7 +24,7 @@ cd "$(dirname "$0")/.."
 
 ROUND_PAIRS=${ROUND_PAIRS:-4000}
 GAME_PAIRS=${GAME_PAIRS:-3000}
-GAME_PAIRS_128=${GAME_PAIRS_128:-2000}
+GAME_PAIRS_512=${GAME_PAIRS_512:-2000}
 ROUND_SEED=${ROUND_SEED:-7}
 SEEDS=${SEEDS:-"7 8"}
 
@@ -67,12 +68,12 @@ arena_json() {
 }
 
 inputs=()
-for bot in greedy mc:64 mc:128; do
+for bot in greedy mc:64 mc:128 mc:512; do
     tag=${bot//:/-}
     rounds_path="$scratch/$tag-rounds.json"
     games_path="$scratch/$tag-games.json"
-    if [[ $bot == mc:128 ]]; then
-        game_pairs=$GAME_PAIRS_128
+    if [[ $bot == mc:512 ]]; then
+        game_pairs=$GAME_PAIRS_512
     else
         game_pairs=$GAME_PAIRS
     fi
@@ -102,7 +103,7 @@ echo "+ $report_bin ${inputs[*]}" >&2
     --stamp "$stamp" \
     --round-pairs "$ROUND_PAIRS" \
     --game-pairs "$GAME_PAIRS" \
-    --game-pairs-128 "$GAME_PAIRS_128" \
+    --game-pairs-512 "$GAME_PAIRS_512" \
     --round-seed "$ROUND_SEED" \
     --seeds "$seed_csv" \
     "${inputs[@]}"

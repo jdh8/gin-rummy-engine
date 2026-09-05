@@ -26,6 +26,21 @@ challenge winner but is not established as the championship binary; the
 target of this plan is the surrogate itself, which is the strongest
 opponent this engine can actually be measured against.
 
+**Status as of 2026-09-05: parity reached by the default.**  Pricing
+discards from one solved arrangement made every Monte Carlo decision
+about 3.9× cheaper with bit-identical play, so `mc:512` now costs what
+`mc:128` did (56.0 versus 55.3 ms for a hard decision under identical
+load) and ships as the default.  In the regenerated fixed panels it wins
+53.6% (52.7–54.4%) of games against MARJJ — 54.1% on seed 7 and 53.0% on
+seed 8, a candidate edge with Holm-adjusted p < .001 — clearing §1's
+stretch bar, and it clears both guards with room to spare at 74.7%
+against `EaaiSimpleBot` and 80.7% against `gold-paper`; the tripwire's
+default-bot floor rose to 67.1%.  The curve past 512 remains flat (55.1%
+at 1024 from the retained cache experiment), so any further gain needs
+rollout quality rather than budget (§8).  The separate question of
+whether `GameValue::Table` still earns its default is being re-tested at
+the new budget (§6).
+
 **Status as of 2026-08-18: sample budget closes the measured gap.**  At
 diagnostic counts, `mc:256` reached 51.2% against MARJJ with the lower
 confidence bound above 50%, cleared both guard opponents, and cost 1.99×

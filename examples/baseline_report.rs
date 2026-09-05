@@ -17,7 +17,7 @@ mod arena_stats;
 
 use arena_stats::{ExactPValue, exact_sign_p_value};
 
-const CANDIDATES: [&str; 3] = ["greedy", "mc:64", "mc:128"];
+const CANDIDATES: [&str; 4] = ["greedy", "mc:64", "mc:128", "mc:512"];
 
 #[derive(Debug)]
 struct Config {
@@ -25,7 +25,7 @@ struct Config {
     stamp: String,
     round_pairs: u64,
     game_pairs: u64,
-    game_pairs_128: u64,
+    game_pairs_512: u64,
     round_seed: u64,
     seeds: Vec<u64>,
 }
@@ -176,7 +176,7 @@ fn parse_args() -> Result<Config> {
     let mut stamp = None;
     let mut round_pairs = None;
     let mut game_pairs = None;
-    let mut game_pairs_128 = None;
+    let mut game_pairs_512 = None;
     let mut round_seed = None;
     let mut seeds = None;
     let mut args = std::env::args().skip(1);
@@ -189,7 +189,7 @@ fn parse_args() -> Result<Config> {
             "--stamp" => stamp = Some(value()?),
             "--round-pairs" => round_pairs = Some(value()?.parse()?),
             "--game-pairs" => game_pairs = Some(value()?.parse()?),
-            "--game-pairs-128" => game_pairs_128 = Some(value()?.parse()?),
+            "--game-pairs-512" => game_pairs_512 = Some(value()?.parse()?),
             "--round-seed" => round_seed = Some(value()?.parse()?),
             "--seeds" => seeds = Some(parse_seeds(&value()?)?),
             flag if flag.starts_with('-') => bail!("unknown flag {flag:?}"),
@@ -197,8 +197,8 @@ fn parse_args() -> Result<Config> {
         }
     }
     ensure!(
-        inputs.len() == 7,
-        "expected seven arena JSON legs, got {}",
+        inputs.len() == 9,
+        "expected nine arena JSON legs, got {}",
         inputs.len()
     );
     let config = Config {
@@ -206,15 +206,15 @@ fn parse_args() -> Result<Config> {
         stamp: stamp.context("--stamp is required")?,
         round_pairs: round_pairs.context("--round-pairs is required")?,
         game_pairs: game_pairs.context("--game-pairs is required")?,
-        game_pairs_128: game_pairs_128.context("--game-pairs-128 is required")?,
+        game_pairs_512: game_pairs_512.context("--game-pairs-512 is required")?,
         round_seed: round_seed.context("--round-seed is required")?,
         seeds: seeds.context("--seeds is required")?,
     };
     ensure!(config.round_pairs > 0, "--round-pairs must be positive");
     ensure!(config.game_pairs > 0, "--game-pairs must be positive");
     ensure!(
-        config.game_pairs_128 > 0,
-        "--game-pairs-128 must be positive"
+        config.game_pairs_512 > 0,
+        "--game-pairs-512 must be positive"
     );
     Ok(config)
 }
@@ -480,7 +480,7 @@ fn validate_document(document: &Value, config: &Config) -> Result<(LegKey, Outco
     let key = classify(document)?;
     let expected_pairs = match key.mode {
         Mode::Rounds => config.round_pairs,
-        Mode::Games if key.p1 == "mc:128" && key.p2 == "eaai" => config.game_pairs_128,
+        Mode::Games if key.p1 == "mc:512" && key.p2 == "eaai" => config.game_pairs_512,
         Mode::Games => config.game_pairs,
     };
     ensure!(u64_at(document, "/count_per_seed")? == expected_pairs);
@@ -609,11 +609,11 @@ fn render(config: &Config, panel: &Panel) -> Result<String> {
     let mut output = String::new();
     writeln!(
         output,
-        "<!-- scripts/bench-panel.sh at {}: ROUND_PAIRS={} GAME_PAIRS={} GAME_PAIRS_128={} ROUND_SEED={} SEEDS=\"{}\" -->\n",
+        "<!-- scripts/bench-panel.sh at {}: ROUND_PAIRS={} GAME_PAIRS={} GAME_PAIRS_512={} ROUND_SEED={} SEEDS=\"{}\" -->\n",
         config.stamp,
         config.round_pairs,
         config.game_pairs,
-        config.game_pairs_128,
+        config.game_pairs_512,
         config.round_seed,
         seeds,
     )?;
@@ -880,7 +880,7 @@ mod tests {
             stamp: "abc123-dirty".to_owned(),
             round_pairs: 2,
             game_pairs: 2,
-            game_pairs_128: 1,
+            game_pairs_512: 1,
             round_seed: 7,
             seeds: vec![7, 8],
         }
