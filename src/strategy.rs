@@ -13,6 +13,16 @@ use crate::{DrawAction, Layoff, TurnAction, UpcardAction, View};
 /// validates and applies them, rejecting illegal choices as
 /// [`EngineError::IllegalAction`].
 ///
+/// Ending the round is the strategies' job, not the driver's.  Nothing in
+/// the rules stops two players from passing the same discards back and
+/// forth forever, and a round only ends by a knock or when the stock runs
+/// out, so a strategy that keeps taking the discard in a position it has
+/// already seen can stall a round indefinitely.  Both stateful bots in
+/// this crate guard against that — `EaaiSimpleBot` never repeats a
+/// (drawn, discarded) pair and `MonteCarloBot` draws from the stock when
+/// a draw position recurs — and a new implementation that may face
+/// itself or another taker should do the same.
+///
 /// [`Table`]: crate::Table
 /// [`EngineError::IllegalAction`]: crate::EngineError::IllegalAction
 pub trait Strategy {

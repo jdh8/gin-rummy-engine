@@ -16,6 +16,11 @@ A strategy is four decisions against a `View` (`src/strategy.rs`):
 - `play_turn`: the hand holds 11 cards; `view.taken_discard()` may not be
   shed this turn.  Return `Discard`, `Knock` (the chosen melds fix what
   the defender may lay off), or `BigGin`.
+- Break discard exchanges: the driver never ends a round on its own, so
+  a bot that keeps taking the discard in a position it has already seen
+  stalls the round forever against another taker.  Remember the round's
+  draw positions and draw from the stock when one recurs, as
+  `MonteCarloBot` does (CLAUDE.md invariant 8).
 - `choose_layoff`: called repeatedly with a refreshed view until it
   returns `None`; meld indices follow `View::spread` enumeration order
   and are stable across layoffs.

@@ -128,6 +128,16 @@ Check these before merging any change; each names its guarding test.
    claim that every later dealer/deal pairing stays identical in a game;
    if one orientation has a dead hand where the other scores, their dealer
    sequences can diverge.
+8. **Termination is the strategies' job.**  The driver never ends a
+   round on its own, and nothing in the rules forbids two players from
+   passing the same discards back and forth forever.  Every stateful bot
+   breaks such exchanges — `EaaiSimpleBot` never repeats a (drawn,
+   discarded) pair; `MonteCarloBot` draws from the stock when a draw
+   position recurs within a round — and a new strategy that may face a
+   taker must too.  Guarded by
+   `a_repeated_draw_position_draws_from_stock` in `src/mc.rs`; the
+   18-of-2000 seed-7 `mc:512` vs `mca:512` game pairs that once hung the
+   arena are the regression case.
 
 ## The sibling crate
 

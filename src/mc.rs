@@ -235,6 +235,25 @@ impl Choice {
 pub struct MonteCarloBot<R: Rng> {
     rng: R,
     config: McConfig,
+    /// Every draw position seen this round, so a discard exchange that
+    /// returns the round to an earlier position cannot repeat forever
+    seen: Vec<DrawPosition>,
+}
+
+/// A draw decision's position: the hand, the pile in order, and the stock
+/// length
+///
+/// The stock only shrinks within a round, so two draw decisions at the
+/// same stock length face the same stock, and equal hand and pile mean
+/// the opponent holds the same cards too: the round has come back to
+/// exactly where it was.  Nothing but a stock draw can break the loop —
+/// two bots that both keep taking the pile just pass the same cards back
+/// and forth — so a repeated position draws from the stock.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct DrawPosition {
+    hand: Hand,
+    pile: Vec<Card>,
+    stock_len: usize,
 }
 
 /// One candidate action's Monte Carlo assessment, for a solver or hint view
@@ -275,7 +294,11 @@ impl<R: Rng> MonteCarloBot<R> {
     /// [`McConfig::default`] reproduces [`MonteCarloBot::new`] exactly.
     #[must_use]
     pub const fn with_config(rng: R, config: McConfig) -> Self {
-        Self { rng, config }
+        Self {
+            rng,
+            config,
+            seen: Vec::new(),
+        }
     }
 
     /// The bot's tuning knobs
@@ -910,6 +933,9 @@ fn round_points(result: RoundResult, me: Player, rules: &Rules) -> f64 {
 
 impl<R: Rng> Strategy for MonteCarloBot<R> {
     fn offer_upcard(&mut self, view: &View<'_>) -> UpcardAction {
+        // The upcard offer opens a round: forget the previous round's
+        // positions.
+        self.seen.clear();
         let candidates = self.hint_candidates(view);
         match self.choose(view, &candidates) {
             Choice::Upcard(action) => action,
@@ -924,6 +950,24 @@ impl<R: Rng> Strategy for MonteCarloBot<R> {
         if candidates.is_empty() {
             return DrawAction::Stock;
         }
+        let position = DrawPosition {
+            hand: view.hand(),
+            pile: view.discard_pile().to_vec(),
+            stock_len: view.stock_len(),
+        };
+        // A dealer whose opponent took the upcard never gets the offer, so
+        // a grown stock is the other sign of a new round.
+        if self
+            .seen
+            .last()
+            .is_some_and(|last| last.stock_len < position.stock_len)
+        {
+            self.seen.clear();
+        }
+        if self.seen.contains(&position) {
+            return DrawAction::Stock;
+        }
+        self.seen.push(position);
         match self.choose(view, &candidates) {
             Choice::Draw(action) => action,
             _ => unreachable!("the draw phase yields draw choices"),
@@ -1071,6 +1115,53 @@ mod tests {
         assert_eq!(opponent_strength(0), 1);
         assert_eq!(opponent_strength(12), 6);
         assert!(opponent_strength(24) > 6);
+    }
+
+    #[test]
+    fn a_repeated_draw_position_draws_from_stock() {
+        // Sets of tens and jacks with 3-4-5♠ and a loose 9♠: the fourth
+        // ten makes gin, so the bot takes it whenever it is offered.
+        let one: Hand = "TJ.TJ.TJ.3459".parse().expect("a legal hand");
+        let two: Hand = "A23.456.789.T".parse().expect("a legal hand");
+        let upcard: Card = "QS".parse().expect("a card");
+        let ten: Card = "TS".parse().expect("a card");
+        let stock: Vec<Card> = (Hand::ALL - one - two - upcard.into()).iter().collect();
+        let round = Round::from_deal(Rules::default(), Player::One, [one, two], upcard, stock)
+            .expect("a partitioned deck");
+        let mut table = Table::new(round);
+
+        // The non-dealer takes the upcard and sheds the ten, leaving the
+        // dealer a normal draw with the ten on top of the pile.
+        struct TakeThenShed(Card);
+        impl Strategy for TakeThenShed {
+            fn offer_upcard(&mut self, _: &View<'_>) -> UpcardAction {
+                UpcardAction::Take
+            }
+            fn choose_draw(&mut self, _: &View<'_>) -> DrawAction {
+                unreachable!("the upcard was taken")
+            }
+            fn play_turn(&mut self, _: &View<'_>) -> TurnAction {
+                TurnAction::Discard(self.0)
+            }
+            fn choose_layoff(&mut self, _: &View<'_>) -> Option<Layoff> {
+                None
+            }
+        }
+        let mut shedder = TakeThenShed(ten);
+        table.step(&mut shedder).expect("a legal take");
+        table.step(&mut shedder).expect("a legal discard");
+        assert_eq!(table.turn(), Some(Player::One));
+        assert_eq!(table.round().phase(), Phase::Draw);
+
+        let view = table.view(Player::One);
+        let mut bot = MonteCarloBot::new(StdRng::seed_from_u64(1)).samples(16);
+        assert_eq!(bot.choose_draw(&view), DrawAction::TakeDiscard);
+        // The same position offered again means the discards are cycling,
+        // and only a stock draw can end the round.
+        assert_eq!(bot.choose_draw(&view), DrawAction::Stock);
+        // The upcard offer opens a new round and forgets the old one.
+        bot.offer_upcard(&fixed_table().view(Player::Two));
+        assert_eq!(bot.choose_draw(&view), DrawAction::TakeDiscard);
     }
 
     #[test]

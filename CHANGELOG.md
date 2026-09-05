@@ -283,6 +283,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `MonteCarloBot` can no longer stall a round forever.  When two sampling
+  bots reached the last three stock cards, each preferred the discard its
+  opponent had just shed to the stock draw that would have killed the
+  hand, and the same three cards circulated indefinitely: 18 of 2000
+  seed-7 game pairs between `mc:512` and `mca:512` under the EAAI
+  protocol never finished, and the arena hung on them.  The bot now
+  remembers every draw position of the round — hand, discard pile, and
+  stock length — and draws from the stock when one recurs, the only move
+  that can end such an exchange; the memory clears at the upcard offer
+  or when the stock grows.  Play against every other strategy is
+  unchanged: the guard never fired in 100 mirrored game pairs against
+  each of `EaaiSimpleBot`, `gold-paper`, and `marjj-v5-surrogate`, whose
+  arena output is bit-identical to the previous commit's, so every
+  retained panel stands.  `Strategy`'s documentation and CLAUDE.md now
+  state that ending the round is the strategies' job.
 - The declared `serde_json` development-dependency floor now matches
   Criterion 0.8's requirement, so direct-minimal-version CI can resolve the
   dependency graph again.
