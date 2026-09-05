@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-06
+
 ### Added
 
 - A retained value-function comparison at the shipped 512-sample budget
@@ -578,7 +580,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Examples: `play` (human vs bot in the terminal) and `arena` (bot-vs-bot
   tournaments with win rates and result tallies).
 
-[Unreleased]: https://github.com/jdh8/gin-rummy-engine/compare/0.2.0...HEAD
+[Unreleased]: https://github.com/jdh8/gin-rummy-engine/compare/0.3.0...HEAD
+[0.3.0]: https://github.com/jdh8/gin-rummy-engine/compare/0.2.0...0.3.0
 [0.2.0]: https://github.com/jdh8/gin-rummy-engine/compare/0.1.3...0.2.0
 [0.1.3]: https://github.com/jdh8/gin-rummy-engine/compare/0.1.2...0.1.3
 [0.1.2]: https://github.com/jdh8/gin-rummy-engine/compare/0.1.1...0.1.2
