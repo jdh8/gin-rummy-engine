@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Web cards, faces and backs alike, are bridge-sized (2.25:3.5) instead of
+  poker-sized, the traditional deck for rummy games, so an 11-card hand
+  needs less width.  The fan overlap and face padding are retuned to match.
+
 ## [0.3.0] - 2026-09-06
 
 ### Added
