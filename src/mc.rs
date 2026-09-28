@@ -678,18 +678,28 @@ impl<R: Rng> MonteCarloBot<R> {
         let mut done = 0;
         while done < worlds.len() {
             let batch = &worlds[done..worlds.len().min(done + done.max(BATCH))];
+            #[cfg(feature = "parallel")]
+            let mut results = {
+                use rayon::prelude::*;
+                let active: Vec<usize> = std::iter::once(0).chain(alive.iter().copied()).collect();
+                // One indexed candidate × world product keeps every candidate's
+                // worlds contiguous and ordered, with one fork-join per batch.
+                (0..active.len() * batch.len())
+                    .into_par_iter()
+                    .map(|job| {
+                        eval(
+                            &candidates[active[job / batch.len()]],
+                            &batch[job % batch.len()],
+                        )
+                    })
+                    .collect::<Vec<_>>()
+                    .into_iter()
+            };
             for &i in std::iter::once(&0).chain(&alive) {
-                let candidate = &candidates[i];
                 #[cfg(feature = "parallel")]
-                let results: Vec<(f64, f64)> = {
-                    use rayon::prelude::*;
-                    batch
-                        .par_iter()
-                        .map(|world| eval(candidate, world))
-                        .collect()
-                };
+                let results = results.by_ref().take(batch.len());
                 #[cfg(not(feature = "parallel"))]
-                let results = batch.iter().map(|world| eval(candidate, world));
+                let results = batch.iter().map(|world| eval(&candidates[i], world));
 
                 // Reduced sequentially in world order in both builds, so a
                 // parallel bot makes bit-identical decisions to a serial one.
@@ -1853,9 +1863,9 @@ mod tests {
     #[test]
     fn elimination_matches_the_full_read() {
         // Batched scoring must pick what an unbatched run over the same
-        // worlds picks, spend strictly fewer rollouts doing it (the knock
-        // dominates every plain shed here), and leave survivors' equities
-        // bit-identical to the unbatched ones.
+        // worlds picks and spend strictly fewer rollouts doing it.  Every
+        // candidate, including an eliminated one, must retain exactly its
+        // serial prefix of equities and round points.
         let table = knock_position();
         let seat = table.turn().expect("the drawer is mid-turn");
         let view = table.view(seat);
@@ -1863,17 +1873,13 @@ mod tests {
         let candidates = bot.hint_candidates(&view);
         let worlds = bot.sample_worlds(&view, 256);
         let policies = bot.policies(&view);
-        let batched =
-            MonteCarloBot::<StdRng>::score_worlds(&view, &worlds, &candidates, policies, 2.0, None);
-
         let me = view.seat();
         let rules = view.rules();
         let standing = view.game_scores();
-        let full: Vec<(Vec<f64>, f64)> = candidates
+        let full: Vec<Vec<(f64, f64)>> = candidates
             .iter()
             .map(|candidate| {
-                let mut equities = Vec::new();
-                let mut ev_sum = 0.0;
+                let mut results = Vec::new();
                 for world in &worlds {
                     let sim = MonteCarloBot::<StdRng>::sim(
                         &view,
@@ -1882,35 +1888,58 @@ mod tests {
                         policies,
                     );
                     let result = candidate.choice.roll(sim);
-                    equities.push(equity(
-                        result,
-                        me,
-                        standing,
-                        rules,
-                        None,
-                        false,
-                        DealerRotation::WinnerDeals,
+                    results.push((
+                        equity(
+                            result,
+                            me,
+                            standing,
+                            rules,
+                            None,
+                            false,
+                            DealerRotation::WinnerDeals,
+                        ),
+                        round_points(result, me, rules),
                     ));
-                    ev_sum += round_points(result, me, rules);
                 }
-                (equities, ev_sum)
+                results
             })
             .collect();
 
-        assert_eq!(recommended(&batched, 2.0), recommended(&full, 2.0));
+        // Include a single world, batch boundaries, and a partial final batch.
+        for count in [1, 32, 33, 97, 256] {
+            let batched = MonteCarloBot::<StdRng>::score_worlds(
+                &view,
+                &worlds[..count],
+                &candidates,
+                policies,
+                2.0,
+                None,
+            );
+            let reduce = |results: &[(f64, f64)]| {
+                let equities: Vec<_> = results.iter().map(|&(equity, _)| equity).collect();
+                let points = results.iter().fold(0.0, |sum, &(_, points)| sum + points);
+                (equities, points)
+            };
+            let unbatched: Vec<_> = full
+                .iter()
+                .map(|results| reduce(&results[..count]))
+                .collect();
+            assert_eq!(recommended(&batched, 2.0), recommended(&unbatched, 2.0));
 
-        let rolled: usize = batched.iter().map(|(e, _)| e.len()).sum();
-        let all: usize = full.iter().map(|(e, _)| e.len()).sum();
-        assert!(
-            rolled < all,
-            "no challenger was eliminated: {rolled} of {all} rollouts"
-        );
+            if count == worlds.len() {
+                let rolled: usize = batched.iter().map(|(e, _)| e.len()).sum();
+                let all = count * candidates.len();
+                assert!(
+                    rolled < all,
+                    "no challenger was eliminated: {rolled} of {all} rollouts"
+                );
+            }
 
-        for (b, f) in batched.iter().zip(&full) {
-            if b.0.len() == worlds.len() {
+            for (b, f) in batched.iter().zip(&full) {
                 assert_eq!(
-                    b.0, f.0,
-                    "a survivor's equities must be unbatched-identical"
+                    *b,
+                    reduce(&f[..b.0.len()]),
+                    "every candidate's equities and points must match its serial prefix"
                 );
             }
         }

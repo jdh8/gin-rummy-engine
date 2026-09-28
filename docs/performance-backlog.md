@@ -123,13 +123,38 @@ Reproduce the retained baseline diagnostic:
 taskset -c 2 cargo test --release --lib sampling_overhead_measurement -- --ignored --nocapture
 ```
 
-## 4. Flatten the parallel loop
+## 4. Flatten the parallel loop (implemented, pure reuse)
 
-`score_worlds` (`src/mc.rs`) launches one `par_iter` per candidate per
-32-world batch, which is too little work per fork-join.  One `par_iter`
-over the candidate × world product per batch keeps the sequential
-world-order reduction, so serial and parallel builds still decide
-identically, and gives rayon a real chunk of work.
+`score_worlds` (`src/mc.rs`) now schedules one indexed parallel iterator
+over the active candidate × world product per growing batch, instead of
+one fork-join per candidate.  Results remain contiguous per candidate
+and ordered by world; the sequential reduction and elimination
+checkpoints are unchanged.  The serial build still evaluates lazily
+without allocating a batch-result buffer.
+
+The scoring regression compares every candidate's equities and summed
+round points against its serial prefix, including eliminated candidates,
+with 1, 32, 33, 97, and 256 worlds.  The seeded-pick test and the original
+`sim_matches_round_on_greedy_selfplay` property remain unchanged.
+
+Measured on 2026-09-28 against `4ed4721`, with the same release profile
+and local `target-cpu=native` flag, on a Ryzen 7 8700F.  Both runs used
+eight Rayon threads pinned to CPUs 0–7 (eight physical cores).  Criterion
+used 100 measurements per case; these are mean decision times:
+
+| Decision | Before | After | Change |
+| -------- | -----: | ----: | -----: |
+| `mc:128` | 1.430 ms | 1.230 ms | 14.0% faster (`p < 0.05`) |
+| `mc:512` | 5.592 ms | 5.634 ms | No significant change (`p = 0.71`) |
+
+This measures one discard fixture, not average whole-game throughput.
+No decision logic or sampling changed, so no strength panel was rerun.
+Reproduce by saving the baseline before the change, then comparing:
+
+```console
+RAYON_NUM_THREADS=8 taskset -c 0-7 cargo bench --features parallel --bench decision -- 'monte carlo turn, (128|512) samples' --save-baseline parallel-before
+RAYON_NUM_THREADS=8 taskset -c 0-7 cargo bench --features parallel --bench decision -- 'monte carlo turn, (128|512) samples' --baseline parallel-before
+```
 
 ## 5. Early acceptance (re-measure)
 

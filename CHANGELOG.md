@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Parallel Monte Carlo scoring schedules all active candidates together
+  per batch, reducing scheduling overhead while preserving exact scores
+  and seeded decisions.
 - Monte Carlo rollouts reuse solved draw arrangements and per-seat
   deadwood, and retain knock spreads when discarding unmelded cards,
   reducing decision cost without changing play.
