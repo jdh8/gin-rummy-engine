@@ -67,14 +67,61 @@ taskset -c 2 cargo bench --bench decision -- 'monte carlo turn, (128|512) sample
 taskset -c 2 cargo bench --bench decision -- 'monte carlo turn, (128|512) samples' --baseline rollout-before
 ```
 
-## 3. Sampling overhead (re-measure)
+## 3. Sampling overhead (measured; deadwood-only swaps rejected)
 
-`MonteCarloBot::develop` (`src/mc.rs`) spends up to 64 solves per world,
-and each strength draw costs another, so at 512 samples tens of thousands
-of solves run before any rollout starts.  Picking the outgoing card from
-`deadwood_cards()` instead of the whole hand makes swaps land more often
-and reach the target in fewer attempts.  This changes the sampled hidden
-hands, so the calibration tests and the strength panels must be rerun.
+`MonteCarloBot::develop` only runs with `hand_calibration: true`, which
+is **off by default**.  Default sampling selects the lowest-deadwood of
+`max(1, opponent_strength(pile_len) * 200 / 100)` uniform hands per world;
+there is no 64-attempt development loop in a default decision.  At pile
+lengths 1, 12, and 24, this costs 2, 12, and 24 solves per world.
+
+Measured on 2026-09-28 against `72f3779`, using the release profile and
+local `target-cpu=native`, on a Ryzen 7 8700F pinned to CPU 2.  The ignored
+`sampling_overhead_measurement` test isolates `sample_worlds` from
+rollouts and times 100 batches of 512 worlds with `StdRng` seed 3.
+Fixtures are the first live ten-card-opponent positions at each pile
+length found by seeded, gin-only greedy self-play; they have 0, 0, and 4
+known opponent cards.  These are three diagnostic positions, not an
+average over games.  Diagnostic deadwood solves are outside the timer.
+
+The prototype cached `best_melds(known | hidden)`, picked outgoing cards
+from `arrangement.deadwood_cards() & hidden` (falling back to all hidden
+cards when empty), and retained the new arrangement only on an accepted
+swap.  The 64-attempt cap and target-distance acceptance stayed unchanged.
+Five runs per binary alternated baseline/candidate order; the table gives
+median milliseconds per 512 worlds:
+
+| Pile length | Default sampler | Calibrated sampler | Calibrated prototype |
+| ----------: | --------------: | -----------------: | -------------------: |
+| 1 | 0.330 | 2.090 | 2.250 |
+| 12 | 1.427 | 5.006 | 4.576 |
+| 24 | 2.457 | 4.787 | 4.979 |
+
+The prototype was about 9% faster mid-round, but slower in the opening
+and late fixtures.  Its unchanged default path measured 0.340, 1.485,
+and 2.589 ms, so small timing differences also include build/runtime
+variation.  More importantly, target fit was not uniformly better:
+
+| Pile length | Target | Mean absolute target error, before → prototype | Exact target share, before → prototype |
+| ----------: | -----: | --------------------------------------------: | -------------------------------------: |
+| 1 | 50 | 0.106 → 0.695 | 89.80% → 87.44% |
+| 12 | 13 | 1.182 → 0.461 | 50.86% → 76.99% |
+| 24 | 4 | 0.643 → 0.734 | 56.18% → 43.03% |
+
+Preserving melds restricts how an already-too-strong hand can move back
+up toward its target.  The existing mid-round calibration test passes,
+but alone would miss these opening and late-round changes.  Reject the
+prototype: it does not speed up the default bot and is not a consistent
+calibrated-sampling improvement.  Production sampling and defaults stay
+unchanged.  No strength panel was rerun and no strength claim follows
+from this experiment; a future sampler candidate still owes calibration
+checks and the `measure-strength` procedure before adoption.
+
+Reproduce the retained baseline diagnostic:
+
+```console
+taskset -c 2 cargo test --release --lib sampling_overhead_measurement -- --ignored --nocapture
+```
 
 ## 4. Flatten the parallel loop
 

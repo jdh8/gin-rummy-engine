@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- A reproducible sampling-cost diagnostic separates default Monte Carlo
+  sampling from optional hand calibration.  The measured deadwood-only
+  swap proposal was rejected; bot behavior and defaults are unchanged.
+
 ### Changed
 
 - Monte Carlo rollouts reuse solved draw arrangements and per-seat

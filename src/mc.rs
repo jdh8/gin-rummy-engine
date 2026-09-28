@@ -1025,6 +1025,73 @@ mod tests {
         Table::new(round)
     }
 
+    /// Isolate sampling from rollouts at opening, middle, and late positions.
+    /// Timing excludes the diagnostic solves; these fixtures measure cost and
+    /// target fit, not playing strength.  Run in release mode with `--ignored
+    /// --nocapture`, preferably pinned to one CPU.
+    #[test]
+    #[ignore = "sampling microbenchmark; run in release mode"]
+    fn sampling_overhead_measurement() {
+        use std::hint::black_box;
+        use std::time::{Duration, Instant};
+
+        const BATCHES: u32 = 100;
+        const WORLDS: u32 = 512;
+        let total = f64::from(BATCHES * WORLDS);
+        for pile_len in [1, 12, 24] {
+            let table = (0..1000)
+                .find_map(|seed| {
+                    let mut rng = StdRng::seed_from_u64(seed);
+                    let mut table =
+                        Table::new(Round::deal(Rules::default(), Player::One, &mut rng));
+                    let mut patient = HeuristicBot::with_config(HeuristicConfig {
+                        knock_threshold: 0,
+                        ..HeuristicConfig::default()
+                    });
+                    for _ in 0..1000 {
+                        let seat = table.turn()?;
+                        if table.view(seat).discard_pile().len() == pile_len
+                            && table.view(seat).opponent_hand_len() == 10
+                        {
+                            return Some(table);
+                        }
+                        table.step(&mut patient).expect("legal greedy action");
+                    }
+                    None
+                })
+                .expect("a seeded round reaches the pile length");
+            let view = table.view(table.turn().expect("live round"));
+            for calibration in [false, true] {
+                let mut bot = MonteCarloBot::new(StdRng::seed_from_u64(3));
+                bot.config.hand_calibration = calibration;
+                let mut elapsed = Duration::ZERO;
+                let mut sum = 0u64;
+                let mut error = 0u64;
+                let mut hits = 0u64;
+                for _ in 0..BATCHES {
+                    let start = Instant::now();
+                    let worlds = black_box(bot.sample_worlds(&view, WORLDS));
+                    elapsed += start.elapsed();
+                    for world in worlds {
+                        let dw = deadwood(world.opponent);
+                        sum += u64::from(dw);
+                        error += u64::from(dw.abs_diff(calibrated_target(pile_len)));
+                        hits += u64::from(dw == calibrated_target(pile_len));
+                    }
+                }
+                println!(
+                    "pile={pile_len} known={} calibration={calibration} target={} ms_per_512={:.3} mean_deadwood={:.3} mean_error={:.3} hit_rate={:.4}",
+                    view.opponent_known().len(),
+                    calibrated_target(pile_len),
+                    elapsed.as_secs_f64() * 1000.0 / f64::from(BATCHES),
+                    sum as f64 / total,
+                    error as f64 / total,
+                    hits as f64 / total
+                );
+            }
+        }
+    }
+
     #[test]
     fn sampled_worlds_are_consistent_with_the_view() {
         let table = fixed_table();
