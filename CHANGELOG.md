@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Monte Carlo rollouts reuse solved draw arrangements and per-seat
+  deadwood, and retain knock spreads when discarding unmelded cards,
+  reducing decision cost without changing play.
 - Release builds from this repository use fat LTO and one codegen unit
   to improve bot decision throughput, at the cost of longer builds.
 - Web cards, faces and backs alike, are bridge-sized (2.25:3.5) instead of

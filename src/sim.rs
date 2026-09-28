@@ -9,8 +9,10 @@
 //! models (`sim_matches_round_on_greedy_selfplay` in this module's
 //! tests).  Any rules change upstream must be mirrored here.
 
-use crate::heuristic::{best_shed, greedy_layoff, improves, joins_a_meld};
-use gin_rummy::{Card, Hand, Meld, Melds, Player, RoundResult, Rules, best_melds, deadwood};
+use crate::heuristic::{best_shed, greedy_layoff, improving_melds, joins_a_meld};
+use gin_rummy::{
+    Card, Hand, Meld, Melds, Player, RoundResult, Rules, best_melds, deadwood, pip_sum,
+};
 
 /// How the forward model plays one seat during a rollout
 ///
@@ -25,7 +27,7 @@ pub(crate) struct SeatPolicy {
     pub(crate) knock_threshold: u8,
     /// Take the pile card only when it lands in an immediate meld
     /// ([`joins_a_meld`], the EAAI baseline's rule) instead of on any
-    /// strict deadwood improvement ([`improves`])
+    /// strict deadwood improvement ([`improving_melds`])
     pub(crate) meld_only_draw: bool,
 }
 
@@ -118,10 +120,13 @@ impl Sim {
     /// Discard a card and knock with the given arrangement, settling the
     /// round: gin ends it immediately, otherwise the defender lays off
     /// greedily and the deadwood difference (or undercut) decides
+    ///
+    /// The arrangement may still contain the discarded card as deadwood.
     pub(crate) fn knock(mut self, card: Card, melds: Melds) -> RoundResult {
+        debug_assert!(!melds.melded().contains(card));
         let knocker = self.turn;
         self.hands[knocker as usize].remove(card);
-        let knocker_deadwood = melds.deadwood();
+        let knocker_deadwood = pip_sum(melds.deadwood_cards() - card.into()) as u8;
         let defender = knocker.opponent();
 
         if knocker_deadwood == 0 {
@@ -194,12 +199,12 @@ impl Sim {
         }
     }
 
-    /// Whether the acting seat's policy takes the pile top.
-    fn takes(&self, hand: Hand, top: Card) -> bool {
+    /// The solved draw when the acting seat's policy takes the pile top.
+    fn take_melds(&self, hand: Hand, top: Card, before: Option<u8>) -> Option<Melds> {
         if self.policies[self.turn as usize].meld_only_draw {
-            joins_a_meld(hand, top)
+            joins_a_meld(hand, top).then(|| best_melds(hand | top.into()))
         } else {
-            improves(hand, top)
+            improving_melds(hand, top, before)
         }
     }
 
@@ -227,13 +232,19 @@ impl Sim {
     /// result alone cannot report.  `rollout` is this function with an inert
     /// probe, so the two cannot drift.
     pub(crate) fn rollout_observed(mut self, mut probe: impl FnMut(&Self)) -> RoundResult {
+        // A seat's ten-card hand stays unchanged between its shed and draw.
+        // Local caches also allow callers to resume from any phase.
+        let mut deadwood = [None; 2];
+        let mut drawn_melds = None;
         loop {
             probe(&self);
-            let hand = self.hands[self.turn as usize];
+            let seat = self.turn as usize;
+            let hand = self.hands[seat];
             match self.phase {
                 SimPhase::Upcard => {
                     let top = *self.pile.last().expect("the upcard offer has an upcard");
-                    if self.takes(hand, top) {
+                    drawn_melds = self.take_melds(hand, top, deadwood[seat]);
+                    if drawn_melds.is_some() {
                         self.take_discard();
                     } else {
                         self.pass();
@@ -241,22 +252,33 @@ impl Sim {
                 }
                 SimPhase::Draw => {
                     let top = *self.pile.last().expect("the pile is never empty on a draw");
-                    if !self.forced_stock && self.takes(hand, top) {
+                    drawn_melds = if self.forced_stock {
+                        None
+                    } else {
+                        self.take_melds(hand, top, deadwood[seat])
+                    };
+                    if drawn_melds.is_some() {
                         self.take_discard();
                     } else {
                         self.draw_stock();
                     }
                 }
                 SimPhase::Shed => {
-                    let melds = best_melds(hand);
+                    let melds = drawn_melds.take().unwrap_or_else(|| best_melds(hand));
                     if self.rules.big_gin_bonus.is_some() && melds.deadwood() == 0 {
                         return self.big_gin();
                     }
                     let (card, rest) = best_shed(melds, self.taken);
                     let threshold = self.policies[self.turn as usize].knock_threshold;
                     if rest <= self.knock_limit.min(threshold) {
-                        return self.knock(card, best_melds(hand - card.into()));
+                        let melds = if melds.deadwood_cards().contains(card) {
+                            melds
+                        } else {
+                            best_melds(hand - card.into())
+                        };
+                        return self.knock(card, melds);
                     }
+                    deadwood[seat] = Some(rest);
                     if let Some(result) = self.discard(card) {
                         return result;
                     }
@@ -326,6 +348,86 @@ mod tests {
         });
     }
 
+    /// Reuse preserves every observed state, including non-default policies
+    /// and rollouts resumed mid-round with empty caches.
+    #[test]
+    fn cached_rollout_matches_uncached_play() {
+        proptest!(|(
+            deck in Just(full_deck()).prop_shuffle(),
+            preset in 0..3_usize,
+            thresholds in prop::array::uniform2(0..=10_u8),
+            meld_only in prop::array::uniform2(any::<bool>()),
+            start in any::<usize>(),
+        )| {
+            let hands = [
+                deck[..10].iter().copied().collect::<Hand>(),
+                deck[10..20].iter().copied().collect::<Hand>(),
+            ];
+            let mut sim = Sim::from_deal(
+                [Rules::new(), Rules::classic(), Rules::palace()][preset],
+                Player::One,
+                hands,
+                deck[20],
+                deck[21..].to_vec(),
+            );
+            sim.policies = std::array::from_fn(|seat| super::SeatPolicy {
+                knock_threshold: thresholds[seat],
+                meld_only_draw: meld_only[seat],
+            });
+            let mut states = Vec::new();
+            let expected = loop {
+                states.push(sim.clone());
+                let hand = sim.hands[sim.turn as usize];
+                let policy = sim.policies[sim.turn as usize];
+                match sim.phase {
+                    SimPhase::Upcard | SimPhase::Draw => {
+                        let top = *sim.pile.last().expect("a pile on a draw");
+                        let take = !sim.forced_stock && if policy.meld_only_draw {
+                            crate::heuristic::joins_a_meld(hand, top)
+                        } else {
+                            crate::heuristic::improves(hand, top)
+                        };
+                        if take {
+                            sim.take_discard();
+                        } else if sim.phase == SimPhase::Upcard {
+                            sim.pass();
+                        } else {
+                            sim.draw_stock();
+                        }
+                    }
+                    SimPhase::Shed => {
+                        let melds = gin_rummy::best_melds(hand);
+                        if sim.rules.big_gin_bonus.is_some() && melds.deadwood() == 0 {
+                            break sim.big_gin();
+                        }
+                        let (card, rest) = crate::heuristic::best_shed(melds, sim.taken);
+                        if rest <= sim.knock_limit.min(policy.knock_threshold) {
+                            break sim.knock(card, gin_rummy::best_melds(hand - card.into()));
+                        }
+                        if let Some(result) = sim.discard(card) {
+                            break result;
+                        }
+                    }
+                }
+            };
+            let mut states = states[start % states.len()..].iter();
+            let resumed = states.clone().next().expect("at least one state").clone();
+            let actual = resumed.rollout_observed(|actual| {
+                let expected = states.next().expect("no extra rollout states");
+                assert_eq!(actual.hands, expected.hands);
+                assert_eq!(actual.stock, expected.stock);
+                assert_eq!(actual.pile, expected.pile);
+                assert_eq!(actual.turn, expected.turn);
+                assert_eq!(actual.phase, expected.phase);
+                assert_eq!(actual.taken, expected.taken);
+                assert_eq!(actual.passes, expected.passes);
+                assert_eq!(actual.forced_stock, expected.forced_stock);
+            });
+            prop_assert!(states.next().is_none());
+            prop_assert_eq!(actual, expected);
+        });
+    }
+
     /// A hand-scripted knock with layoffs settles the same way in both
     /// models
     #[test]
@@ -388,6 +490,7 @@ mod tests {
             }
             round.finish_layoffs().expect("settles")
         };
-        assert_eq!(sim.knock(shed, melds), expected);
+        assert_eq!(sim.clone().knock(shed, melds), expected);
+        assert_eq!(sim.knock(shed, gin_rummy::best_melds(knocker)), expected);
     }
 }

@@ -84,6 +84,18 @@ fn shed_by<K: Ord>(melds: Melds, taken: Option<Card>, key: impl Fn(Card, u8) -> 
 /// candidate under the mark instead of ranking them, priced by the same
 /// bound as [`shed_by`].
 pub(crate) fn improves(hand: Hand, top: Card) -> bool {
+    improving_melds(hand, top, None).is_some()
+}
+
+/// The solved draw when taking `top` strictly improves the hand.
+///
+/// Rollouts reuse the arrangement on their next shed and may supply the
+/// ten-card deadwood from their previous shed to avoid solving it again.
+/// When supplied, `before` must equal `deadwood(hand)`.
+// Returning the arrangement out of line costs more than the saved solves
+// in the decision benchmark; inlining lets the rollout retain it in place.
+#[inline(always)]
+pub(crate) fn improving_melds(hand: Hand, top: Card, before: Option<u8>) -> Option<Melds> {
     debug_assert!(!hand.contains(top), "the pile top is not in the hand");
     let with = hand | top.into();
     let melds = best_melds(with);
@@ -93,14 +105,15 @@ pub(crate) fn improves(hand: Hand, top: Card) -> bool {
     let before = if unmelded.contains(top) {
         total - top.rank.deadwood()
     } else {
-        deadwood(hand)
+        before.unwrap_or_else(|| deadwood(hand))
     };
     let others = |cards: Hand| cards.iter().filter(move |&card| card != top);
-    others(unmelded).any(|card| total - card.rank.deadwood() < before)
+    let improves = others(unmelded).any(|card| total - card.rank.deadwood() < before)
         || others(melds.melded()).any(|card| {
             total.saturating_sub(card.rank.deadwood()) < before
                 && deadwood(with - card.into()) < before
-        })
+        });
+    improves.then_some(melds)
 }
 
 /// Whether `top` would sit inside some meld of `hand` + `top`
@@ -422,6 +435,14 @@ mod tests {
                 prop_assert_eq!(shed_by(melds, taken, greedy_key), expected);
                 #[cfg(feature = "rand")]
                 prop_assert_eq!(best_shed(melds, taken), expected);
+                if melds.deadwood_cards().contains(expected.0) {
+                    // Reusing a knock spread must preserve the solver's
+                    // exact tie-break and meld order, not just its score.
+                    prop_assert_eq!(
+                        melds.iter().collect::<Vec<_>>(),
+                        best_melds(hand - expected.0.into()).iter().collect::<Vec<_>>()
+                    );
+                }
                 prop_assert_eq!(
                     shed_by(melds, taken, salted_key),
                     brute_shed(hand, taken, salted_key)
@@ -431,6 +452,10 @@ mod tests {
                 let top = deck[10];
                 let (_, rest) = brute_shed(ten | top.into(), Some(top), greedy_key);
                 prop_assert_eq!(improves(ten, top), rest < deadwood(ten));
+                prop_assert_eq!(
+                    improving_melds(ten, top, Some(deadwood(ten))),
+                    (rest < deadwood(ten)).then(|| best_melds(ten | top.into()))
+                );
             }
         );
     }

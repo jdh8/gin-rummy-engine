@@ -3,10 +3,10 @@
 Ideas for making `MonteCarloBot` decide faster, ranked by expected payoff
 per line of diff.  A Monte Carlo turn is pure rollout cost: the saved
 Criterion runs put a greedy self-play round at about 0.06 ms and an
-`mc:512` discard decision at about 56 ms, and each rollout turn performs
-roughly three deadwood solves (`improves`, `best_melds`, and the knock
-re-solve).  Everything below shrinks either the number of solves or the
-cost of one.
+`mc:512` discard decision at about 56 ms before these optimizations.
+Rollout turns originally repeated solves between the draw, shed, and
+knock decisions.  Everything below shrinks either the number of solves
+or the cost of one.
 
 Items marked **re-measure** change decisions or the sampled distribution
 and must go through the `measure-strength` skill before being claimed as
@@ -31,21 +31,41 @@ Cargo config (such as `~/.cargo/config.toml`) only, so shared builds
 remain portable.  Downstream applications choose their own release
 profile; this crate's profile applies when building this repository.
 
-## 2. Delete redundant solves in the rollout (pure reuse)
+## 2. Delete redundant solves in the rollout (implemented, pure reuse)
 
-All in `src/sim.rs`, `Sim::rollout_observed`:
+Applied in `src/sim.rs`, `Sim::rollout_observed`, with the shared
+`improving_melds` helper in `src/heuristic.rs`:
 
-- `improves` (`src/heuristic.rs`) already solves the eleven-card hand.
-  When it returns true, the next `Shed` phase solves the identical hand
-  again.  Return the `Melds` from `improves` and carry them into the shed.
-- `improves` calls `deadwood(hand)` on the ten-card hand when the pile
-  top ends up melded.  That number is exactly the `rest` the same seat
-  computed at its previous shed.  Cache one `u8` per seat in `Sim`.
-- `Sim::knock` re-solves `hand - card` after `best_shed`.  When the shed
-  card was unmelded, the arrangement is unchanged and `best_shed` already
-  holds it.
+- Carry the successful draw check's eleven-card arrangement into the
+  shed instead of solving the same hand again.
+- Cache each seat's residual deadwood from its previous shed for its
+  next draw check.  Both caches live inside the rollout, so resuming
+  from an arbitrary phase cannot inherit stale values.
+- Reuse the knock spread when shedding an unmelded card, subtracting
+  that card from the settlement deadwood.  A melded discard still
+  requires a fresh arrangement.
 
-Together these remove one to two of the three solves per rollout turn.
+The original `Sim`/`Round` equivalence test remains unchanged.  Additional
+properties compare exact knock spreads and uncached rollout traces under
+both draw policies, varying knock thresholds, and mid-round resumes.
+
+Measured on 2026-09-28 against `95e3c7b`, with the same release profile,
+local `target-cpu=native` flag, and both executables pinned to CPU 2:
+
+| Decision | Before | After | Time reduction |
+| -------- | -----: | ----: | -------------: |
+| `mc:128` | 6.643 ms | 6.155 ms | 7.3% |
+| `mc:512` | 27.773 ms | 25.722 ms | 7.4% |
+
+Criterion used 100 measurements per case; both improvements had
+`p < 0.05`.  The draw helper must be inlined: returning its arrangement
+out of line erased the savings and regressed this benchmark.
+Reproduce by saving the baseline before the change, then comparing:
+
+```console
+taskset -c 2 cargo bench --bench decision -- 'monte carlo turn, (128|512) samples' --save-baseline rollout-before
+taskset -c 2 cargo bench --bench decision -- 'monte carlo turn, (128|512) samples' --baseline rollout-before
+```
 
 ## 3. Sampling overhead (re-measure)
 
