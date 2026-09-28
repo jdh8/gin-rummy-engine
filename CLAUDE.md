@@ -35,6 +35,7 @@ belongs in this crate.
 | `examples/tune.rs` | Whole-game A/B self-play sweep for tuning the heuristic's and Monte Carlo's knobs against a fixed opponent — including the benchmark-only strong adaptations, under either dealer protocol (`--alternate-dealer`). |
 | `scripts/bench-panel.sh` | Regenerates README's corrected-EAAI baseline panel with pair-cluster intervals, exact sweep tests, and raw scores. |
 | `scripts/bench-strong.sh` | Runs the predeclared strong-opponent smoke and fixed panels without nested Monte Carlo parallelism. |
+| `docs/performance-backlog.md` | Ranked, partly measured ideas for speeding up Monte Carlo decisions; check it before optimizing. |
 | `scripts/check-strong-conformance.sh` | Compares the native adaptations with user-supplied pinned upstream source trees; it never downloads or vendors them. |
 
 ## Measured reference results
