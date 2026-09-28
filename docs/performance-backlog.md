@@ -156,12 +156,91 @@ RAYON_NUM_THREADS=8 taskset -c 0-7 cargo bench --features parallel --bench decis
 RAYON_NUM_THREADS=8 taskset -c 0-7 cargo bench --features parallel --bench decision -- 'monte carlo turn, (128|512) samples' --baseline parallel-before
 ```
 
-## 5. Early acceptance (re-measure)
+## 5. Early acceptance (measured; first-crossing acceptance rejected)
 
 `score_worlds` eliminates a challenger once the incumbent beats it at the
-`gate_z` margin, but a challenger that clearly beats the incumbent still
-rolls the full sample count.  Accepting at the same gate symmetrically
-would end clear decisions early.  This is a decision change.
+`gate_z` margin.  The prototype also stopped at the first batch boundary
+where any surviving challenger beat the incumbent, then used the existing
+`recommended` ranking.  Immediately after `alive.retain`, it replaced the
+stop condition with:
+
+```rust
+if alive.is_empty()
+    || alive.iter().any(|&i| beats(&scored[i].0, &scored[0].0, gate_z))
+{
+    break;
+}
+```
+
+Measured on 2026-09-28–29 against `cf01da8`, using the same release profile
+and local `target-cpu=native` flag on a Ryzen 7 8700F.  Serial Criterion
+runs used 100 measurements per case, pinned to CPU 2, baseline followed
+by prototype:
+
+| Decision | Before | Early acceptance | Time reduction |
+| -------- | -----: | ---------------: | -------------: |
+| `mc:128` | 7.050 ms | 5.569 ms | 21.0% |
+| `mc:512` | 29.550 ms | 18.491 ms | 37.4% |
+
+Both fixture improvements had `p < 0.05`.  All worlds are sampled before
+scoring, so only rollout work is saved.  This is one discard fixture,
+not average whole-game cost.
+
+The whole-game diagnostic used `mc:512`, 500 mirrored pairs **per seed**
+on seeds 7 and 8 (2000 games per arm/opponent), exact EAAI rules, and
+scored-hand-only dealer alternation.  Each arena ran separately with
+eight trial-level Rayon threads pinned to CPUs 0–7, without the
+`parallel` feature.  Prototype legs ran before baseline legs.  Intervals
+below use mirrored pairs as clusters; scores are raw points per game:
+
+| Opponent | Stopping rule | Game wins (95% CI) | Scores, bot–opponent | Exact sweep p | Games/s |
+| -------- | ------------- | ----------------: | ------------------: | ------------: | ------: |
+| EAAI | Existing | 74.65% (72.91–76.39%) | 98.05–61.47 | < .001 | 4.865 |
+| EAAI | Early acceptance | 71.75% (69.92–73.58%) | 96.35–63.87 | < .001 | 5.582 |
+| MARJJ v5 surrogate | Existing | 55.15% (53.18–57.12%) | 85.03–78.97 | < .001 | 5.406 |
+| MARJJ v5 surrogate | Early acceptance | 51.55% (49.50–53.60%) | 82.52–81.96 | .152 | 6.138 |
+
+MARJJ here is the benchmark-only **host-engine adaptation** of the public
+v5 source, which is not established as the submitted championship build;
+these are not original-agent tournament reproductions.  The unchanged
+adapter uses the validated pinned [conformance receipt](../contrib/strong-conformance/receipt.json).
+The [full provenance qualifications](strong-opponents.md) still apply.
+
+Observed win share fell on both seeds: EAAI by 3.6 and 2.2 percentage
+points, and MARJJ by 4.7 and 2.5.  Pooled raw score margin fell from
+36.58 to 32.48 against EAAI and from 6.06 to 0.56 against MARJJ.
+Dead hands rose from 26 to 33 and from 480 to 499, respectively; those
+hands were redealt within the measured games.  Whole-game throughput
+rose only 14.7% and 13.5%, much less than the hard-discard speedup.
+
+The exact p-values test each arm against its opponent, **not** the
+before/after difference.  These summaries do not retain cross-revision
+pair covariance, so no paired significance claim about that difference
+follows.  Revisions reuse seeded shuffle streams, but changed play can
+change later dealer assignments and deals.  This diagnostic does not
+replace either fixed publication panel.
+
+Reject this first-crossing rule as a default optimization: the observed
+strength tradeoff does not justify its speed gain.  Clearing the gate
+against the incumbent also need not identify the best challenger; the
+existing `elimination_matches_the_full_read` fixture changes its pick
+under the prototype.  All three release strength tripwires nevertheless
+passed (including 728/1000 EAAI game wins), illustrating why those loose
+floors alone are insufficient.  Production code, defaults, and the
+original regression tests remain unchanged.
+
+The [retained evidence](early-acceptance.json) includes the exact patch,
+both source hashes, all four `gin-rummy-arena/v1` reports, Criterion
+estimates, and prototype test logs.  To reproduce, build `cf01da8`, save
+the baseline, then apply the retained patch and repeat the same commands:
+
+```console
+taskset -c 2 cargo bench --bench decision -- 'monte carlo turn, (128|512) samples' --save-baseline early-before
+# With the prototype applied, use --baseline early-before instead.
+cargo test --release --test strength -- --ignored --nocapture
+RAYON_NUM_THREADS=8 taskset -c 0-7 cargo run --release --example arena -- --games 500 --p1 mc:512 --p2 eaai --rules eaai --alternate-dealer --seeds 7,8 --format json
+# Repeat the arena command with --p2 marjj-v5-surrogate on both revisions.
+```
 
 ## 6. Allocations (last)
 
