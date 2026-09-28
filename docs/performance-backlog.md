@@ -22,12 +22,14 @@ cores:
 
 | Build | Mean |
 | ----- | ---: |
-| default release profile | 8.05 ms |
+| previous default release profile | 8.05 ms |
 | `-C target-cpu=native`, `lto = "fat"`, `codegen-units = 1` | 6.85 ms |
 
-Put `lto = "fat"` and `codegen-units = 1` in `[profile.release]`.  Keep
-`target-cpu=native` in a local `.cargo/config.toml` only, so crates.io
-users get a portable binary.  Not yet applied.
+Applied: `[profile.release]` now sets `lto = "fat"` and
+`codegen-units = 1`.  Keep `target-cpu=native` in an untracked local
+Cargo config (such as `~/.cargo/config.toml`) only, so shared builds
+remain portable.  Downstream applications choose their own release
+profile; this crate's profile applies when building this repository.
 
 ## 2. Delete redundant solves in the rollout (pure reuse)
 
