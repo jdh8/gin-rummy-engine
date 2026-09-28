@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Retained Monte Carlo CPU profiles put allocator time below 1% in the
+  measured discard fixture, deferring fixed-size rollout buffers without
+  changing bot behavior or defaults.
 - A retained early-acceptance experiment documents faster Monte Carlo
   decisions but lower observed game win shares on both measured seeds.
   The prototype was rejected; bot behavior and defaults are unchanged.

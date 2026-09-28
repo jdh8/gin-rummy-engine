@@ -242,11 +242,54 @@ RAYON_NUM_THREADS=8 taskset -c 0-7 cargo run --release --example arena -- --game
 # Repeat the arena command with --p2 marjj-v5-surrogate on both revisions.
 ```
 
-## 6. Allocations (last)
+## 6. Allocations (profiled; fixed buffers deferred)
 
-Every rollout clones the stock and the pile into two `Vec`s.  Replacing
-them with `[Card; 52]` plus a length saves at most a few percent.  Do this
-only after a profile shows the allocator in the top frames.
+Every candidate/world evaluation clones the stock and the pile into two
+`Vec`s in `MonteCarloBot::sim`.  The pile can also reallocate on discard,
+and knock settlement allocates its meld spread.  Replacing the stock and
+pile with `[Card; 52]` plus lengths would remove some of these calls, but
+the measured allocator cost does not justify that change yet.
+
+Profiled on 2026-09-29 at `c0f3ccd`, with the release profile and local
+`target-cpu=native`, on a Ryzen 7 8700F pinned to CPU 2.  The existing
+serial Criterion discard fixture ran with `--profile-time 30`, once per
+budget, 512 before 128.  Gperftools `libprofiler` 2.18.1 requested 1000 Hz
+CPU sampling; the glibc allocator was unchanged.  Profiles include
+Criterion warmup and process setup.
+
+| Decision | CPU samples | Samples in allocator stacks | Allocator share | Solver self share |
+| -------- | ----------: | --------------------------: | --------------: | ----------------: |
+| `mc:128` | 25,034 | 169 | 0.68% | 61.1% |
+| `mc:512` | 30,942 | 209 | 0.68% | 63.0% |
+
+Allocator share counts each sampled stack containing a glibc allocation,
+reallocation, or free routine once, including its callees.  It covers
+**all** allocations in the process, not just the stock and pile.  Solver
+self share sums `search`, `deadwood`, and `best_melds`, excluding their
+callees.  These shares are CPU samples, not allocation counts or a
+predicted fixed-buffer speedup: inlined bookkeeping, copies outside
+allocator calls, and cache effects are not isolated.
+
+The allocator is not a leading cost in this fixture.  Defer fixed buffers
+until a representative workload puts allocation among the hot frames.
+This is not a whole-game or parallel-allocation profile; production code
+and decisions remain unchanged, so no strength panel was rerun.
+
+The [retained reports](allocation-profile.json) contain symbolized sample
+counts, tool versions, executable hash, and exact commands.  To reproduce,
+build the serial benchmark and use the executable path Cargo prints as
+`bench` below.  Adjust the library path for the local gperftools install;
+use `libprofiler`, which does not replace the allocator.
+
+```console
+cargo bench --bench decision --no-run
+bench='target/release/deps/decision-<hash>'
+taskset -c 2 env LD_PRELOAD=/usr/lib64/libprofiler.so.0 CPUPROFILE=/tmp/gin-alloc-512.prof CPUPROFILE_FREQUENCY=1000 "$bench" --bench 'monte carlo turn, 512 samples' --profile-time 30
+# Repeat with 128 in both the profile filename and benchmark filter.
+curl -fsSL https://raw.githubusercontent.com/gperftools/gperftools/gperftools-2.10/src/pprof -o /tmp/gin-alloc-pprof
+perl /tmp/gin-alloc-pprof --text "$bench" /tmp/gin-alloc-512.prof
+perl /tmp/gin-alloc-pprof --text --focus='(__.*(malloc|free|realloc)|_int_(malloc|free|realloc)|unlink_chunk)' "$bench" /tmp/gin-alloc-512.prof
+```
 
 ## Skipped
 
