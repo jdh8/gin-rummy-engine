@@ -66,3 +66,6 @@ jobs:
     # exercises the serial Monte Carlo scoring path.
     - name: Test (default features)
       run: cargo test --verbose
+    # The trait, view, driver, and heuristic bot must build without `rand`.
+    - name: Check (no default features)
+      run: cargo check --no-default-features --verbose
