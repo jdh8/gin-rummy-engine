@@ -8,6 +8,16 @@ Rollout turns originally repeated solves between the draw, shed, and
 knock decisions.  Everything below shrinks either the number of solves
 or the cost of one.
 
+The `monte carlo turn` benches all decide one opening discard.  Judge an
+optimization on the later positions too — `monte carlo draw`, `late
+discard`, and `knock`, at 128 and 512 samples, fixed points of a greedy
+self-play round — and on whole-game throughput, since early elimination
+makes their costs scale differently:
+
+```console
+cargo bench --bench decision -- 'monte carlo .*, (128|512) samples'
+```
+
 Items marked **re-measure** change decisions or the sampled distribution
 and must go through the `measure-strength` skill before being claimed as
 an improvement.  Items marked **pure reuse** must leave the
