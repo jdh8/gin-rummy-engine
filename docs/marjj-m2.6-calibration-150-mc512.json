@@ -1,0 +1,2647 @@
+{
+  "design": {
+    "arms": {
+      "calibrated": {
+        "calibration_percent": 150,
+        "game_value": "table",
+        "gate_z": 2.0,
+        "hand_calibration": true,
+        "kind": "MonteCarloBot",
+        "max_candidates": 4,
+        "opponent_model": "eager",
+        "opponent_strength_percent": 200,
+        "rollout_knock_opponent": 255,
+        "rollout_knock_self": 0,
+        "samples": 512
+      },
+      "default": {
+        "calibration_percent": 150,
+        "game_value": "table",
+        "gate_z": 2.0,
+        "hand_calibration": false,
+        "kind": "MonteCarloBot",
+        "max_candidates": 4,
+        "opponent_model": "eager",
+        "opponent_strength_percent": 200,
+        "rollout_knock_opponent": 255,
+        "rollout_knock_self": 0,
+        "samples": 512
+      }
+    },
+    "common_random_numbers_across_arms": true,
+    "dealer_rotation": "alternate_after_scored_round; dead hands retain dealer",
+    "game_pairs_per_arm_per_seed": 3000,
+    "games_per_trial": 4,
+    "opponent": {
+      "canonical_card_order": "C_H_S_D_then_rank",
+      "canonical_meld_order": "meld_bitset",
+      "discount": 0.9,
+      "future_cards": 7,
+      "initial_future_weight": 18,
+      "kind": "MarjjV5Surrogate",
+      "spec": "marjj-v5-surrogate",
+      "tie_rng": "diagnostic_seeded_StdRng"
+    },
+    "optional_stopping": false,
+    "orientations_per_pair": 2,
+    "purpose": "M2.5 finish-channel diagnosis; not a publication strength panel",
+    "rules": {
+      "big_gin_bonus": null,
+      "box_bonus": 0,
+      "game_bonus": 0,
+      "game_target": 100,
+      "gin_bonus": 25,
+      "immediate_boxes": false,
+      "knock_limit": 10,
+      "oklahoma": null,
+      "preset": "eaai",
+      "shutout": {
+        "bonus": 0,
+        "kind": "flat"
+      },
+      "undercut_bonus": 25,
+      "undercut_on_tie": true
+    },
+    "seeds": [
+      8
+    ]
+  },
+  "diagnosis": {
+    "leading_channel_agrees_across_seeds": true,
+    "m3_status": "blocked_pending_replan",
+    "pooled_leading_channel": "marjj_undercut",
+    "pooled_leading_channel_seed_deltas": [
+      31046
+    ],
+    "status": "channel_stable"
+  },
+  "elapsed_seconds": 1734.115235057,
+  "pooled": {
+    "arms": {
+      "calibrated": {
+        "candidate_game_win_share": 0.5195,
+        "candidate_marjj_sweeps": [
+          692,
+          575
+        ],
+        "candidate_raw_points": 490708,
+        "candidate_wins": 3117,
+        "diagnostics": {
+          "candidate_knocks": {
+            "attempts": 18754,
+            "by_actual_opponent_deadwood": {
+              "0": 0,
+              "1-3": 4162,
+              "11-20": 3813,
+              "21+": 5361,
+              "4-6": 2691,
+              "7-10": 2727
+            },
+            "by_deadwood": {
+              "0": 10517,
+              "1": 451,
+              "10": 1823,
+              "2": 384,
+              "3": 304,
+              "4": 331,
+              "5": 363,
+              "6": 703,
+              "7": 909,
+              "8": 1315,
+              "9": 1654
+            },
+            "by_pre_layoff_deadwood_difference": {
+              "-3..-1": 487,
+              "0": 194,
+              "1..3": 4379,
+              "<=-4": 501,
+              ">=4": 13193
+            },
+            "layoff_cases": 8237,
+            "layoff_deadwood_reduction": 15934,
+            "outcomes": {
+              "gin_win": 10517,
+              "knock_win": 6791,
+              "undercut_loss": 1446
+            }
+          },
+          "declined_legal_knocks": {
+            "eventual_finish": {
+              "candidate_gin": 9238,
+              "candidate_knock": 231,
+              "candidate_undercut": 7,
+              "dead": 2270,
+              "marjj_gin": 7267,
+              "marjj_knock": 5,
+              "marjj_undercut": 118
+            },
+            "first_by_achievable_deadwood": {
+              "0": 0,
+              "1": 1915,
+              "10": 2753,
+              "2": 1523,
+              "3": 1082,
+              "4": 1151,
+              "5": 1073,
+              "6": 1623,
+              "7": 2268,
+              "8": 2911,
+              "9": 2837
+            },
+            "first_by_actual_opponent_deadwood": {
+              "0": 0,
+              "1-3": 2517,
+              "11-20": 5433,
+              "21+": 4470,
+              "4-6": 2821,
+              "7-10": 3895
+            },
+            "first_by_turn": {
+              "1-3": 410,
+              "10+": 5405,
+              "4-6": 4794,
+              "7-9": 8527
+            },
+            "rounds_with_decline": 19136,
+            "total_opportunities": 81304
+          },
+          "finish_channels": {
+            "candidate_gin": {
+              "by_ending_actor_turn": {
+                "1-3": {
+                  "count": 115,
+                  "signed_points": 7514,
+                  "signed_points_per_game": 1.2523333333333333
+                },
+                "10+": {
+                  "count": 6569,
+                  "signed_points": 197932,
+                  "signed_points_per_game": 32.98866666666667
+                },
+                "4-6": {
+                  "count": 1133,
+                  "signed_points": 51985,
+                  "signed_points_per_game": 8.664166666666667
+                },
+                "7-9": {
+                  "count": 2700,
+                  "signed_points": 96412,
+                  "signed_points_per_game": 16.068666666666665
+                }
+              },
+              "by_game_round": {
+                "1": {
+                  "count": 2100,
+                  "signed_points": 70696,
+                  "signed_points_per_game": 11.782666666666668
+                },
+                "2": {
+                  "count": 2013,
+                  "signed_points": 68086,
+                  "signed_points_per_game": 11.347666666666667
+                },
+                "3-4": {
+                  "count": 3641,
+                  "signed_points": 122741,
+                  "signed_points_per_game": 20.456833333333332
+                },
+                "5+": {
+                  "count": 2763,
+                  "signed_points": 92320,
+                  "signed_points_per_game": 15.386666666666667
+                }
+              },
+              "by_starting_score": {
+                "leading": {
+                  "count": 3717,
+                  "signed_points": 124457,
+                  "signed_points_per_game": 20.742833333333333
+                },
+                "tied": {
+                  "count": 2354,
+                  "signed_points": 79269,
+                  "signed_points_per_game": 13.2115
+                },
+                "trailing": {
+                  "count": 4446,
+                  "signed_points": 150117,
+                  "signed_points_per_game": 25.0195
+                }
+              },
+              "total": {
+                "count": 10517,
+                "signed_points": 353843,
+                "signed_points_per_game": 58.97383333333333
+              }
+            },
+            "candidate_knock": {
+              "by_ending_actor_turn": {
+                "1-3": {
+                  "count": 2175,
+                  "signed_points": 66071,
+                  "signed_points_per_game": 11.011833333333334
+                },
+                "10+": {
+                  "count": 255,
+                  "signed_points": 1001,
+                  "signed_points_per_game": 0.16683333333333333
+                },
+                "4-6": {
+                  "count": 3659,
+                  "signed_points": 62662,
+                  "signed_points_per_game": 10.443666666666667
+                },
+                "7-9": {
+                  "count": 702,
+                  "signed_points": 6421,
+                  "signed_points_per_game": 1.0701666666666667
+                }
+              },
+              "by_game_round": {
+                "1": {
+                  "count": 859,
+                  "signed_points": 18184,
+                  "signed_points_per_game": 3.030666666666667
+                },
+                "2": {
+                  "count": 965,
+                  "signed_points": 20076,
+                  "signed_points_per_game": 3.346
+                },
+                "3-4": {
+                  "count": 2055,
+                  "signed_points": 43070,
+                  "signed_points_per_game": 7.178333333333334
+                },
+                "5+": {
+                  "count": 2912,
+                  "signed_points": 54825,
+                  "signed_points_per_game": 9.1375
+                }
+              },
+              "by_starting_score": {
+                "leading": {
+                  "count": 3922,
+                  "signed_points": 73496,
+                  "signed_points_per_game": 12.249333333333333
+                },
+                "tied": {
+                  "count": 1000,
+                  "signed_points": 21428,
+                  "signed_points_per_game": 3.5713333333333335
+                },
+                "trailing": {
+                  "count": 1869,
+                  "signed_points": 41231,
+                  "signed_points_per_game": 6.871833333333333
+                }
+              },
+              "total": {
+                "count": 6791,
+                "signed_points": 136155,
+                "signed_points_per_game": 22.6925
+              }
+            },
+            "candidate_undercut": {
+              "by_ending_actor_turn": {
+                "1-3": {
+                  "count": 26,
+                  "signed_points": 710,
+                  "signed_points_per_game": 0.11833333333333333
+                },
+                "10+": {
+                  "count": 0,
+                  "signed_points": 0,
+                  "signed_points_per_game": 0.0
+                },
+                "4-6": {
+                  "count": 0,
+                  "signed_points": 0,
+                  "signed_points_per_game": 0.0
+                },
+                "7-9": {
+                  "count": 0,
+                  "signed_points": 0,
+                  "signed_points_per_game": 0.0
+                }
+              },
+              "by_game_round": {
+                "1": {
+                  "count": 8,
+                  "signed_points": 215,
+                  "signed_points_per_game": 0.035833333333333335
+                },
+                "2": {
+                  "count": 2,
+                  "signed_points": 60,
+                  "signed_points_per_game": 0.01
+                },
+                "3-4": {
+                  "count": 12,
+                  "signed_points": 322,
+                  "signed_points_per_game": 0.05366666666666667
+                },
+                "5+": {
+                  "count": 4,
+                  "signed_points": 113,
+                  "signed_points_per_game": 0.018833333333333334
+                }
+              },
+              "by_starting_score": {
+                "leading": {
+                  "count": 9,
+                  "signed_points": 250,
+                  "signed_points_per_game": 0.041666666666666664
+                },
+                "tied": {
+                  "count": 9,
+                  "signed_points": 240,
+                  "signed_points_per_game": 0.04
+                },
+                "trailing": {
+                  "count": 8,
+                  "signed_points": 220,
+                  "signed_points_per_game": 0.03666666666666667
+                }
+              },
+              "total": {
+                "count": 26,
+                "signed_points": 710,
+                "signed_points_per_game": 0.11833333333333333
+              }
+            },
+            "dead": {
+              "by_ending_actor_turn": {
+                "1-3": {
+                  "count": 0,
+                  "signed_points": 0,
+                  "signed_points_per_game": 0.0
+                },
+                "10+": {
+                  "count": 2393,
+                  "signed_points": 0,
+                  "signed_points_per_game": 0.0
+                },
+                "4-6": {
+                  "count": 0,
+                  "signed_points": 0,
+                  "signed_points_per_game": 0.0
+                },
+                "7-9": {
+                  "count": 0,
+                  "signed_points": 0,
+                  "signed_points_per_game": 0.0
+                }
+              },
+              "by_game_round": {
+                "1": {
+                  "count": 426,
+                  "signed_points": 0,
+                  "signed_points_per_game": 0.0
+                },
+                "2": {
+                  "count": 455,
+                  "signed_points": 0,
+                  "signed_points_per_game": 0.0
+                },
+                "3-4": {
+                  "count": 824,
+                  "signed_points": 0,
+                  "signed_points_per_game": 0.0
+                },
+                "5+": {
+                  "count": 688,
+                  "signed_points": 0,
+                  "signed_points_per_game": 0.0
+                }
+              },
+              "by_starting_score": {
+                "leading": {
+                  "count": 950,
+                  "signed_points": 0,
+                  "signed_points_per_game": 0.0
+                },
+                "tied": {
+                  "count": 494,
+                  "signed_points": 0,
+                  "signed_points_per_game": 0.0
+                },
+                "trailing": {
+                  "count": 949,
+                  "signed_points": 0,
+                  "signed_points_per_game": 0.0
+                }
+              },
+              "total": {
+                "count": 2393,
+                "signed_points": 0,
+                "signed_points_per_game": 0.0
+              }
+            },
+            "marjj_gin": {
+              "by_ending_actor_turn": {
+                "1-3": {
+                  "count": 83,
+                  "signed_points": -5391,
+                  "signed_points_per_game": -0.8985
+                },
+                "10+": {
+                  "count": 6207,
+                  "signed_points": -191606,
+                  "signed_points_per_game": -31.934333333333335
+                },
+                "4-6": {
+                  "count": 963,
+                  "signed_points": -47002,
+                  "signed_points_per_game": -7.833666666666667
+                },
+                "7-9": {
+                  "count": 2932,
+                  "signed_points": -110216,
+                  "signed_points_per_game": -18.369333333333334
+                }
+              },
+              "by_game_round": {
+                "1": {
+                  "count": 1907,
+                  "signed_points": -64863,
+                  "signed_points_per_game": -10.8105
+                },
+                "2": {
+                  "count": 1859,
+                  "signed_points": -63860,
+                  "signed_points_per_game": -10.643333333333333
+                },
+                "3-4": {
+                  "count": 3490,
+                  "signed_points": -121418,
+                  "signed_points_per_game": -20.236333333333334
+                },
+                "5+": {
+                  "count": 2929,
+                  "signed_points": -104074,
+                  "signed_points_per_game": -17.345666666666666
+                }
+              },
+              "by_starting_score": {
+                "leading": {
+                  "count": 3887,
+                  "signed_points": -137136,
+                  "signed_points_per_game": -22.856
+                },
+                "tied": {
+                  "count": 2131,
+                  "signed_points": -72832,
+                  "signed_points_per_game": -12.138666666666667
+                },
+                "trailing": {
+                  "count": 4167,
+                  "signed_points": -144247,
+                  "signed_points_per_game": -24.041166666666665
+                }
+              },
+              "total": {
+                "count": 10185,
+                "signed_points": -354215,
+                "signed_points_per_game": -59.035833333333336
+              }
+            },
+            "marjj_knock": {
+              "by_ending_actor_turn": {
+                "1-3": {
+                  "count": 3058,
+                  "signed_points": -92581,
+                  "signed_points_per_game": -15.430166666666667
+                },
+                "10+": {
+                  "count": 0,
+                  "signed_points": 0,
+                  "signed_points_per_game": 0.0
+                },
+                "4-6": {
+                  "count": 0,
+                  "signed_points": 0,
+                  "signed_points_per_game": 0.0
+                },
+                "7-9": {
+                  "count": 0,
+                  "signed_points": 0,
+                  "signed_points_per_game": 0.0
+                }
+              },
+              "by_game_round": {
+                "1": {
+                  "count": 519,
+                  "signed_points": -15694,
+                  "signed_points_per_game": -2.615666666666667
+                },
+                "2": {
+                  "count": 528,
+                  "signed_points": -15823,
+                  "signed_points_per_game": -2.637166666666667
+                },
+                "3-4": {
+                  "count": 1039,
+                  "signed_points": -30924,
+                  "signed_points_per_game": -5.154
+                },
+                "5+": {
+                  "count": 972,
+                  "signed_points": -30140,
+                  "signed_points_per_game": -5.023333333333333
+                }
+              },
+              "by_starting_score": {
+                "leading": {
+                  "count": 1314,
+                  "signed_points": -39691,
+                  "signed_points_per_game": -6.615166666666667
+                },
+                "tied": {
+                  "count": 600,
+                  "signed_points": -18180,
+                  "signed_points_per_game": -3.03
+                },
+                "trailing": {
+                  "count": 1144,
+                  "signed_points": -34710,
+                  "signed_points_per_game": -5.785
+                }
+              },
+              "total": {
+                "count": 3058,
+                "signed_points": -92581,
+                "signed_points_per_game": -15.430166666666667
+              }
+            },
+            "marjj_undercut": {
+              "by_ending_actor_turn": {
+                "1-3": {
+                  "count": 19,
+                  "signed_points": -517,
+                  "signed_points_per_game": -0.08616666666666667
+                },
+                "10+": {
+                  "count": 199,
+                  "signed_points": -5471,
+                  "signed_points_per_game": -0.9118333333333334
+                },
+                "4-6": {
+                  "count": 626,
+                  "signed_points": -17620,
+                  "signed_points_per_game": -2.9366666666666665
+                },
+                "7-9": {
+                  "count": 602,
+                  "signed_points": -17440,
+                  "signed_points_per_game": -2.9066666666666667
+                }
+              },
+              "by_game_round": {
+                "1": {
+                  "count": 181,
+                  "signed_points": -5111,
+                  "signed_points_per_game": -0.8518333333333333
+                },
+                "2": {
+                  "count": 177,
+                  "signed_points": -5124,
+                  "signed_points_per_game": -0.854
+                },
+                "3-4": {
+                  "count": 387,
+                  "signed_points": -10992,
+                  "signed_points_per_game": -1.832
+                },
+                "5+": {
+                  "count": 701,
+                  "signed_points": -19821,
+                  "signed_points_per_game": -3.3035
+                }
+              },
+              "by_starting_score": {
+                "leading": {
+                  "count": 955,
+                  "signed_points": -27171,
+                  "signed_points_per_game": -4.5285
+                },
+                "tied": {
+                  "count": 206,
+                  "signed_points": -5814,
+                  "signed_points_per_game": -0.969
+                },
+                "trailing": {
+                  "count": 285,
+                  "signed_points": -8063,
+                  "signed_points_per_game": -1.3438333333333334
+                }
+              },
+              "total": {
+                "count": 1446,
+                "signed_points": -41048,
+                "signed_points_per_game": -6.841333333333333
+              }
+            }
+          },
+          "rounds": 34416
+        },
+        "exact_sweep_sign_p_value": {
+          "decimal": "1.110364374231766e-3",
+          "numeric": 0.0011103643742317651
+        },
+        "games": 6000,
+        "marjj_raw_points": 487844,
+        "raw_score_margin_moments": {
+          "cluster_ci95": {
+            "high": 2.1638845466348426,
+            "low": -1.2092178799681759
+          },
+          "clusters": 3000,
+          "denominator": 6000,
+          "denominator_sq": 12000,
+          "estimate": 0.47733333333333333,
+          "numerator": 2864,
+          "numerator_denominator": 5728,
+          "numerator_sq": 26649508
+        },
+        "win_rate_moments": {
+          "cluster_ci95": {
+            "high": 0.5311086594963793,
+            "low": 0.5078913405036206
+          },
+          "clusters": 3000,
+          "denominator": 6000,
+          "denominator_sq": 12000,
+          "estimate": 0.5195,
+          "numerator": 3117,
+          "numerator_denominator": 6234,
+          "numerator_sq": 4501
+        }
+      },
+      "default": {
+        "candidate_game_win_share": 0.5281666666666667,
+        "candidate_marjj_sweeps": [
+          746,
+          577
+        ],
+        "candidate_raw_points": 499533,
+        "candidate_wins": 3169,
+        "diagnostics": {
+          "candidate_knocks": {
+            "attempts": 20957,
+            "by_actual_opponent_deadwood": {
+              "0": 0,
+              "1-3": 4191,
+              "11-20": 4656,
+              "21+": 5799,
+              "4-6": 3111,
+              "7-10": 3200
+            },
+            "by_deadwood": {
+              "0": 10479,
+              "1": 271,
+              "10": 2471,
+              "2": 243,
+              "3": 253,
+              "4": 353,
+              "5": 399,
+              "6": 921,
+              "7": 1319,
+              "8": 1917,
+              "9": 2331
+            },
+            "by_pre_layoff_deadwood_difference": {
+              "-3..-1": 801,
+              "0": 305,
+              "1..3": 4429,
+              "<=-4": 989,
+              ">=4": 14433
+            },
+            "layoff_cases": 10478,
+            "layoff_deadwood_reduction": 18733,
+            "outcomes": {
+              "gin_win": 10479,
+              "knock_win": 7967,
+              "undercut_loss": 2511
+            }
+          },
+          "declined_legal_knocks": {
+            "eventual_finish": {
+              "candidate_gin": 9233,
+              "candidate_knock": 244,
+              "candidate_undercut": 21,
+              "dead": 1362,
+              "marjj_gin": 6591,
+              "marjj_knock": 11,
+              "marjj_undercut": 124
+            },
+            "first_by_achievable_deadwood": {
+              "0": 0,
+              "1": 2051,
+              "10": 2053,
+              "2": 1612,
+              "3": 1241,
+              "4": 1112,
+              "5": 1193,
+              "6": 1557,
+              "7": 2042,
+              "8": 2464,
+              "9": 2261
+            },
+            "first_by_actual_opponent_deadwood": {
+              "0": 0,
+              "1-3": 2142,
+              "11-20": 4999,
+              "21+": 4366,
+              "4-6": 2571,
+              "7-10": 3508
+            },
+            "first_by_turn": {
+              "1-3": 700,
+              "10+": 4808,
+              "4-6": 4568,
+              "7-9": 7510
+            },
+            "rounds_with_decline": 17586,
+            "total_opportunities": 70228
+          },
+          "finish_channels": {
+            "candidate_gin": {
+              "by_ending_actor_turn": {
+                "1-3": {
+                  "count": 125,
+                  "signed_points": 8058,
+                  "signed_points_per_game": 1.343
+                },
+                "10+": {
+                  "count": 6475,
+                  "signed_points": 196096,
+                  "signed_points_per_game": 32.68266666666667
+                },
+                "4-6": {
+                  "count": 1153,
+                  "signed_points": 53293,
+                  "signed_points_per_game": 8.882166666666667
+                },
+                "7-9": {
+                  "count": 2726,
+                  "signed_points": 97396,
+                  "signed_points_per_game": 16.232666666666667
+                }
+              },
+              "by_game_round": {
+                "1": {
+                  "count": 2088,
+                  "signed_points": 70839,
+                  "signed_points_per_game": 11.8065
+                },
+                "2": {
+                  "count": 1921,
+                  "signed_points": 64866,
+                  "signed_points_per_game": 10.811
+                },
+                "3-4": {
+                  "count": 3624,
+                  "signed_points": 122755,
+                  "signed_points_per_game": 20.45916666666667
+                },
+                "5+": {
+                  "count": 2846,
+                  "signed_points": 96383,
+                  "signed_points_per_game": 16.063833333333335
+                }
+              },
+              "by_starting_score": {
+                "leading": {
+                  "count": 3754,
+                  "signed_points": 127234,
+                  "signed_points_per_game": 21.205666666666666
+                },
+                "tied": {
+                  "count": 2285,
+                  "signed_points": 77402,
+                  "signed_points_per_game": 12.900333333333334
+                },
+                "trailing": {
+                  "count": 4440,
+                  "signed_points": 150207,
+                  "signed_points_per_game": 25.0345
+                }
+              },
+              "total": {
+                "count": 10479,
+                "signed_points": 354843,
+                "signed_points_per_game": 59.1405
+              }
+            },
+            "candidate_knock": {
+              "by_ending_actor_turn": {
+                "1-3": {
+                  "count": 1987,
+                  "signed_points": 59193,
+                  "signed_points_per_game": 9.8655
+                },
+                "10+": {
+                  "count": 328,
+                  "signed_points": 1736,
+                  "signed_points_per_game": 0.28933333333333333
+                },
+                "4-6": {
+                  "count": 4150,
+                  "signed_points": 69071,
+                  "signed_points_per_game": 11.511833333333334
+                },
+                "7-9": {
+                  "count": 1502,
+                  "signed_points": 13629,
+                  "signed_points_per_game": 2.2715
+                }
+              },
+              "by_game_round": {
+                "1": {
+                  "count": 1096,
+                  "signed_points": 20839,
+                  "signed_points_per_game": 3.4731666666666667
+                },
+                "2": {
+                  "count": 1158,
+                  "signed_points": 22280,
+                  "signed_points_per_game": 3.7133333333333334
+                },
+                "3-4": {
+                  "count": 2399,
+                  "signed_points": 44742,
+                  "signed_points_per_game": 7.457
+                },
+                "5+": {
+                  "count": 3314,
+                  "signed_points": 55768,
+                  "signed_points_per_game": 9.294666666666666
+                }
+              },
+              "by_starting_score": {
+                "leading": {
+                  "count": 4561,
+                  "signed_points": 77484,
+                  "signed_points_per_game": 12.914
+                },
+                "tied": {
+                  "count": 1226,
+                  "signed_points": 23266,
+                  "signed_points_per_game": 3.877666666666667
+                },
+                "trailing": {
+                  "count": 2180,
+                  "signed_points": 42879,
+                  "signed_points_per_game": 7.1465
+                }
+              },
+              "total": {
+                "count": 7967,
+                "signed_points": 143629,
+                "signed_points_per_game": 23.938166666666667
+              }
+            },
+            "candidate_undercut": {
+              "by_ending_actor_turn": {
+                "1-3": {
+                  "count": 38,
+                  "signed_points": 1061,
+                  "signed_points_per_game": 0.17683333333333334
+                },
+                "10+": {
+                  "count": 0,
+                  "signed_points": 0,
+                  "signed_points_per_game": 0.0
+                },
+                "4-6": {
+                  "count": 0,
+                  "signed_points": 0,
+                  "signed_points_per_game": 0.0
+                },
+                "7-9": {
+                  "count": 0,
+                  "signed_points": 0,
+                  "signed_points_per_game": 0.0
+                }
+              },
+              "by_game_round": {
+                "1": {
+                  "count": 4,
+                  "signed_points": 110,
+                  "signed_points_per_game": 0.018333333333333333
+                },
+                "2": {
+                  "count": 3,
+                  "signed_points": 86,
+                  "signed_points_per_game": 0.014333333333333333
+                },
+                "3-4": {
+                  "count": 20,
+                  "signed_points": 556,
+                  "signed_points_per_game": 0.09266666666666666
+                },
+                "5+": {
+                  "count": 11,
+                  "signed_points": 309,
+                  "signed_points_per_game": 0.0515
+                }
+              },
+              "by_starting_score": {
+                "leading": {
+                  "count": 18,
+                  "signed_points": 504,
+                  "signed_points_per_game": 0.084
+                },
+                "tied": {
+                  "count": 4,
+                  "signed_points": 110,
+                  "signed_points_per_game": 0.018333333333333333
+                },
+                "trailing": {
+                  "count": 16,
+                  "signed_points": 447,
+                  "signed_points_per_game": 0.0745
+                }
+              },
+              "total": {
+                "count": 38,
+                "signed_points": 1061,
+                "signed_points_per_game": 0.17683333333333334
+              }
+            },
+            "dead": {
+              "by_ending_actor_turn": {
+                "1-3": {
+                  "count": 0,
+                  "signed_points": 0,
+                  "signed_points_per_game": 0.0
+                },
+                "10+": {
+                  "count": 1420,
+                  "signed_points": 0,
+                  "signed_points_per_game": 0.0
+                },
+                "4-6": {
+                  "count": 0,
+                  "signed_points": 0,
+                  "signed_points_per_game": 0.0
+                },
+                "7-9": {
+                  "count": 0,
+                  "signed_points": 0,
+                  "signed_points_per_game": 0.0
+                }
+              },
+              "by_game_round": {
+                "1": {
+                  "count": 285,
+                  "signed_points": 0,
+                  "signed_points_per_game": 0.0
+                },
+                "2": {
+                  "count": 261,
+                  "signed_points": 0,
+                  "signed_points_per_game": 0.0
+                },
+                "3-4": {
+                  "count": 496,
+                  "signed_points": 0,
+                  "signed_points_per_game": 0.0
+                },
+                "5+": {
+                  "count": 378,
+                  "signed_points": 0,
+                  "signed_points_per_game": 0.0
+                }
+              },
+              "by_starting_score": {
+                "leading": {
+                  "count": 574,
+                  "signed_points": 0,
+                  "signed_points_per_game": 0.0
+                },
+                "tied": {
+                  "count": 315,
+                  "signed_points": 0,
+                  "signed_points_per_game": 0.0
+                },
+                "trailing": {
+                  "count": 531,
+                  "signed_points": 0,
+                  "signed_points_per_game": 0.0
+                }
+              },
+              "total": {
+                "count": 1420,
+                "signed_points": 0,
+                "signed_points_per_game": 0.0
+              }
+            },
+            "marjj_gin": {
+              "by_ending_actor_turn": {
+                "1-3": {
+                  "count": 87,
+                  "signed_points": -5543,
+                  "signed_points_per_game": -0.9238333333333333
+                },
+                "10+": {
+                  "count": 5673,
+                  "signed_points": -173703,
+                  "signed_points_per_game": -28.9505
+                },
+                "4-6": {
+                  "count": 942,
+                  "signed_points": -44169,
+                  "signed_points_per_game": -7.3615
+                },
+                "7-9": {
+                  "count": 2737,
+                  "signed_points": -102392,
+                  "signed_points_per_game": -17.065333333333335
+                }
+              },
+              "by_game_round": {
+                "1": {
+                  "count": 1716,
+                  "signed_points": -57951,
+                  "signed_points_per_game": -9.6585
+                },
+                "2": {
+                  "count": 1824,
+                  "signed_points": -61536,
+                  "signed_points_per_game": -10.256
+                },
+                "3-4": {
+                  "count": 3196,
+                  "signed_points": -110696,
+                  "signed_points_per_game": -18.449333333333332
+                },
+                "5+": {
+                  "count": 2703,
+                  "signed_points": -95624,
+                  "signed_points_per_game": -15.937333333333333
+                }
+              },
+              "by_starting_score": {
+                "leading": {
+                  "count": 3674,
+                  "signed_points": -129094,
+                  "signed_points_per_game": -21.515666666666668
+                },
+                "tied": {
+                  "count": 1883,
+                  "signed_points": -63524,
+                  "signed_points_per_game": -10.587333333333333
+                },
+                "trailing": {
+                  "count": 3882,
+                  "signed_points": -133189,
+                  "signed_points_per_game": -22.198166666666665
+                }
+              },
+              "total": {
+                "count": 9439,
+                "signed_points": -325807,
+                "signed_points_per_game": -54.30116666666667
+              }
+            },
+            "marjj_knock": {
+              "by_ending_actor_turn": {
+                "1-3": {
+                  "count": 2974,
+                  "signed_points": -86387,
+                  "signed_points_per_game": -14.397833333333333
+                },
+                "10+": {
+                  "count": 0,
+                  "signed_points": 0,
+                  "signed_points_per_game": 0.0
+                },
+                "4-6": {
+                  "count": 0,
+                  "signed_points": 0,
+                  "signed_points_per_game": 0.0
+                },
+                "7-9": {
+                  "count": 0,
+                  "signed_points": 0,
+                  "signed_points_per_game": 0.0
+                }
+              },
+              "by_game_round": {
+                "1": {
+                  "count": 497,
+                  "signed_points": -14224,
+                  "signed_points_per_game": -2.3706666666666667
+                },
+                "2": {
+                  "count": 512,
+                  "signed_points": -14989,
+                  "signed_points_per_game": -2.4981666666666666
+                },
+                "3-4": {
+                  "count": 989,
+                  "signed_points": -29050,
+                  "signed_points_per_game": -4.841666666666667
+                },
+                "5+": {
+                  "count": 976,
+                  "signed_points": -28124,
+                  "signed_points_per_game": -4.687333333333333
+                }
+              },
+              "by_starting_score": {
+                "leading": {
+                  "count": 1359,
+                  "signed_points": -39312,
+                  "signed_points_per_game": -6.552
+                },
+                "tied": {
+                  "count": 539,
+                  "signed_points": -15530,
+                  "signed_points_per_game": -2.5883333333333334
+                },
+                "trailing": {
+                  "count": 1076,
+                  "signed_points": -31545,
+                  "signed_points_per_game": -5.2575
+                }
+              },
+              "total": {
+                "count": 2974,
+                "signed_points": -86387,
+                "signed_points_per_game": -14.397833333333333
+              }
+            },
+            "marjj_undercut": {
+              "by_ending_actor_turn": {
+                "1-3": {
+                  "count": 23,
+                  "signed_points": -616,
+                  "signed_points_per_game": -0.10266666666666667
+                },
+                "10+": {
+                  "count": 432,
+                  "signed_points": -12516,
+                  "signed_points_per_game": -2.086
+                },
+                "4-6": {
+                  "count": 760,
+                  "signed_points": -21568,
+                  "signed_points_per_game": -3.5946666666666665
+                },
+                "7-9": {
+                  "count": 1296,
+                  "signed_points": -37394,
+                  "signed_points_per_game": -6.232333333333333
+                }
+              },
+              "by_game_round": {
+                "1": {
+                  "count": 314,
+                  "signed_points": -9029,
+                  "signed_points_per_game": -1.5048333333333332
+                },
+                "2": {
+                  "count": 321,
+                  "signed_points": -9285,
+                  "signed_points_per_game": -1.5475
+                },
+                "3-4": {
+                  "count": 746,
+                  "signed_points": -21517,
+                  "signed_points_per_game": -3.5861666666666667
+                },
+                "5+": {
+                  "count": 1130,
+                  "signed_points": -32263,
+                  "signed_points_per_game": -5.377166666666667
+                }
+              },
+              "by_starting_score": {
+                "leading": {
+                  "count": 1620,
+                  "signed_points": -46377,
+                  "signed_points_per_game": -7.7295
+                },
+                "tied": {
+                  "count": 362,
+                  "signed_points": -10425,
+                  "signed_points_per_game": -1.7375
+                },
+                "trailing": {
+                  "count": 529,
+                  "signed_points": -15292,
+                  "signed_points_per_game": -2.5486666666666666
+                }
+              },
+              "total": {
+                "count": 2511,
+                "signed_points": -72094,
+                "signed_points_per_game": -12.015666666666666
+              }
+            }
+          },
+          "rounds": 34828
+        },
+        "exact_sweep_sign_p_value": {
+          "decimal": "3.750460172181446e-6",
+          "numeric": 3.7504601721814415e-6
+        },
+        "games": 6000,
+        "marjj_raw_points": 484288,
+        "raw_score_margin_moments": {
+          "cluster_ci95": {
+            "high": 4.220521188642914,
+            "low": 0.8611454780237529
+          },
+          "clusters": 3000,
+          "denominator": 6000,
+          "denominator_sq": 12000,
+          "estimate": 2.5408333333333335,
+          "numerator": 15245,
+          "numerator_denominator": 30490,
+          "numerator_sq": 26507809
+        },
+        "win_rate_moments": {
+          "cluster_ci95": {
+            "high": 0.5400076806092695,
+            "low": 0.5163256527240638
+          },
+          "clusters": 3000,
+          "denominator": 6000,
+          "denominator_sq": 12000,
+          "estimate": 0.5281666666666667,
+          "numerator": 3169,
+          "numerator_denominator": 6338,
+          "numerator_sq": 4661
+        }
+      }
+    },
+    "calibrated_minus_default": {
+      "exact_arm_sign_p_value": {
+        "decimal": "1.810088186927708e-1",
+        "numeric": 0.1810088186927708
+      },
+      "finish_channel_ranking": [
+        {
+          "calibrated_minus_default_signed_points": 31046,
+          "channel": "marjj_undercut",
+          "signed_points_per_game_delta": 5.174333333333333
+        },
+        {
+          "calibrated_minus_default_signed_points": -28408,
+          "channel": "marjj_gin",
+          "signed_points_per_game_delta": -4.734666666666667
+        },
+        {
+          "calibrated_minus_default_signed_points": -7474,
+          "channel": "candidate_knock",
+          "signed_points_per_game_delta": -1.2456666666666667
+        },
+        {
+          "calibrated_minus_default_signed_points": -6194,
+          "channel": "marjj_knock",
+          "signed_points_per_game_delta": -1.0323333333333333
+        },
+        {
+          "calibrated_minus_default_signed_points": -1000,
+          "channel": "candidate_gin",
+          "signed_points_per_game_delta": -0.16666666666666666
+        },
+        {
+          "calibrated_minus_default_signed_points": -351,
+          "channel": "candidate_undercut",
+          "signed_points_per_game_delta": -0.0585
+        },
+        {
+          "calibrated_minus_default_signed_points": 0,
+          "channel": "dead",
+          "signed_points_per_game_delta": 0.0
+        }
+      ],
+      "game_win_share_delta": {
+        "cluster_ci95": {
+          "high": 0.006507757535904893,
+          "low": -0.023841090869238225
+        },
+        "clusters": 3000,
+        "denominator": 6000,
+        "denominator_sq": 12000,
+        "estimate": -0.008666666666666666,
+        "numerator": -52,
+        "numerator_denominator": -104,
+        "numerator_sq": 2158
+      },
+      "raw_score_margin_per_game_delta": {
+        "cluster_ci95": {
+          "high": 0.04278006163101766,
+          "low": -4.169780061631018
+        },
+        "clusters": 3000,
+        "denominator": 6000,
+        "denominator_sq": 12000,
+        "estimate": -2.0635,
+        "numerator": -12381,
+        "numerator_denominator": -24762,
+        "numerator_sq": 41611313
+      },
+      "trial_win_signs": {
+        "calibrated": 758,
+        "default": 812
+      }
+    }
+  },
+  "reproducibility": {
+    "git_dirty": false,
+    "git_head": "cf2aa7d5b9dfe19f28283f690b6e939dddb48ed6",
+    "logical_threads": 32,
+    "os": "Linux 6.8.0-138-generic #138~22.04.1-Ubuntu SMP PREEMPT_DYNAMIC Fri Aug  7 13:43:15 UTC  x86_64 GNU/Linux",
+    "rustc_vv": "rustc 1.98.1 (48a229cea 2026-09-01)\nbinary: rustc\ncommit-hash: 48a229ceaefd4985c50990b14116b6d856af0985\ncommit-date: 2026-09-01\nhost: x86_64-unknown-linux-gnu\nrelease: 1.98.1\nLLVM version: 22.1.8"
+  },
+  "runs": [
+    {
+      "elapsed_seconds": 1734.115186138,
+      "results": {
+        "arms": {
+          "calibrated": {
+            "candidate_game_win_share": 0.5195,
+            "candidate_marjj_sweeps": [
+              692,
+              575
+            ],
+            "candidate_raw_points": 490708,
+            "candidate_wins": 3117,
+            "diagnostics": {
+              "candidate_knocks": {
+                "attempts": 18754,
+                "by_actual_opponent_deadwood": {
+                  "0": 0,
+                  "1-3": 4162,
+                  "11-20": 3813,
+                  "21+": 5361,
+                  "4-6": 2691,
+                  "7-10": 2727
+                },
+                "by_deadwood": {
+                  "0": 10517,
+                  "1": 451,
+                  "10": 1823,
+                  "2": 384,
+                  "3": 304,
+                  "4": 331,
+                  "5": 363,
+                  "6": 703,
+                  "7": 909,
+                  "8": 1315,
+                  "9": 1654
+                },
+                "by_pre_layoff_deadwood_difference": {
+                  "-3..-1": 487,
+                  "0": 194,
+                  "1..3": 4379,
+                  "<=-4": 501,
+                  ">=4": 13193
+                },
+                "layoff_cases": 8237,
+                "layoff_deadwood_reduction": 15934,
+                "outcomes": {
+                  "gin_win": 10517,
+                  "knock_win": 6791,
+                  "undercut_loss": 1446
+                }
+              },
+              "declined_legal_knocks": {
+                "eventual_finish": {
+                  "candidate_gin": 9238,
+                  "candidate_knock": 231,
+                  "candidate_undercut": 7,
+                  "dead": 2270,
+                  "marjj_gin": 7267,
+                  "marjj_knock": 5,
+                  "marjj_undercut": 118
+                },
+                "first_by_achievable_deadwood": {
+                  "0": 0,
+                  "1": 1915,
+                  "10": 2753,
+                  "2": 1523,
+                  "3": 1082,
+                  "4": 1151,
+                  "5": 1073,
+                  "6": 1623,
+                  "7": 2268,
+                  "8": 2911,
+                  "9": 2837
+                },
+                "first_by_actual_opponent_deadwood": {
+                  "0": 0,
+                  "1-3": 2517,
+                  "11-20": 5433,
+                  "21+": 4470,
+                  "4-6": 2821,
+                  "7-10": 3895
+                },
+                "first_by_turn": {
+                  "1-3": 410,
+                  "10+": 5405,
+                  "4-6": 4794,
+                  "7-9": 8527
+                },
+                "rounds_with_decline": 19136,
+                "total_opportunities": 81304
+              },
+              "finish_channels": {
+                "candidate_gin": {
+                  "by_ending_actor_turn": {
+                    "1-3": {
+                      "count": 115,
+                      "signed_points": 7514,
+                      "signed_points_per_game": 1.2523333333333333
+                    },
+                    "10+": {
+                      "count": 6569,
+                      "signed_points": 197932,
+                      "signed_points_per_game": 32.98866666666667
+                    },
+                    "4-6": {
+                      "count": 1133,
+                      "signed_points": 51985,
+                      "signed_points_per_game": 8.664166666666667
+                    },
+                    "7-9": {
+                      "count": 2700,
+                      "signed_points": 96412,
+                      "signed_points_per_game": 16.068666666666665
+                    }
+                  },
+                  "by_game_round": {
+                    "1": {
+                      "count": 2100,
+                      "signed_points": 70696,
+                      "signed_points_per_game": 11.782666666666668
+                    },
+                    "2": {
+                      "count": 2013,
+                      "signed_points": 68086,
+                      "signed_points_per_game": 11.347666666666667
+                    },
+                    "3-4": {
+                      "count": 3641,
+                      "signed_points": 122741,
+                      "signed_points_per_game": 20.456833333333332
+                    },
+                    "5+": {
+                      "count": 2763,
+                      "signed_points": 92320,
+                      "signed_points_per_game": 15.386666666666667
+                    }
+                  },
+                  "by_starting_score": {
+                    "leading": {
+                      "count": 3717,
+                      "signed_points": 124457,
+                      "signed_points_per_game": 20.742833333333333
+                    },
+                    "tied": {
+                      "count": 2354,
+                      "signed_points": 79269,
+                      "signed_points_per_game": 13.2115
+                    },
+                    "trailing": {
+                      "count": 4446,
+                      "signed_points": 150117,
+                      "signed_points_per_game": 25.0195
+                    }
+                  },
+                  "total": {
+                    "count": 10517,
+                    "signed_points": 353843,
+                    "signed_points_per_game": 58.97383333333333
+                  }
+                },
+                "candidate_knock": {
+                  "by_ending_actor_turn": {
+                    "1-3": {
+                      "count": 2175,
+                      "signed_points": 66071,
+                      "signed_points_per_game": 11.011833333333334
+                    },
+                    "10+": {
+                      "count": 255,
+                      "signed_points": 1001,
+                      "signed_points_per_game": 0.16683333333333333
+                    },
+                    "4-6": {
+                      "count": 3659,
+                      "signed_points": 62662,
+                      "signed_points_per_game": 10.443666666666667
+                    },
+                    "7-9": {
+                      "count": 702,
+                      "signed_points": 6421,
+                      "signed_points_per_game": 1.0701666666666667
+                    }
+                  },
+                  "by_game_round": {
+                    "1": {
+                      "count": 859,
+                      "signed_points": 18184,
+                      "signed_points_per_game": 3.030666666666667
+                    },
+                    "2": {
+                      "count": 965,
+                      "signed_points": 20076,
+                      "signed_points_per_game": 3.346
+                    },
+                    "3-4": {
+                      "count": 2055,
+                      "signed_points": 43070,
+                      "signed_points_per_game": 7.178333333333334
+                    },
+                    "5+": {
+                      "count": 2912,
+                      "signed_points": 54825,
+                      "signed_points_per_game": 9.1375
+                    }
+                  },
+                  "by_starting_score": {
+                    "leading": {
+                      "count": 3922,
+                      "signed_points": 73496,
+                      "signed_points_per_game": 12.249333333333333
+                    },
+                    "tied": {
+                      "count": 1000,
+                      "signed_points": 21428,
+                      "signed_points_per_game": 3.5713333333333335
+                    },
+                    "trailing": {
+                      "count": 1869,
+                      "signed_points": 41231,
+                      "signed_points_per_game": 6.871833333333333
+                    }
+                  },
+                  "total": {
+                    "count": 6791,
+                    "signed_points": 136155,
+                    "signed_points_per_game": 22.6925
+                  }
+                },
+                "candidate_undercut": {
+                  "by_ending_actor_turn": {
+                    "1-3": {
+                      "count": 26,
+                      "signed_points": 710,
+                      "signed_points_per_game": 0.11833333333333333
+                    },
+                    "10+": {
+                      "count": 0,
+                      "signed_points": 0,
+                      "signed_points_per_game": 0.0
+                    },
+                    "4-6": {
+                      "count": 0,
+                      "signed_points": 0,
+                      "signed_points_per_game": 0.0
+                    },
+                    "7-9": {
+                      "count": 0,
+                      "signed_points": 0,
+                      "signed_points_per_game": 0.0
+                    }
+                  },
+                  "by_game_round": {
+                    "1": {
+                      "count": 8,
+                      "signed_points": 215,
+                      "signed_points_per_game": 0.035833333333333335
+                    },
+                    "2": {
+                      "count": 2,
+                      "signed_points": 60,
+                      "signed_points_per_game": 0.01
+                    },
+                    "3-4": {
+                      "count": 12,
+                      "signed_points": 322,
+                      "signed_points_per_game": 0.05366666666666667
+                    },
+                    "5+": {
+                      "count": 4,
+                      "signed_points": 113,
+                      "signed_points_per_game": 0.018833333333333334
+                    }
+                  },
+                  "by_starting_score": {
+                    "leading": {
+                      "count": 9,
+                      "signed_points": 250,
+                      "signed_points_per_game": 0.041666666666666664
+                    },
+                    "tied": {
+                      "count": 9,
+                      "signed_points": 240,
+                      "signed_points_per_game": 0.04
+                    },
+                    "trailing": {
+                      "count": 8,
+                      "signed_points": 220,
+                      "signed_points_per_game": 0.03666666666666667
+                    }
+                  },
+                  "total": {
+                    "count": 26,
+                    "signed_points": 710,
+                    "signed_points_per_game": 0.11833333333333333
+                  }
+                },
+                "dead": {
+                  "by_ending_actor_turn": {
+                    "1-3": {
+                      "count": 0,
+                      "signed_points": 0,
+                      "signed_points_per_game": 0.0
+                    },
+                    "10+": {
+                      "count": 2393,
+                      "signed_points": 0,
+                      "signed_points_per_game": 0.0
+                    },
+                    "4-6": {
+                      "count": 0,
+                      "signed_points": 0,
+                      "signed_points_per_game": 0.0
+                    },
+                    "7-9": {
+                      "count": 0,
+                      "signed_points": 0,
+                      "signed_points_per_game": 0.0
+                    }
+                  },
+                  "by_game_round": {
+                    "1": {
+                      "count": 426,
+                      "signed_points": 0,
+                      "signed_points_per_game": 0.0
+                    },
+                    "2": {
+                      "count": 455,
+                      "signed_points": 0,
+                      "signed_points_per_game": 0.0
+                    },
+                    "3-4": {
+                      "count": 824,
+                      "signed_points": 0,
+                      "signed_points_per_game": 0.0
+                    },
+                    "5+": {
+                      "count": 688,
+                      "signed_points": 0,
+                      "signed_points_per_game": 0.0
+                    }
+                  },
+                  "by_starting_score": {
+                    "leading": {
+                      "count": 950,
+                      "signed_points": 0,
+                      "signed_points_per_game": 0.0
+                    },
+                    "tied": {
+                      "count": 494,
+                      "signed_points": 0,
+                      "signed_points_per_game": 0.0
+                    },
+                    "trailing": {
+                      "count": 949,
+                      "signed_points": 0,
+                      "signed_points_per_game": 0.0
+                    }
+                  },
+                  "total": {
+                    "count": 2393,
+                    "signed_points": 0,
+                    "signed_points_per_game": 0.0
+                  }
+                },
+                "marjj_gin": {
+                  "by_ending_actor_turn": {
+                    "1-3": {
+                      "count": 83,
+                      "signed_points": -5391,
+                      "signed_points_per_game": -0.8985
+                    },
+                    "10+": {
+                      "count": 6207,
+                      "signed_points": -191606,
+                      "signed_points_per_game": -31.934333333333335
+                    },
+                    "4-6": {
+                      "count": 963,
+                      "signed_points": -47002,
+                      "signed_points_per_game": -7.833666666666667
+                    },
+                    "7-9": {
+                      "count": 2932,
+                      "signed_points": -110216,
+                      "signed_points_per_game": -18.369333333333334
+                    }
+                  },
+                  "by_game_round": {
+                    "1": {
+                      "count": 1907,
+                      "signed_points": -64863,
+                      "signed_points_per_game": -10.8105
+                    },
+                    "2": {
+                      "count": 1859,
+                      "signed_points": -63860,
+                      "signed_points_per_game": -10.643333333333333
+                    },
+                    "3-4": {
+                      "count": 3490,
+                      "signed_points": -121418,
+                      "signed_points_per_game": -20.236333333333334
+                    },
+                    "5+": {
+                      "count": 2929,
+                      "signed_points": -104074,
+                      "signed_points_per_game": -17.345666666666666
+                    }
+                  },
+                  "by_starting_score": {
+                    "leading": {
+                      "count": 3887,
+                      "signed_points": -137136,
+                      "signed_points_per_game": -22.856
+                    },
+                    "tied": {
+                      "count": 2131,
+                      "signed_points": -72832,
+                      "signed_points_per_game": -12.138666666666667
+                    },
+                    "trailing": {
+                      "count": 4167,
+                      "signed_points": -144247,
+                      "signed_points_per_game": -24.041166666666665
+                    }
+                  },
+                  "total": {
+                    "count": 10185,
+                    "signed_points": -354215,
+                    "signed_points_per_game": -59.035833333333336
+                  }
+                },
+                "marjj_knock": {
+                  "by_ending_actor_turn": {
+                    "1-3": {
+                      "count": 3058,
+                      "signed_points": -92581,
+                      "signed_points_per_game": -15.430166666666667
+                    },
+                    "10+": {
+                      "count": 0,
+                      "signed_points": 0,
+                      "signed_points_per_game": 0.0
+                    },
+                    "4-6": {
+                      "count": 0,
+                      "signed_points": 0,
+                      "signed_points_per_game": 0.0
+                    },
+                    "7-9": {
+                      "count": 0,
+                      "signed_points": 0,
+                      "signed_points_per_game": 0.0
+                    }
+                  },
+                  "by_game_round": {
+                    "1": {
+                      "count": 519,
+                      "signed_points": -15694,
+                      "signed_points_per_game": -2.615666666666667
+                    },
+                    "2": {
+                      "count": 528,
+                      "signed_points": -15823,
+                      "signed_points_per_game": -2.637166666666667
+                    },
+                    "3-4": {
+                      "count": 1039,
+                      "signed_points": -30924,
+                      "signed_points_per_game": -5.154
+                    },
+                    "5+": {
+                      "count": 972,
+                      "signed_points": -30140,
+                      "signed_points_per_game": -5.023333333333333
+                    }
+                  },
+                  "by_starting_score": {
+                    "leading": {
+                      "count": 1314,
+                      "signed_points": -39691,
+                      "signed_points_per_game": -6.615166666666667
+                    },
+                    "tied": {
+                      "count": 600,
+                      "signed_points": -18180,
+                      "signed_points_per_game": -3.03
+                    },
+                    "trailing": {
+                      "count": 1144,
+                      "signed_points": -34710,
+                      "signed_points_per_game": -5.785
+                    }
+                  },
+                  "total": {
+                    "count": 3058,
+                    "signed_points": -92581,
+                    "signed_points_per_game": -15.430166666666667
+                  }
+                },
+                "marjj_undercut": {
+                  "by_ending_actor_turn": {
+                    "1-3": {
+                      "count": 19,
+                      "signed_points": -517,
+                      "signed_points_per_game": -0.08616666666666667
+                    },
+                    "10+": {
+                      "count": 199,
+                      "signed_points": -5471,
+                      "signed_points_per_game": -0.9118333333333334
+                    },
+                    "4-6": {
+                      "count": 626,
+                      "signed_points": -17620,
+                      "signed_points_per_game": -2.9366666666666665
+                    },
+                    "7-9": {
+                      "count": 602,
+                      "signed_points": -17440,
+                      "signed_points_per_game": -2.9066666666666667
+                    }
+                  },
+                  "by_game_round": {
+                    "1": {
+                      "count": 181,
+                      "signed_points": -5111,
+                      "signed_points_per_game": -0.8518333333333333
+                    },
+                    "2": {
+                      "count": 177,
+                      "signed_points": -5124,
+                      "signed_points_per_game": -0.854
+                    },
+                    "3-4": {
+                      "count": 387,
+                      "signed_points": -10992,
+                      "signed_points_per_game": -1.832
+                    },
+                    "5+": {
+                      "count": 701,
+                      "signed_points": -19821,
+                      "signed_points_per_game": -3.3035
+                    }
+                  },
+                  "by_starting_score": {
+                    "leading": {
+                      "count": 955,
+                      "signed_points": -27171,
+                      "signed_points_per_game": -4.5285
+                    },
+                    "tied": {
+                      "count": 206,
+                      "signed_points": -5814,
+                      "signed_points_per_game": -0.969
+                    },
+                    "trailing": {
+                      "count": 285,
+                      "signed_points": -8063,
+                      "signed_points_per_game": -1.3438333333333334
+                    }
+                  },
+                  "total": {
+                    "count": 1446,
+                    "signed_points": -41048,
+                    "signed_points_per_game": -6.841333333333333
+                  }
+                }
+              },
+              "rounds": 34416
+            },
+            "exact_sweep_sign_p_value": {
+              "decimal": "1.110364374231766e-3",
+              "numeric": 0.0011103643742317651
+            },
+            "games": 6000,
+            "marjj_raw_points": 487844,
+            "raw_score_margin_moments": {
+              "cluster_ci95": {
+                "high": 2.1638845466348426,
+                "low": -1.2092178799681759
+              },
+              "clusters": 3000,
+              "denominator": 6000,
+              "denominator_sq": 12000,
+              "estimate": 0.47733333333333333,
+              "numerator": 2864,
+              "numerator_denominator": 5728,
+              "numerator_sq": 26649508
+            },
+            "win_rate_moments": {
+              "cluster_ci95": {
+                "high": 0.5311086594963793,
+                "low": 0.5078913405036206
+              },
+              "clusters": 3000,
+              "denominator": 6000,
+              "denominator_sq": 12000,
+              "estimate": 0.5195,
+              "numerator": 3117,
+              "numerator_denominator": 6234,
+              "numerator_sq": 4501
+            }
+          },
+          "default": {
+            "candidate_game_win_share": 0.5281666666666667,
+            "candidate_marjj_sweeps": [
+              746,
+              577
+            ],
+            "candidate_raw_points": 499533,
+            "candidate_wins": 3169,
+            "diagnostics": {
+              "candidate_knocks": {
+                "attempts": 20957,
+                "by_actual_opponent_deadwood": {
+                  "0": 0,
+                  "1-3": 4191,
+                  "11-20": 4656,
+                  "21+": 5799,
+                  "4-6": 3111,
+                  "7-10": 3200
+                },
+                "by_deadwood": {
+                  "0": 10479,
+                  "1": 271,
+                  "10": 2471,
+                  "2": 243,
+                  "3": 253,
+                  "4": 353,
+                  "5": 399,
+                  "6": 921,
+                  "7": 1319,
+                  "8": 1917,
+                  "9": 2331
+                },
+                "by_pre_layoff_deadwood_difference": {
+                  "-3..-1": 801,
+                  "0": 305,
+                  "1..3": 4429,
+                  "<=-4": 989,
+                  ">=4": 14433
+                },
+                "layoff_cases": 10478,
+                "layoff_deadwood_reduction": 18733,
+                "outcomes": {
+                  "gin_win": 10479,
+                  "knock_win": 7967,
+                  "undercut_loss": 2511
+                }
+              },
+              "declined_legal_knocks": {
+                "eventual_finish": {
+                  "candidate_gin": 9233,
+                  "candidate_knock": 244,
+                  "candidate_undercut": 21,
+                  "dead": 1362,
+                  "marjj_gin": 6591,
+                  "marjj_knock": 11,
+                  "marjj_undercut": 124
+                },
+                "first_by_achievable_deadwood": {
+                  "0": 0,
+                  "1": 2051,
+                  "10": 2053,
+                  "2": 1612,
+                  "3": 1241,
+                  "4": 1112,
+                  "5": 1193,
+                  "6": 1557,
+                  "7": 2042,
+                  "8": 2464,
+                  "9": 2261
+                },
+                "first_by_actual_opponent_deadwood": {
+                  "0": 0,
+                  "1-3": 2142,
+                  "11-20": 4999,
+                  "21+": 4366,
+                  "4-6": 2571,
+                  "7-10": 3508
+                },
+                "first_by_turn": {
+                  "1-3": 700,
+                  "10+": 4808,
+                  "4-6": 4568,
+                  "7-9": 7510
+                },
+                "rounds_with_decline": 17586,
+                "total_opportunities": 70228
+              },
+              "finish_channels": {
+                "candidate_gin": {
+                  "by_ending_actor_turn": {
+                    "1-3": {
+                      "count": 125,
+                      "signed_points": 8058,
+                      "signed_points_per_game": 1.343
+                    },
+                    "10+": {
+                      "count": 6475,
+                      "signed_points": 196096,
+                      "signed_points_per_game": 32.68266666666667
+                    },
+                    "4-6": {
+                      "count": 1153,
+                      "signed_points": 53293,
+                      "signed_points_per_game": 8.882166666666667
+                    },
+                    "7-9": {
+                      "count": 2726,
+                      "signed_points": 97396,
+                      "signed_points_per_game": 16.232666666666667
+                    }
+                  },
+                  "by_game_round": {
+                    "1": {
+                      "count": 2088,
+                      "signed_points": 70839,
+                      "signed_points_per_game": 11.8065
+                    },
+                    "2": {
+                      "count": 1921,
+                      "signed_points": 64866,
+                      "signed_points_per_game": 10.811
+                    },
+                    "3-4": {
+                      "count": 3624,
+                      "signed_points": 122755,
+                      "signed_points_per_game": 20.45916666666667
+                    },
+                    "5+": {
+                      "count": 2846,
+                      "signed_points": 96383,
+                      "signed_points_per_game": 16.063833333333335
+                    }
+                  },
+                  "by_starting_score": {
+                    "leading": {
+                      "count": 3754,
+                      "signed_points": 127234,
+                      "signed_points_per_game": 21.205666666666666
+                    },
+                    "tied": {
+                      "count": 2285,
+                      "signed_points": 77402,
+                      "signed_points_per_game": 12.900333333333334
+                    },
+                    "trailing": {
+                      "count": 4440,
+                      "signed_points": 150207,
+                      "signed_points_per_game": 25.0345
+                    }
+                  },
+                  "total": {
+                    "count": 10479,
+                    "signed_points": 354843,
+                    "signed_points_per_game": 59.1405
+                  }
+                },
+                "candidate_knock": {
+                  "by_ending_actor_turn": {
+                    "1-3": {
+                      "count": 1987,
+                      "signed_points": 59193,
+                      "signed_points_per_game": 9.8655
+                    },
+                    "10+": {
+                      "count": 328,
+                      "signed_points": 1736,
+                      "signed_points_per_game": 0.28933333333333333
+                    },
+                    "4-6": {
+                      "count": 4150,
+                      "signed_points": 69071,
+                      "signed_points_per_game": 11.511833333333334
+                    },
+                    "7-9": {
+                      "count": 1502,
+                      "signed_points": 13629,
+                      "signed_points_per_game": 2.2715
+                    }
+                  },
+                  "by_game_round": {
+                    "1": {
+                      "count": 1096,
+                      "signed_points": 20839,
+                      "signed_points_per_game": 3.4731666666666667
+                    },
+                    "2": {
+                      "count": 1158,
+                      "signed_points": 22280,
+                      "signed_points_per_game": 3.7133333333333334
+                    },
+                    "3-4": {
+                      "count": 2399,
+                      "signed_points": 44742,
+                      "signed_points_per_game": 7.457
+                    },
+                    "5+": {
+                      "count": 3314,
+                      "signed_points": 55768,
+                      "signed_points_per_game": 9.294666666666666
+                    }
+                  },
+                  "by_starting_score": {
+                    "leading": {
+                      "count": 4561,
+                      "signed_points": 77484,
+                      "signed_points_per_game": 12.914
+                    },
+                    "tied": {
+                      "count": 1226,
+                      "signed_points": 23266,
+                      "signed_points_per_game": 3.877666666666667
+                    },
+                    "trailing": {
+                      "count": 2180,
+                      "signed_points": 42879,
+                      "signed_points_per_game": 7.1465
+                    }
+                  },
+                  "total": {
+                    "count": 7967,
+                    "signed_points": 143629,
+                    "signed_points_per_game": 23.938166666666667
+                  }
+                },
+                "candidate_undercut": {
+                  "by_ending_actor_turn": {
+                    "1-3": {
+                      "count": 38,
+                      "signed_points": 1061,
+                      "signed_points_per_game": 0.17683333333333334
+                    },
+                    "10+": {
+                      "count": 0,
+                      "signed_points": 0,
+                      "signed_points_per_game": 0.0
+                    },
+                    "4-6": {
+                      "count": 0,
+                      "signed_points": 0,
+                      "signed_points_per_game": 0.0
+                    },
+                    "7-9": {
+                      "count": 0,
+                      "signed_points": 0,
+                      "signed_points_per_game": 0.0
+                    }
+                  },
+                  "by_game_round": {
+                    "1": {
+                      "count": 4,
+                      "signed_points": 110,
+                      "signed_points_per_game": 0.018333333333333333
+                    },
+                    "2": {
+                      "count": 3,
+                      "signed_points": 86,
+                      "signed_points_per_game": 0.014333333333333333
+                    },
+                    "3-4": {
+                      "count": 20,
+                      "signed_points": 556,
+                      "signed_points_per_game": 0.09266666666666666
+                    },
+                    "5+": {
+                      "count": 11,
+                      "signed_points": 309,
+                      "signed_points_per_game": 0.0515
+                    }
+                  },
+                  "by_starting_score": {
+                    "leading": {
+                      "count": 18,
+                      "signed_points": 504,
+                      "signed_points_per_game": 0.084
+                    },
+                    "tied": {
+                      "count": 4,
+                      "signed_points": 110,
+                      "signed_points_per_game": 0.018333333333333333
+                    },
+                    "trailing": {
+                      "count": 16,
+                      "signed_points": 447,
+                      "signed_points_per_game": 0.0745
+                    }
+                  },
+                  "total": {
+                    "count": 38,
+                    "signed_points": 1061,
+                    "signed_points_per_game": 0.17683333333333334
+                  }
+                },
+                "dead": {
+                  "by_ending_actor_turn": {
+                    "1-3": {
+                      "count": 0,
+                      "signed_points": 0,
+                      "signed_points_per_game": 0.0
+                    },
+                    "10+": {
+                      "count": 1420,
+                      "signed_points": 0,
+                      "signed_points_per_game": 0.0
+                    },
+                    "4-6": {
+                      "count": 0,
+                      "signed_points": 0,
+                      "signed_points_per_game": 0.0
+                    },
+                    "7-9": {
+                      "count": 0,
+                      "signed_points": 0,
+                      "signed_points_per_game": 0.0
+                    }
+                  },
+                  "by_game_round": {
+                    "1": {
+                      "count": 285,
+                      "signed_points": 0,
+                      "signed_points_per_game": 0.0
+                    },
+                    "2": {
+                      "count": 261,
+                      "signed_points": 0,
+                      "signed_points_per_game": 0.0
+                    },
+                    "3-4": {
+                      "count": 496,
+                      "signed_points": 0,
+                      "signed_points_per_game": 0.0
+                    },
+                    "5+": {
+                      "count": 378,
+                      "signed_points": 0,
+                      "signed_points_per_game": 0.0
+                    }
+                  },
+                  "by_starting_score": {
+                    "leading": {
+                      "count": 574,
+                      "signed_points": 0,
+                      "signed_points_per_game": 0.0
+                    },
+                    "tied": {
+                      "count": 315,
+                      "signed_points": 0,
+                      "signed_points_per_game": 0.0
+                    },
+                    "trailing": {
+                      "count": 531,
+                      "signed_points": 0,
+                      "signed_points_per_game": 0.0
+                    }
+                  },
+                  "total": {
+                    "count": 1420,
+                    "signed_points": 0,
+                    "signed_points_per_game": 0.0
+                  }
+                },
+                "marjj_gin": {
+                  "by_ending_actor_turn": {
+                    "1-3": {
+                      "count": 87,
+                      "signed_points": -5543,
+                      "signed_points_per_game": -0.9238333333333333
+                    },
+                    "10+": {
+                      "count": 5673,
+                      "signed_points": -173703,
+                      "signed_points_per_game": -28.9505
+                    },
+                    "4-6": {
+                      "count": 942,
+                      "signed_points": -44169,
+                      "signed_points_per_game": -7.3615
+                    },
+                    "7-9": {
+                      "count": 2737,
+                      "signed_points": -102392,
+                      "signed_points_per_game": -17.065333333333335
+                    }
+                  },
+                  "by_game_round": {
+                    "1": {
+                      "count": 1716,
+                      "signed_points": -57951,
+                      "signed_points_per_game": -9.6585
+                    },
+                    "2": {
+                      "count": 1824,
+                      "signed_points": -61536,
+                      "signed_points_per_game": -10.256
+                    },
+                    "3-4": {
+                      "count": 3196,
+                      "signed_points": -110696,
+                      "signed_points_per_game": -18.449333333333332
+                    },
+                    "5+": {
+                      "count": 2703,
+                      "signed_points": -95624,
+                      "signed_points_per_game": -15.937333333333333
+                    }
+                  },
+                  "by_starting_score": {
+                    "leading": {
+                      "count": 3674,
+                      "signed_points": -129094,
+                      "signed_points_per_game": -21.515666666666668
+                    },
+                    "tied": {
+                      "count": 1883,
+                      "signed_points": -63524,
+                      "signed_points_per_game": -10.587333333333333
+                    },
+                    "trailing": {
+                      "count": 3882,
+                      "signed_points": -133189,
+                      "signed_points_per_game": -22.198166666666665
+                    }
+                  },
+                  "total": {
+                    "count": 9439,
+                    "signed_points": -325807,
+                    "signed_points_per_game": -54.30116666666667
+                  }
+                },
+                "marjj_knock": {
+                  "by_ending_actor_turn": {
+                    "1-3": {
+                      "count": 2974,
+                      "signed_points": -86387,
+                      "signed_points_per_game": -14.397833333333333
+                    },
+                    "10+": {
+                      "count": 0,
+                      "signed_points": 0,
+                      "signed_points_per_game": 0.0
+                    },
+                    "4-6": {
+                      "count": 0,
+                      "signed_points": 0,
+                      "signed_points_per_game": 0.0
+                    },
+                    "7-9": {
+                      "count": 0,
+                      "signed_points": 0,
+                      "signed_points_per_game": 0.0
+                    }
+                  },
+                  "by_game_round": {
+                    "1": {
+                      "count": 497,
+                      "signed_points": -14224,
+                      "signed_points_per_game": -2.3706666666666667
+                    },
+                    "2": {
+                      "count": 512,
+                      "signed_points": -14989,
+                      "signed_points_per_game": -2.4981666666666666
+                    },
+                    "3-4": {
+                      "count": 989,
+                      "signed_points": -29050,
+                      "signed_points_per_game": -4.841666666666667
+                    },
+                    "5+": {
+                      "count": 976,
+                      "signed_points": -28124,
+                      "signed_points_per_game": -4.687333333333333
+                    }
+                  },
+                  "by_starting_score": {
+                    "leading": {
+                      "count": 1359,
+                      "signed_points": -39312,
+                      "signed_points_per_game": -6.552
+                    },
+                    "tied": {
+                      "count": 539,
+                      "signed_points": -15530,
+                      "signed_points_per_game": -2.5883333333333334
+                    },
+                    "trailing": {
+                      "count": 1076,
+                      "signed_points": -31545,
+                      "signed_points_per_game": -5.2575
+                    }
+                  },
+                  "total": {
+                    "count": 2974,
+                    "signed_points": -86387,
+                    "signed_points_per_game": -14.397833333333333
+                  }
+                },
+                "marjj_undercut": {
+                  "by_ending_actor_turn": {
+                    "1-3": {
+                      "count": 23,
+                      "signed_points": -616,
+                      "signed_points_per_game": -0.10266666666666667
+                    },
+                    "10+": {
+                      "count": 432,
+                      "signed_points": -12516,
+                      "signed_points_per_game": -2.086
+                    },
+                    "4-6": {
+                      "count": 760,
+                      "signed_points": -21568,
+                      "signed_points_per_game": -3.5946666666666665
+                    },
+                    "7-9": {
+                      "count": 1296,
+                      "signed_points": -37394,
+                      "signed_points_per_game": -6.232333333333333
+                    }
+                  },
+                  "by_game_round": {
+                    "1": {
+                      "count": 314,
+                      "signed_points": -9029,
+                      "signed_points_per_game": -1.5048333333333332
+                    },
+                    "2": {
+                      "count": 321,
+                      "signed_points": -9285,
+                      "signed_points_per_game": -1.5475
+                    },
+                    "3-4": {
+                      "count": 746,
+                      "signed_points": -21517,
+                      "signed_points_per_game": -3.5861666666666667
+                    },
+                    "5+": {
+                      "count": 1130,
+                      "signed_points": -32263,
+                      "signed_points_per_game": -5.377166666666667
+                    }
+                  },
+                  "by_starting_score": {
+                    "leading": {
+                      "count": 1620,
+                      "signed_points": -46377,
+                      "signed_points_per_game": -7.7295
+                    },
+                    "tied": {
+                      "count": 362,
+                      "signed_points": -10425,
+                      "signed_points_per_game": -1.7375
+                    },
+                    "trailing": {
+                      "count": 529,
+                      "signed_points": -15292,
+                      "signed_points_per_game": -2.5486666666666666
+                    }
+                  },
+                  "total": {
+                    "count": 2511,
+                    "signed_points": -72094,
+                    "signed_points_per_game": -12.015666666666666
+                  }
+                }
+              },
+              "rounds": 34828
+            },
+            "exact_sweep_sign_p_value": {
+              "decimal": "3.750460172181446e-6",
+              "numeric": 3.7504601721814415e-6
+            },
+            "games": 6000,
+            "marjj_raw_points": 484288,
+            "raw_score_margin_moments": {
+              "cluster_ci95": {
+                "high": 4.220521188642914,
+                "low": 0.8611454780237529
+              },
+              "clusters": 3000,
+              "denominator": 6000,
+              "denominator_sq": 12000,
+              "estimate": 2.5408333333333335,
+              "numerator": 15245,
+              "numerator_denominator": 30490,
+              "numerator_sq": 26507809
+            },
+            "win_rate_moments": {
+              "cluster_ci95": {
+                "high": 0.5400076806092695,
+                "low": 0.5163256527240638
+              },
+              "clusters": 3000,
+              "denominator": 6000,
+              "denominator_sq": 12000,
+              "estimate": 0.5281666666666667,
+              "numerator": 3169,
+              "numerator_denominator": 6338,
+              "numerator_sq": 4661
+            }
+          }
+        },
+        "calibrated_minus_default": {
+          "exact_arm_sign_p_value": {
+            "decimal": "1.810088186927708e-1",
+            "numeric": 0.1810088186927708
+          },
+          "finish_channel_ranking": [
+            {
+              "calibrated_minus_default_signed_points": 31046,
+              "channel": "marjj_undercut",
+              "signed_points_per_game_delta": 5.174333333333333
+            },
+            {
+              "calibrated_minus_default_signed_points": -28408,
+              "channel": "marjj_gin",
+              "signed_points_per_game_delta": -4.734666666666667
+            },
+            {
+              "calibrated_minus_default_signed_points": -7474,
+              "channel": "candidate_knock",
+              "signed_points_per_game_delta": -1.2456666666666667
+            },
+            {
+              "calibrated_minus_default_signed_points": -6194,
+              "channel": "marjj_knock",
+              "signed_points_per_game_delta": -1.0323333333333333
+            },
+            {
+              "calibrated_minus_default_signed_points": -1000,
+              "channel": "candidate_gin",
+              "signed_points_per_game_delta": -0.16666666666666666
+            },
+            {
+              "calibrated_minus_default_signed_points": -351,
+              "channel": "candidate_undercut",
+              "signed_points_per_game_delta": -0.0585
+            },
+            {
+              "calibrated_minus_default_signed_points": 0,
+              "channel": "dead",
+              "signed_points_per_game_delta": 0.0
+            }
+          ],
+          "game_win_share_delta": {
+            "cluster_ci95": {
+              "high": 0.006507757535904893,
+              "low": -0.023841090869238225
+            },
+            "clusters": 3000,
+            "denominator": 6000,
+            "denominator_sq": 12000,
+            "estimate": -0.008666666666666666,
+            "numerator": -52,
+            "numerator_denominator": -104,
+            "numerator_sq": 2158
+          },
+          "raw_score_margin_per_game_delta": {
+            "cluster_ci95": {
+              "high": 0.04278006163101766,
+              "low": -4.169780061631018
+            },
+            "clusters": 3000,
+            "denominator": 6000,
+            "denominator_sq": 12000,
+            "estimate": -2.0635,
+            "numerator": -12381,
+            "numerator_denominator": -24762,
+            "numerator_sq": 41611313
+          },
+          "trial_win_signs": {
+            "calibrated": 758,
+            "default": 812
+          }
+        }
+      },
+      "seed": 8
+    }
+  ],
+  "schema": "gin-rummy-marjj-diagnostic/v1"
+}

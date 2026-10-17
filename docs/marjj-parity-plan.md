@@ -5,7 +5,8 @@ Written 2026-08-09 against the completed fixed strong-opponent panel
 The companion [design document](marjj-parity-design.md) carries the
 technical designs this plan schedules.  The M2.5 diagnostic evidence is
 retained separately as [aggregate JSON](marjj-m2.5-diagnostic.json),
-M2.6's as [aggregate JSON](marjj-m2.6-calibration-150.json), and
+M2.6's as aggregate JSON at [128](marjj-m2.6-calibration-150.json) and
+[512](marjj-m2.6-calibration-150-mc512.json) samples, and
 M5's as the two raw arena legs it compared,
 [table](marjj-m5-table-arm.json) and [affine](marjj-m5-affine-arm.json).
 M6 retains the [MARJJ arm](marjj-m6-mc256-arm.json) and its
@@ -148,7 +149,7 @@ seed 7, confirm on seed 8, per the `measure-strength` skill).
 | M1 | Sweep existing `McConfig` knobs | none | Best fixed config ≥ ~42%, else re-diagnose |
 | M2 | Calibrated opponent-hand sampling | `src/mc.rs` (+ baked curve) | Cumulative ≥ ~46% — *missed: −1.2 vs MARJJ, ships off* |
 | M2.5 | Decompose default vs calibrated play by finish channel | benchmark-only example + aggregate JSON | Stable leading channel across seeds — *met: MARJJ gin losses* |
-| M2.6 | Soften the calibrated target to keep selectivity without passivity | throwaway knob, discarded | ≥ +1 point and exact p < .05 on a fresh seed — *missed at `mc:128`: +0.5, p = .55* |
+| M2.6 | Soften the calibrated target to keep selectivity without passivity | throwaway knob, discarded | ≥ +1 point and exact p < .05 on a fresh seed — *missed: +0.5 at `mc:128`, −0.9 at `mc:512`* |
 | M3 | Adaptive opponent-archetype inference (opt-in knob) | `src/mc.rs`, driver hook | *blocked pending a profitable archetype arm and redesign* |
 | M4 | Flip the measured default; publish | defaults, panels, docs | Full `bench-strong.sh` + `bench-panel.sh` reruns — *executed for M1; M6's default decision is open* |
 | M5 | Test the score-aware value function against MARJJ | none (`mca:128` already exists) | ≥ +2 points from `GameValue::Affine` — *missed: −0.3, mechanism inert* |
@@ -284,7 +285,7 @@ profitable camper leaf to infer toward, so M3 remains blocked pending a
 separate redesign that preserves undercut selectivity without wholesale
 passivity.
 
-**M2.6 — a softened calibration target, refuted at 128 samples.**  M2.5 asked for a
+**M2.6 — a softened calibration target, refuted.**  M2.5 asked for a
 fixed policy that keeps calibration's undercut selectivity without its
 gin-race loss.  The cheapest candidate interpolates between the two
 measured arms: develop sampled hands toward the calibrated curve scaled
@@ -311,13 +312,28 @@ against M2.5's 60%), yet their undercut rate still fell from 29.0% to
 recovered 8.16 points/game, and extra MARJJ gins cost 7.65.  So the
 softer target kept most of the selectivity per knock, but the gin-race
 cost shrank in step with the undercut saving rather than vanishing: along
-this dial the two channels trade nearly one for one.  No fixed
-calibration strength found here is a profitable camper arm at `mc:128`,
-so M3 stays blocked.  The search ran at 128 samples to match M2.5, and
-the 512-sample default was not measured.  That limit matters: M6 found
-budget alone worth +4.3 points against MARJJ from 128 to 256, so the
-undercut-versus-gin-race trade may balance differently at 512.  Nothing
-in the library changed.
+this dial the two channels trade nearly one for one.
+
+The search ran at 128 samples to match M2.5, but M6 found budget alone
+worth +4.3 points against MARJJ from 128 to 256, so the trade could have
+balanced differently at the 512-sample default.  The same confirmation
+was therefore rerun with both arms at 512 samples, the 150% arm fixed
+rather than re-searched and the bar unchanged.  The default arm won
+52.8% of 6000 games, close to the fixed panel's 53.0% on seed 8; the
+softened arm won 52.0%, a **−0.87 point** delta (−2.38 to +0.65; exact
+arm-sign p = .18, 758 against 812 trial wins) and −2.06 points/game of
+raw margin (−4.17 to +0.04).  The mechanism repeated at the larger
+budget: non-gin knocks fell 21% (10 478 to 8237) and their undercut rate
+from 24.0% to 17.6%, recovering 5.17 points/game from MARJJ undercuts
+while MARJJ gins cost 4.73, own knock wins 1.25, and MARJJ knocks 1.03.
+
+No softened calibration strength found here is a profitable camper arm
+at either budget, so M3 stays blocked.  Nothing in the library changed.
+The 512-sample run's reproducibility block reads `git_dirty: false`
+because the instrument queried the clean main checkout; the knob itself
+was the same uncommitted throwaway described above, applied in a
+separate worktree at `cf2aa7d` with the instrument's budget pinned to
+512.
 
 **M3 — adaptive archetype inference (design §D4, §D5).**  The bot
 tracks, across the rounds of a game, when the opponent knocks and how
@@ -696,8 +712,8 @@ The next design must first produce a fixed arm that retains that undercut
 selectivity without losing the gin race; inference, per-card posterior
 sampling, and offline archetype policies stay out of scope until such an
 arm exists.  M2.6 found that softening calibration's strength does not
-produce one at 128 samples; whether it does at the 512-sample default is
-untested.  Learned
+produce one at either 128 or 512 samples, so that arm needs a different
+mechanism.  Learned
 evaluation remains the last resort.
 
 M5 adds a procedural non-goal.  Three mechanisms have now been named by
