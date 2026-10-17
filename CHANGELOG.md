@@ -13,6 +13,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   confirmed Monte Carlo configuration edge cases and prioritizes CI,
   benchmark, strategy lifecycle, and playing-strength follow-ups.
 
+### Fixed
+
+- `MonteCarloBot` no longer panics at a discard when
+  `McConfig::max_candidates` is 0, and no longer reports `NaN` equity when
+  asked for 0 samples.  `with_config` and `samples` raise either count to
+  1, and `config()` reports the value in force.  Valid configurations and
+  seeded decisions are unchanged.
+
 ## [0.3.1] - 2026-10-18
 
 ### Added

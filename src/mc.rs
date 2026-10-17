@@ -291,9 +291,15 @@ impl<R: Rng> MonteCarloBot<R> {
 
     /// A bot with custom tuning
     ///
-    /// [`McConfig::default`] reproduces [`MonteCarloBot::new`] exactly.
+    /// [`McConfig::default`] reproduces [`MonteCarloBot::new`] exactly.  A
+    /// zero [`samples`](McConfig::samples) or
+    /// [`max_candidates`](McConfig::max_candidates) is raised to 1: a
+    /// decision needs at least one world to average over and one shed to
+    /// play, and [`config`](Self::config) reports the value in force.
     #[must_use]
-    pub const fn with_config(rng: R, config: McConfig) -> Self {
+    pub const fn with_config(rng: R, mut config: McConfig) -> Self {
+        config.samples = at_least_one(config.samples as usize) as u32;
+        config.max_candidates = at_least_one(config.max_candidates);
         Self {
             rng,
             config,
@@ -317,10 +323,11 @@ impl<R: Rng> MonteCarloBot<R> {
     /// shed stays plausible, runs the full count for ~28 ms).  128 keeps
     /// 69.0% and 46.7% at a quarter of the cost, and 64 keeps 65.4% and
     /// 42.4% at an eighth.  The `parallel` feature divides any of these by
-    /// most of a machine's cores.
+    /// most of a machine's cores.  Zero is raised to 1, as in
+    /// [`with_config`](Self::with_config).
     #[must_use]
     pub const fn samples(mut self, samples: u32) -> Self {
-        self.config.samples = samples;
+        self.config.samples = at_least_one(samples as usize) as u32;
         self
     }
 
@@ -746,6 +753,11 @@ impl<R: Rng> MonteCarloBot<R> {
         out.sort_by(|a, b| b.equity.total_cmp(&a.equity));
         out
     }
+}
+
+/// `n`, or 1 if it is zero, for the counts a decision cannot run without
+const fn at_least_one(n: usize) -> usize {
+    if n == 0 { 1 } else { n }
 }
 
 /// The index of the recommended candidate: the greedy incumbent (`scored[0]`)
@@ -1725,6 +1737,39 @@ mod tests {
         assert!(!beats(&base, &better, 2.0));
         // Equality never beats.
         assert!(!beats(&base, &base, 2.0));
+    }
+
+    #[test]
+    fn zero_counts_are_raised_to_one() {
+        let config = McConfig {
+            samples: 0,
+            max_candidates: 0,
+            ..McConfig::default()
+        };
+        let mut bot = MonteCarloBot::with_config(StdRng::seed_from_u64(1), config);
+        assert_eq!(bot.config().samples, 1);
+        assert_eq!(bot.config().max_candidates, 1);
+        assert_eq!(
+            MonteCarloBot::new(StdRng::seed_from_u64(1))
+                .samples(0)
+                .config()
+                .samples,
+            1
+        );
+
+        // Both used to fail at an ordinary discard: an empty shed list
+        // panicked, and zero worlds averaged to NaN.
+        let table = knock_position();
+        let view = table.view(table.turn().expect("the drawer is mid-turn"));
+        let _ = bot.play_turn(&view);
+        let assessments = bot.assess(&view);
+        assert!(!assessments.is_empty(), "an opening has a choice");
+        assert!(
+            assessments
+                .iter()
+                .all(|a| a.equity.is_finite() && a.ev.is_finite()),
+            "every assessment averages over at least one world"
+        );
     }
 
     #[test]
