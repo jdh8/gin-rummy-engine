@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-10-18
+
 ### Added
 
 - Retained Monte Carlo CPU profiles put allocator time below 1% in the
@@ -606,7 +608,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Examples: `play` (human vs bot in the terminal) and `arena` (bot-vs-bot
   tournaments with win rates and result tallies).
 
-[Unreleased]: https://github.com/jdh8/gin-rummy-engine/compare/0.3.0...HEAD
+[Unreleased]: https://github.com/jdh8/gin-rummy-engine/compare/0.3.1...HEAD
+[0.3.1]: https://github.com/jdh8/gin-rummy-engine/compare/0.3.0...0.3.1
 [0.3.0]: https://github.com/jdh8/gin-rummy-engine/compare/0.2.0...0.3.0
 [0.2.0]: https://github.com/jdh8/gin-rummy-engine/compare/0.1.3...0.2.0
 [0.1.3]: https://github.com/jdh8/gin-rummy-engine/compare/0.1.2...0.1.3
