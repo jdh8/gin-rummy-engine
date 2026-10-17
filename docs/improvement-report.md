@@ -3,11 +3,10 @@
 Reviewed on 2026-10-18 at commit
 `729cdabaa3e72b2b52ea3a1c08907500d5095966` (version 0.3.1).
 
-The clearest next improvements are configuration validation and a missing
-CI feature check.  Broader benchmarks and explicit round boundaries would
-support later performance and strategy work.  Stronger play remains an
-experimental goal.  The priorities below describe proposed work, not
-implemented fixes.
+The review proposed five priorities: configuration validation, a missing
+CI feature check, broader benchmarks, explicit round boundaries, and a
+focused strength experiment.  All five have since been addressed; each
+section ends with its status.
 
 ## 1 Validate Monte Carlo configuration
 
@@ -32,6 +31,9 @@ seeded decisions unchanged.
 
 Source: [`src/mc.rs`](../src/mc.rs).
 
+*Status: done in `36e787c`.*  Zero sample and candidate counts are raised
+to one, so neither configuration panics nor yields `NaN`.
+
 ## 2 Check the lightweight build in CI
 
 The documented verification gauntlet includes
@@ -42,6 +44,8 @@ Neither test configuration disables `rand`.
 
 Add the missing check to protect the supported heuristic-only build
 against accidental dependencies on optional features.
+
+*Status: done in `5e4a42a`.*
 
 ## 3 Broaden decision benchmarks
 
@@ -58,6 +62,9 @@ implemented improvements and rejected experiments, including early
 acceptance and deadwood-only calibration swaps.  The allocation profile
 does not currently justify fixed-size rollout buffers.
 
+*Status: done in `c9c14e5` and `b49edec`.*  The later positions are
+reached by replaying recorded moves.
+
 ## 4 Give stateful strategies an explicit round boundary
 
 [`Strategy`](../src/strategy.rs) has no round-start callback.  Stateful
@@ -71,6 +78,8 @@ use, including retries, so each seat gets one notification before its
 first decision in a round.  Preserve information hygiene and test both
 dealer protocols.  Keep the frozen benchmark surrogate unchanged, as the
 proposal specifies.
+
+*Status: done in `13ac2e6`.*
 
 ## 5 Test a focused strength hypothesis
 
