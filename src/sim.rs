@@ -356,7 +356,10 @@ mod tests {
             deck in Just(full_deck()).prop_shuffle(),
             preset in 0..3_usize,
             thresholds in prop::array::uniform2(0..=10_u8),
-            meld_only in prop::array::uniform2(any::<bool>()),
+            // Two meld-only takers can pass discards back and forth forever;
+            // an `improves` taker's deadwood strictly falls on every take, so
+            // one suffices to end the round.
+            meld_only in prop::sample::select(vec![[false; 2], [true, false], [false, true]]),
             start in any::<usize>(),
         )| {
             let hands = [
