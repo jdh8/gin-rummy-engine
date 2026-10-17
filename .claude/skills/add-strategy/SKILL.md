@@ -21,6 +21,10 @@ A strategy is four decisions against a `View` (`src/strategy.rs`):
   stalls the round forever against another taker.  Remember the round's
   draw positions and draw from the stock when one recurs, as
   `MonteCarloBot` does (CLAUDE.md invariant 8).
+- `begin_round` (optional): the driver's once-per-round notice before
+  the seat's first decision.  Reset per-round memory here rather than in
+  `offer_upcard`, which the dealer misses when the opponent takes the
+  upcard.
 - `choose_layoff`: called repeatedly with a refreshed view until it
   returns `None`; meld indices follow `View::spread` enumeration order
   and are stable across layoffs.

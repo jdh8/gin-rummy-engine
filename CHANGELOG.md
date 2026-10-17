@@ -12,6 +12,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A [crate improvement report](docs/improvement-report.md) records
   confirmed Monte Carlo configuration edge cases and prioritizes CI,
   benchmark, strategy lifecycle, and playing-strength follow-ups.
+- `Strategy::begin_round` tells a stateful strategy that a new round has
+  started, before its first decision, so it no longer has to guess the
+  boundary from an upcard offer the dealer may never receive.  `Table::play`,
+  `play_round`, and `play_game` announce both seats each round; direct
+  `Table::step` callers get it on a seat's first step, once even across
+  retries.  The method has an empty default, so existing strategies are
+  unaffected.
 
 ### Fixed
 

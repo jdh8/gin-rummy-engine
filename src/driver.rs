@@ -37,6 +37,8 @@ pub struct Table {
     knowledge: [Knowledge; 2],
     scores: [u16; 2],
     dealer_rotation: DealerRotation,
+    /// Seats already sent [`Strategy::begin_round`] this round
+    announced: [bool; 2],
 }
 
 impl Table {
@@ -57,6 +59,7 @@ impl Table {
             knowledge: [Knowledge::default(); 2],
             scores: [0; 2],
             dealer_rotation: DealerRotation::WinnerDeals,
+            announced: [false; 2],
         }
     }
 
@@ -121,8 +124,19 @@ impl Table {
         )
     }
 
+    /// Call [`Strategy::begin_round`] unless `seat` has already had it
+    fn announce(&mut self, seat: Player, strategy: &mut dyn Strategy) {
+        if !self.announced[seat as usize] {
+            self.announced[seat as usize] = true;
+            strategy.begin_round(&self.view(seat));
+        }
+    }
+
     /// Ask `strategy` — which must belong to the seat to act — for one
     /// decision and apply it
+    ///
+    /// The seat's first step in a round calls [`Strategy::begin_round`]
+    /// first, unless [`Table::play`] already did.
     ///
     /// Returns the result once the round finishes, `None` while it
     /// continues.  On the forced stock draw after both players pass the
@@ -140,6 +154,7 @@ impl Table {
         let Some(seat) = self.round.turn() else {
             return Ok(self.round.result());
         };
+        self.announce(seat, strategy);
         let reject = |source| EngineError::IllegalAction { seat, source };
 
         match self.round.phase() {
@@ -230,10 +245,16 @@ impl Table {
 
     /// Drive the round to completion, one strategy per seat
     ///
+    /// Both seats receive [`Strategy::begin_round`] before the first
+    /// decision, even a seat that never gets to act this round.
+    ///
     /// # Errors
     ///
     /// [`EngineError::IllegalAction`] when a strategy's choice is rejected.
     pub fn play(&mut self, strategies: [&mut dyn Strategy; 2]) -> Result<RoundResult, EngineError> {
+        for seat in Player::ALL {
+            self.announce(seat, &mut *strategies[seat as usize]);
+        }
         loop {
             let Some(seat) = self.round.turn() else {
                 return Ok(self.round.result().expect("a turnless round is finished"));

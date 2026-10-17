@@ -26,6 +26,22 @@ use crate::{DrawAction, Layoff, TurnAction, UpcardAction, View};
 /// [`Table`]: crate::Table
 /// [`EngineError::IllegalAction`]: crate::EngineError::IllegalAction
 pub trait Strategy {
+    /// Prepare for a new round, before this seat's first decision in it
+    ///
+    /// Stateful strategies reset per-round memory here instead of inferring
+    /// the boundary from an upcard offer the dealer may never receive.  The
+    /// [`Table`] driver calls this exactly once per seat per round: for both
+    /// seats when [`Table::play`] starts, or lazily on a seat's first
+    /// [`Table::step`].  A rejected decision that is retried is not
+    /// announced again.  The view is the seat's own, as for every other
+    /// method.  Strategies called directly, without the driver, receive no
+    /// such notification.
+    ///
+    /// [`Table`]: crate::Table
+    /// [`Table::play`]: crate::Table::play
+    /// [`Table::step`]: crate::Table::step
+    fn begin_round(&mut self, _view: &View<'_>) {}
+
     /// Take or pass the initial upcard
     fn offer_upcard(&mut self, view: &View<'_>) -> UpcardAction;
 
