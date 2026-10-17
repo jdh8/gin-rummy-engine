@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A [crate improvement report](docs/improvement-report.md) records
   confirmed Monte Carlo configuration edge cases and prioritizes CI,
   benchmark, strategy lifecycle, and playing-strength follow-ups.
+- The retained M2.6 diagnostic tests a softened calibration target
+  against `marjj-v5-surrogate` and finds no gain at `mc:128`: +0.48
+  points of game win share (−1.04 to +2.01, p = .55) on a fresh seed.
+  The 512-sample default was not measured.  This is analysis-only
+  evidence; no bot behavior or default changed.
 - `Strategy::begin_round` tells a stateful strategy that a new round has
   started, before its first decision, so it no longer has to guess the
   boundary from an upcard offer the dealer may never receive.  `Table::play`,

@@ -87,3 +87,10 @@ whole-game comparisons, explicit seeds, and mirrored-pair inference.
 The MARJJ evidence concerns a host-engine surrogate, not an established
 championship binary; the
 [strong-opponent qualifications](strong-opponents.md) continue to apply.
+
+*Status: refuted at 128 samples.*  The softened-target arm, M2.6 in the
+[parity plan](marjj-parity-plan.md), measured +0.48 points (−1.04 to
++2.01, p = .55) against MARJJ on a confirmation seed at `mc:128`, the
+M2.5 budget.  Its knob was discarded.  The 512-sample default was not
+measured, and budget has moved MARJJ results before (+4.3 points from
+128 to 256), so the null does not rule the idea out for the default.

@@ -181,6 +181,12 @@ posterior mixture below as written until a separate measured design keeps
 calibration's undercut selectivity without its gin-race loss.  Classification
 cannot add strength when the branch it would select is weaker.
 
+The plan's M2.6 tested the cheapest such design, a softened target, and
+found no gain at `mc:128`: at 150% of the curve the undercut rate kept
+most of its drop while knocks fell far less, yet the paired MARJJ delta
+was +0.48 points (−1.04 to +2.01, p = .55).  The undercut saving and the
+gin-race cost shrank together.  The 512-sample default is unmeasured.
+
 ## D4. Adaptive opponent-archetype inference (phase M3)
 
 ### Signals — all information-hygienic, all already visible
