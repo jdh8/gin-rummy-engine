@@ -5,10 +5,10 @@
 //! ```
 
 use criterion::{BatchSize, Criterion, criterion_group, criterion_main};
-use gin_rummy::{Hand, Phase, Player, Round, Rules, deadwood};
+use gin_rummy::{Hand, Phase, Player, Round, Rules};
 use gin_rummy_engine::{
-    DrawAction, HeuristicBot, HeuristicConfig, Layoff, MonteCarloBot, Strategy, Table, TurnAction,
-    UpcardAction, View, play_round,
+    DrawAction, HeuristicBot, Layoff, MonteCarloBot, Strategy, Table, TurnAction, UpcardAction,
+    View, play_round,
 };
 use rand::SeedableRng as _;
 use rand::rngs::StdRng;
@@ -58,32 +58,65 @@ fn discard_position() -> Table {
     table
 }
 
-/// Whether the 11-card hand in `view` can knock without going gin, the
-/// only discard where the Monte Carlo bot also weighs a knock
-fn can_knock(view: &View<'_>) -> bool {
-    let hand = view.hand();
-    hand.iter()
-        .map(|card| deadwood(hand - card.into()))
-        .any(|dw| (1..=view.knock_limit()).contains(&dw))
+/// Greedy self-play from the stride-3 deal, both seats knocking only on
+/// gin: `T` takes the upcard or discard, `S` draws from the stock, and a
+/// card is the shed
+///
+/// Replaying the recording, rather than the bot, keeps the benchmarked
+/// positions fixed when the greedy core changes.  Re-record only after a
+/// deliberate mechanics change makes a move illegal.
+const SCRIPT: &str = "T K♠ S K♣ S T♣ S J♠ S 9♣ T T♠ S Q♥ S J♥ S 9♦ T Q♦ S 8♠ \
+    S K♦ S T♦ S 7♦ T 8♥ S 7♣ T 6♣ S 6♦ S J♣ S 8♣ S 6♥ S 5♥ S Q♠ S 5♠ S";
+
+/// Plays back recorded decisions in order
+struct Script(std::vec::IntoIter<&'static str>);
+
+impl Script {
+    fn next(&mut self) -> &'static str {
+        self.0.next().expect("the script reaches the position")
+    }
 }
 
-/// Greedy self-play from the stride-3 deal, paused on the first decision
-/// where `stop` holds for the seat to act
-///
-/// Both seats knock only on gin, so the round runs past every knockable
-/// hand; on this deal it runs to a dead hand, through all three cases.
-fn position(stop: impl Fn(&View<'_>) -> bool) -> (Table, Player) {
-    let mut config = HeuristicConfig::default();
-    config.knock_threshold = 0;
-    let mut bot = HeuristicBot::with_config(config);
-    let mut table = Table::new(fixed_deal(3));
-    while let Some(seat) = table.turn() {
-        if stop(&table.view(seat)) {
-            return (table, seat);
+impl Strategy for Script {
+    fn offer_upcard(&mut self, _: &View<'_>) -> UpcardAction {
+        match self.next() {
+            "T" => UpcardAction::Take,
+            _ => UpcardAction::Pass,
         }
-        table.step(&mut bot).expect("greedy play is legal");
     }
-    panic!("the stride-3 deal reaches the benchmarked position");
+    fn choose_draw(&mut self, _: &View<'_>) -> DrawAction {
+        match self.next() {
+            "T" => DrawAction::TakeDiscard,
+            _ => DrawAction::Stock,
+        }
+    }
+    fn play_turn(&mut self, _: &View<'_>) -> TurnAction {
+        TurnAction::Discard(self.next().parse().expect("a recorded card"))
+    }
+    fn choose_layoff(&mut self, _: &View<'_>) -> Option<Layoff> {
+        unreachable!("the script ends before any knock")
+    }
+}
+
+/// The stride-3 deal after the first `moves` recorded decisions, checked
+/// against the stock size and hand the recording paused on
+fn position(moves: usize, stock: usize, hand: &str) -> (Table, Player) {
+    let moves: Vec<_> = SCRIPT.split_whitespace().take(moves).collect();
+    let mut script = Script(moves.into_iter());
+    let mut table = Table::new(fixed_deal(3));
+    while !script.0.as_slice().is_empty() {
+        table
+            .step(&mut script)
+            .expect("the recorded decisions are legal");
+    }
+    let seat = table.turn().expect("the round outlasts the script");
+    let view = table.view(seat);
+    assert_eq!(
+        (view.stock_len(), view.hand()),
+        (stock, hand.parse().expect("a recorded hand")),
+        "the replay reaches the recorded position",
+    );
+    (table, seat)
 }
 
 fn decisions(c: &mut Criterion) {
@@ -113,21 +146,11 @@ fn decisions(c: &mut Criterion) {
 
     // Later positions cost differently: a draw scores the take against the
     // stock, a late discard rolls out fewer turns, and a knockable hand
-    // adds knock candidates.  On the stride-3 deal these land at stock 20,
-    // 11, and 12.
+    // adds knock candidates.
     let cases = [
-        (
-            "draw",
-            position(|v| v.phase() == Phase::Draw && v.can_take_discard() && v.stock_len() <= 20),
-        ),
-        (
-            "late discard",
-            position(|v| v.phase() == Phase::Discard && v.stock_len() <= 12 && !can_knock(v)),
-        ),
-        (
-            "knock",
-            position(|v| v.phase() == Phase::Discard && can_knock(v)),
-        ),
+        ("draw", position(28, 20, "46.3.2368.A27")),
+        ("late discard", position(49, 11, "457.37.23.A267")),
+        ("knock", position(47, 12, "A239.A49.9.459")),
     ];
     for (name, (table, seat)) in &cases {
         for samples in [128, 512] {

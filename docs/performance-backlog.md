@@ -10,9 +10,10 @@ or the cost of one.
 
 The `monte carlo turn` benches all decide one opening discard.  Judge an
 optimization on the later positions too — `monte carlo draw`, `late
-discard`, and `knock`, at 128 and 512 samples, fixed points of a greedy
-self-play round — and on whole-game throughput, since early elimination
-makes their costs scale differently:
+discard`, and `knock`, at 128 and 512 samples — and on whole-game
+throughput, since early elimination makes their costs scale differently.
+Those positions replay a recorded greedy self-play round, so they stay put
+even when an optimization changes greedy play:
 
 ```console
 cargo bench --bench decision -- 'monte carlo .*, (128|512) samples'
