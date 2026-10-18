@@ -274,7 +274,10 @@ per seat, before any decision callback.
   equivalent into this crate or (better) upstreams enumeration into
   gin-rummy under the sibling-crate protocol.  Real-bot-only; rollout
   knocks keep `best_melds` (own-future fidelity is not the binding
-  constraint).  Expected small; measure before keeping.
+  constraint).  Expected small; measure before keeping.  *Refuted
+  before building (plan M2.7):* only 4.7% of the default's non-gin
+  knocks have more than one minimum partition, and the hindsight-best
+  one would have turned 4 of 801 undercuts into wins.
 - **Sample-budget curve.**  Chart 128 → 256 → 512 against MARJJ once
   the model is right — batching absorbs much of the cost on easy
   decisions, and the `parallel` feature covers analysis use.  The

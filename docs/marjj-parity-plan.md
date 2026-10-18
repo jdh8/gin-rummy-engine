@@ -150,6 +150,7 @@ seed 7, confirm on seed 8, per the `measure-strength` skill).
 | M2 | Calibrated opponent-hand sampling | `src/mc.rs` (+ baked curve) | Cumulative ≥ ~46% — *missed: −1.2 vs MARJJ, ships off* |
 | M2.5 | Decompose default vs calibrated play by finish channel | benchmark-only example + aggregate JSON | Stable leading channel across seeds — *met: MARJJ gin losses* |
 | M2.6 | Soften the calibrated target to keep selectivity without passivity | throwaway knob, discarded | ≥ +1 point and exact p < .05 on a fresh seed — *missed: +0.5 at `mc:128`, −0.9 at `mc:512`* |
+| M2.7 | Choose the knock spread that minimizes the defender's layoffs | throwaway headroom instrument, discarded | Hindsight-best spread flips ≥ 5% of undercuts — *missed: 0.5%* |
 | M3 | Adaptive opponent-archetype inference (opt-in knob) | `src/mc.rs`, driver hook | *blocked pending a profitable archetype arm and redesign* |
 | M4 | Flip the measured default; publish | defaults, panels, docs | Full `bench-strong.sh` + `bench-panel.sh` reruns — *executed for M1; M6's default decision is open* |
 | M5 | Test the score-aware value function against MARJJ | none (`mca:128` already exists) | ≥ +2 points from `GameValue::Affine` — *missed: −0.3, mechanism inert* |
@@ -334,6 +335,46 @@ because the instrument queried the clean main checkout; the knob itself
 was the same uncommitted throwaway described above, applied in a
 separate worktree at `cf2aa7d` with the instrument's budget pinned to
 512.
+
+**M2.7 — a layoff-aware knock spread, refuted at the headroom check.**
+Every calibration arm saved undercuts by knocking less, and the longer
+gin races that followed cost about as much again.  Design §D6's spread
+choice attacks the undercut channel without touching knock frequency:
+the bot knocks with `best_melds`' single arrangement, while MARJJ picks,
+among its minimum-deadwood partitions, the one that leaves the defender
+the fewest layoffs.  If the per-knock undercut rate could fall while
+knocks held steady, the gin-race trade would not apply.
+
+Before building the arm, a throwaway instrument bounded its ceiling.  It
+played the default `mc:512` against MARJJ for 1000 mirrored game pairs on
+seed 7 under the corrected EAAI protocol.  At every non-gin knock it
+cloned the table before the knock, then replayed the same discard with
+each minimum-deadwood partition against the defender's real hand, with
+greedy layoffs.  Taking the best partition in hindsight is an oracle, so
+its gain is an upper bound.  The predeclared kill gate required the
+oracle to turn at least 5% of undercuts into wins.
+
+| Measure | Count |
+|---------|------:|
+| Non-gin candidate knocks | 3393 |
+| Knocks with more than one minimum partition | 161 (4.7%) |
+| Undercuts, real and greedy-replayed | 801 / 801 |
+| Undercuts the oracle turns into wins | 4 (0.5%) |
+| Knocks the oracle improves at all | 26 (0.8%) |
+| Oracle score-margin gain | +0.10 points/game |
+
+The gate failed by a factor of ten.  About 95% of the bot's knocks admit
+only one minimum-deadwood arrangement.  Where a choice exists, layoffs
+rarely decide the undercut.  The greedy replay of the bot's own
+arrangement reproduced all 801 real undercuts, so replaying with greedy
+layoffs rather than MARJJ's layoff policy does not explain the null.
+Arrangements above the minimum deadwood were not tried; each would add
+deadwood to save layoffs, which the minimum-partition result gives no
+reason to expect to pay.
+
+No seed-8 confirmation was run, since there was no gain to confirm.
+The instrument was deleted unretained and nothing in the library changed.
+Measured at `209d661`.
 
 **M3 — adaptive archetype inference (design §D4, §D5).**  The bot
 tracks, across the rounds of a game, when the opponent knocks and how
@@ -713,7 +754,10 @@ selectivity without losing the gin race; inference, per-card posterior
 sampling, and offline archetype policies stay out of scope until such an
 arm exists.  M2.6 found that softening calibration's strength does not
 produce one at either 128 or 512 samples, so that arm needs a different
-mechanism.  Learned
+mechanism.  M2.7 bounded the cheapest such mechanism, a layoff-aware
+knock spread, at 0.5% of undercuts even with hindsight.  The remaining
+untested lever is rollout quality, which moves the shared greedy core
+and the baked value models (invariants 4–5).  Learned
 evaluation remains the last resort.
 
 M5 adds a procedural non-goal.  Three mechanisms have now been named by
