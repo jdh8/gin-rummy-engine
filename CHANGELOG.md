@@ -32,6 +32,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   asked for 0 samples.  `with_config` and `samples` raise either count to
   1, and `config()` reports the value in force.  Valid configurations and
   seeded decisions are unchanged.
+- The web front end's card faces are re-balanced for the Libertinus suit
+  font: suits are back to their former size, ranks no longer crowd the
+  top edge, and the suit font no longer shifts the baseline of other
+  text on the page.
 
 ## [0.3.1] - 2026-10-18
 
